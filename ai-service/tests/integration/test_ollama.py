@@ -1,34 +1,8 @@
-from unittest.mock import MagicMock
+from config import get_settings
+async def test_ollama_streaming_success(ai_service):
+    print(get_settings())
+    prompt = "Сколько будет 2 + 2? Ответь только одной цифрой, без лишних слов."
 
-import pytest
+    result_chunks = [token async for token in ai_service.get_ai_stream(prompt)]
 
-from core.ai_service import AIService
-
-
-@pytest.mark.asyncio
-async def test_ollama_streaming_logic(mocker):
-    chunk1 = MagicMock()
-    chunk1.choices = [MagicMock(delta=MagicMock(content="Тест"))]
-
-    chunk2 = MagicMock()
-    chunk2.choices = [MagicMock(delta=MagicMock(content=" соединения"))]
-
-    chunk3 = MagicMock()
-    chunk3.choices = [MagicMock(delta=MagicMock(content=" выполнен"))]
-
-    mock_stream = [chunk1, chunk2, chunk3]
-
-    async def mock_acreate(*args, **kwargs):
-        for chunk in mock_stream:
-            yield chunk
-
-    mocker.patch(
-        "openai.resources.chat.completions.Completions.create",
-        side_effect=mock_acreate,
-    )
-    service = AIService()
-    result = []
-
-    async for token in service.get_ai_stream("Check"):
-        result.append(token)
-    assert result == ["Тест", " соединения", " выполнен"]
+    assert len(result_chunks) > 0
