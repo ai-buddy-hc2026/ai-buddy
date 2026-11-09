@@ -4,6 +4,10 @@ on:
     branches:
       - main
       - master
+  pull_request:
+    branches:
+      - main
+      - master
 jobs:
   lint-test:
     runs-on: ubuntu-latest
@@ -19,10 +23,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r ai-service/requirements/test.txt
-          cd ai-service
 
       - name: Unit test
         run: pytest tests/unit
+        working-directory: ai-service
 
       - name: Integration test
         run: pytest tests/integration
+        working-directory: ai-service
