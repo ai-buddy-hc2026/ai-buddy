@@ -1,2 +1,37 @@
-# ai-buddy
-AI-buddy: onboarding assistant for Avito interns (Hak&amp;Change 2026)
+# AI-buddy
+
+Помощник стажёра Авито в онбординге. Проект для Hack&Change 2026.
+
+## Структура
+
+| Папка | Что внутри |
+|-------|------------|
+| `backend/` | API на Go, роли и права, MCP-сервисы |
+| `ai-service/` | AI-сервис на Python: агент, стриминг, LLM |
+| `frontend/` | Интерфейс стажёра и наставника (React + TS) |
+| `specs/` | SDD-спецификации: агент, инструменты, сценарии |
+| `seed/` | Тестовые данные и база знаний |
+| `docs/` | Документы: OpenAPI, схема БД, метрики, качество |
+| `tests/eval/` | Тестовые вопросы и атаки на права |
+
+## Как работаем
+
+1. `main` защищён. Прямой push в `main` запрещён, только через PR.
+2. Каждая задача - issue на доске. Берёшь задачу - ставишь себя в Assignees и двигаешь карточку в `In progress`.
+3. Ветка на задачу: `feat/...`, `fix/...`, `docs/...`, `test/...`, `chore/...`.
+4. Коммиты в формате `тип: описание`, например `feat: GET /health`.
+5. В описании PR пишем `Closes #номер`. Ревью делает любой другой участник.
+6. Координация только текстом: общий чат команды и GitHub.
+
+```bash
+git clone https://github.com/ai-buddy-hc2026/ai-buddy.git
+cd ai-buddy
+git checkout -b feat/my-task
+# работа
+git push -u origin feat/my-task
+# открыть PR на GitHub
+```
+
+## Запуск
+
+Появится после каркаса и `docker-compose.yml`.

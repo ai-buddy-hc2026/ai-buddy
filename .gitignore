@@ -1,0 +1,32 @@
+# env
+.env
+.env.*
+!.env.example
+
+# node
+node_modules/
+dist/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# go
+*.exe
+*.test
+/backend/bin/
+
+# coverage
+coverage/
+*.out
+.coverage
+htmlcov/
+
+# ide / os
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
