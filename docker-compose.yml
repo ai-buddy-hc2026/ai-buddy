@@ -41,6 +41,7 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: "8080"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-ai_buddy}:${POSTGRES_PASSWORD:-ai_buddy_dev}@postgres:5432/${POSTGRES_DB:-ai_buddy}?sslmode=disable}
       REDIS_URL: redis://redis:6379/0
     ports:

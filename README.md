@@ -47,8 +47,8 @@ docker compose config --quiet
 
 В Bash вместо `Copy-Item` использовать `cp .env.example .env`.
 
-Сейчас в репозитории только структура проекта. PostgreSQL 16 с pgvector и Redis 7
-можно запустить отдельно, не дожидаясь каркасов приложений:
+В репозитории есть [каркас Go API](backend/README.md). PostgreSQL 16 с pgvector и Redis 7
+можно запустить отдельно:
 
 ```bash
 docker compose up -d --wait postgres redis
@@ -60,8 +60,14 @@ docker compose exec redis redis-cli ping
 Если менялись `POSTGRES_USER` или `POSTGRES_DB`, подставить их в команду `psql`.
 Ожидаются версия расширения `vector` и ответ `PONG`.
 
-Compose также описывает `backend` и `frontend`. Полный запуск станет доступен после
-добавления кода и `backend/Dockerfile`, `frontend/Dockerfile` владельцами сервисов:
+Каркас backend можно запустить вместе с PostgreSQL и Redis:
+
+```bash
+docker compose up --build -d backend
+curl -i http://localhost:8080/health
+```
+
+Полный запуск станет доступен после добавления кода frontend и `frontend/Dockerfile`:
 
 ```bash
 docker compose up --build -d
@@ -69,7 +75,7 @@ docker compose ps
 docker compose logs -f backend frontend
 ```
 
-Контракт для будущих Dockerfile и конфигурации приложений:
+Контракт Dockerfile и конфигурации приложений:
 
 | Сервис | Настройки |
 |--------|-----------|
