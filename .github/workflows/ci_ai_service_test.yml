@@ -25,7 +25,7 @@ jobs:
           pip install -r ai-service/requirements/test.txt
       - name: Create env.test
         run: |
-          cat << 'EOF' > .env.test
+          cat << 'EOF' > .env
           ${{ secrets.ENV_TEST_SECRET }}
           EOF
 
