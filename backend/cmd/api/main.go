@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/config"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/httpapi"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/server"
 )
 
@@ -31,5 +32,5 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	return server.Serve(ctx, listener, logger)
+	return server.Serve(ctx, listener, httpapi.NewHandler(logger), logger)
 }
