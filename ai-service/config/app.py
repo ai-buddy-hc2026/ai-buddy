@@ -11,19 +11,16 @@ class Settings(BaseSettings):
     )
 
     REDIS_HOST: str = "redis"
-    REDIS_PASSWORD: str
-    REDIS_USER: str
-    REDIS_USER_PASSWORD: str
     REDIS_PORT: int = 6379
+
+    LLM_PROVIDER: str
+    LLM_BASE_URL: str
+    LLM_MODEL: str
+    LLM_API_KEY: str
 
     @property
     def redis_url(self) -> str:
-        return (
-            f"redis://{self.REDIS_USER}"
-            f":{self.REDIS_USER_PASSWORD}"
-            f"@{self.REDIS_HOST}"
-            f":{self.REDIS_PORT}/0"
-        )
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
 
 
 @lru_cache

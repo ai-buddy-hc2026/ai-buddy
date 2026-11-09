@@ -18,9 +18,6 @@ def test_environment():
         get_settings(
             REDIS_HOST=redis_host,
             REDIS_PORT=int(redis_port),
-            REDIS_USER="test_user",
-            REDIS_PASSWORD="test_pass",
-            REDIS_USER_PASSWORD="test_user_pass",
         )
 
         yield {"postgres": postgres, "redis": redis}
