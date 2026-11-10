@@ -73,6 +73,30 @@ docker compose logs --tail 50 backend
 
 ## Настройки и данные
 
+```bash
+docker compose up --build -d
+docker compose ps
+docker compose logs -f backend frontend
+```
+
+Контракт для будущих Dockerfile и конфигурации приложений:
+
+| Сервис | Настройки |
+|--------|-----------|
+| `backend` | Слушает `0.0.0.0:8080` (`HOST`, `PORT`), читает `DATABASE_URL` и `REDIS_URL`. Запускается после успешных healthcheck PostgreSQL и Redis. |
+| `frontend` | Слушает `0.0.0.0:5173`. Dockerfile принимает `ARG VITE_API_BASE_URL` и передаёт его Vite до сборки. Клиент использует `import.meta.env.VITE_API_BASE_URL`. |
+| `postgres` | Внутри сети доступен как `postgres:5432`. Расширение `vector` создаётся при первой инициализации БД. |
+| `redis` | Внутри сети доступен как `redis:6379`, включено сохранение AOF. |
+
+По умолчанию интерфейс будет доступен по `http://localhost:5173`, API -
+`http://localhost:8080` (проверка каркаса: `GET /health`). Для запросов из браузера
+backend должен разрешать CORS с адреса frontend. Адреса `backend`, `postgres` и `redis`
+используются только внутри Docker-сети. При изменении `BACKEND_PORT` обновить
+`VITE_API_BASE_URL` и пересобрать frontend. Особые символы в логине/пароле БД требуют
+URL-кодирования в переопределённом `DATABASE_URL`.
+
+`ai-service` и зависимости от него в Compose не добавлены: их добавит Макс.
+
 - Настройки локального запуска: [.env.example](.env.example). POSTGRES_PASSWORD - тестовый пароль PostgreSQL, а не пароль входа пользователя. В MVP предусмотрен mock-login без пароля. Опубликованные порты привязаны к 127.0.0.1.
 - Адреса postgres:5432 и redis:6379 используются внутри Docker-сети. API на хосте по умолчанию доступен по http://localhost:8080.
 - При изменении BACKEND_PORT обновляется VITE_API_BASE_URL для будущего frontend: Vite использует его при сборке. Frontend явно обращается к API; backend должен разрешить соответствующий CORS origin при интеграции.
