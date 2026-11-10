@@ -2,10 +2,12 @@ name: go test
 on:
   push:
     branches:
+      - ai-service
       - main
       - master
   pull_request:
     branches:
+      - ai-service
       - main
       - master
 jobs:
@@ -25,10 +27,10 @@ jobs:
         run: go mod download
       - name: Test
         run: go test -v -race -coverprofile=coverage.txt ./...
-      
+
       - name: Upload Go Coverage Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Go-coverage
-          path: backend/coverage.xml
+          path: backend/coverage.txt
           if-no-files-found: error
