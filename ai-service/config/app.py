@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     LLM_API_KEY: str
     POSTGRES_URL: str = ""
 
+    AI_SERVICE_TOKEN: str
+
     @property
     def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
