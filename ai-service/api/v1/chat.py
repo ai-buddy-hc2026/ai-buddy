@@ -42,7 +42,8 @@ async def pubsub_publish(
     seq = 0
     full_text = ""
     stream = ai_service.get_ai_stream(
-        chat_data.message, [i.model_dump() for i in chat_data.history],
+        chat_data.message,
+        [i.model_dump() for i in chat_data.history],
     )
     while True:
         try:
@@ -51,7 +52,9 @@ async def pubsub_publish(
             break
         except Exception as error:
             error_code: Literal[
-                "LLM_TIMEOUT", "LLM_UNAVAILABLE", "INTERNAL_ERROR",
+                "LLM_TIMEOUT",
+                "LLM_UNAVAILABLE",
+                "INTERNAL_ERROR",
             ]
             if isinstance(error, APITimeoutError):
                 error_code = "LLM_TIMEOUT"
