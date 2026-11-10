@@ -4,8 +4,9 @@ info:
   version: 0.1.0-draft
   description: |
     Черновик для согласования Go, frontend и AI-service, а не описание готовой реализации.
-    Основа: docs/mvp.md и docs/db.md. Межсервисные события зависят от открытого
-    PR #60: https://github.com/ai-buddy-hc2026/ai-buddy/pull/60
+    Основа: docs/mvp.md и docs/db.md. Межсервисные события сверены с
+    docs/ai-contract.md, добавленным в main через PR #60:
+    https://github.com/ai-buddy-hc2026/ai-buddy/pull/60
     (docs/ai-contract.md, 1.2-draft, blob 1a547cd06d821d1ae650cd8ff73a3477e5678c5b).
     Внутренний POST /chat Python и MCP не входят во внешний API.
 
@@ -28,7 +29,7 @@ info:
     Метрики пока не имеют согласованных формул, см. issue #52.
 x-review-questions:
   - Сверить поля с frontend (#16) и финализировать контракт в #22.
-  - Сверить SSE и обязательный revision с открытым PR #60; не менять внутренний контракт молча.
+  - Сверить реализацию SSE и обязательный revision с docs/ai-contract.md; не менять внутренний контракт молча.
   - Уточнить схемы details/result действий по спецификациям инструментов (#49).
   - Подтвердить области видимости и формулы метрик с аналитиком (#52).
   - Подтвердить выбор next_task_id и этапа по чек-листу PR #61.
