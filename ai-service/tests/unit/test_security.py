@@ -20,7 +20,8 @@ def configured_service_token(monkeypatch):
     ],
 )
 async def test_verify_token_rejects_malformed_authorization(
-    authorization, configured_service_token
+    authorization,
+    configured_service_token,
 ):
     with pytest.raises(HTTPException) as exc_info:
         await security.verify_token(authorization)

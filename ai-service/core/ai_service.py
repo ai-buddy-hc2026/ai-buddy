@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from openai import AsyncOpenAI
 
 from config import get_settings
@@ -12,13 +14,22 @@ class AIService:
             api_key=settings.LLM_API_KEY,
         )
 
-    async def get_ai_stream(self, prompt: str):
+    async def get_ai_stream(
+        self,
+        prompt: str,
+        history: Sequence[dict[str, str]] = (),
+    ):
+        messages = [*history, {"role": "user", "content": prompt}]
         response = await self.llm_client.chat.completions.create(
             model=self.settings.LLM_MODEL,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             stream=True,
         )
         async for chunk in response:
             token = chunk.choices[0].delta.content
             if token:
                 yield token
+
+
+def get_ai_service() -> AIService:
+    return AIService()
