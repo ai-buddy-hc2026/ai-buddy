@@ -95,7 +95,7 @@ async def pubsub_publish(
 
 
 @chat_router.post("/chat", status_code=status.HTTP_202_ACCEPTED)
-async def create_chat(
+async def get_chat_state(
     background_tasks: BackgroundTasks,
     chat_data: ChatRequest,
     ai_service_token: str = Depends(verify_token),
