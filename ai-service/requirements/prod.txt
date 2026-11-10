@@ -1,0 +1,11 @@
+greenlet>=3.0.0
+fastapi==0.137.0
+hiredis==3.4.2
+redis==8.1.0
+openai>=3.48.0
+pydantic[email]>=2.13.4
+pydantic-settings==2.14.1
+python-dotenv==1.2.2
+python-multipart==0.0.32
+pydub==0.25.1
+uvicorn==0.49
