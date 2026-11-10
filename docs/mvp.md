@@ -51,16 +51,20 @@ AI-buddy помогает стажёру в первые недели: слев�
 
 HTTP-схемы Go и схемы MCP согласуются отдельно. Ниже указан целевой состав, а не реализованные endpoint.
 
+Черновик внешнего Go API: [docs/openapi.yaml](openapi.yaml), задача [#6](https://github.com/ai-buddy-hc2026/ai-buddy/issues/6). Содержит схемы запросов/ответов, ошибки, JWT и SSE. Детали требуют ревью frontend и AI-service; финальная версия относится к задаче #22. Контракт не означает реализацию endpoint и не заменяет контракт Go/Python или спецификации MCP.
+
 ## Целевые операции
 
 Внешний Go API:
 
 - `POST /auth/mock-login`, `GET /me`.
 - `GET /onboarding/plan`, `PATCH /tasks/{id}`.
-- `POST /chat/messages`, `GET /chat/stream/{id}`.
+- `POST /chat/messages`, `GET /chat/stream/{id}`; здесь `id` - UUID генерации `request_id`.
 - `POST /actions/{id}/confirm`, `GET /actions`.
 - `GET /buddy/interns`, `POST /buddy/escalations/{id}/answer`.
 - `GET /metrics/summary`.
+
+Для покрытия истории после перезагрузки и работы наставника в черновик добавлены предложения `GET /chat/messages` и `GET /buddy/escalations`. Также описаны выбор разрешённого `intern_id` при чтении плана и явный `publish_to_kb` при ответе наставника. Точная форма этих операций и область видимости метрик помечены как предложения для ревью, а не как готовая реализация или окончательно согласованные схемы.
 
 MCP-набор: `checklist.get_plan`, `checklist.update_status`, `knowledge.search`, `employees.get_manager`, `absences.get_policy`, `absences.create_request`, `absences.list_for_employee`, `escalation.create`.
 

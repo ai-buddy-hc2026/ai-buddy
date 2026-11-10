@@ -22,6 +22,7 @@
 |--------|------------|
 | Требования организаторов | [Выжимка кейса](docs/requirements/case.md) |
 | Выбранный объём и критерии готовности | [MVP и сценарии](docs/mvp.md) |
+| Внешний HTTP API Go, схемы и SSE | [Черновик OpenAPI](docs/openapi.yaml), требует ревью frontend и AI-service |
 | Новая задача в отдельном чате, Git и передача результата | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Запуск и проверки Go API | [backend/README.md](backend/README.md) |
 | Выбор контекста агентом | [AGENTS.md](AGENTS.md); вход Claude Code через [CLAUDE.md](CLAUDE.md) |
