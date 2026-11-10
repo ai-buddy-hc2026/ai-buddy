@@ -51,7 +51,7 @@ async def pubsub_publish(
             break
         except Exception as error:
             error_code: Literal[
-                "LLM_TIMEOUT", "LLM_UNAVAILABLE", "INTERNAL_ERROR"
+                "LLM_TIMEOUT", "LLM_UNAVAILABLE", "INTERNAL_ERROR",
             ]
             if isinstance(error, APITimeoutError):
                 error_code = "LLM_TIMEOUT"
