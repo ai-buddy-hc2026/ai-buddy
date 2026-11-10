@@ -8,7 +8,7 @@
 
 | Часть | Что уже есть | Что ещё предстоит |
 |-------|--------------|-------------------|
-| Go backend | Env-конфигурация, JSON-логи, GET /health, корректная остановка, тесты и Dockerfile | Авторизация, права, прикладные API, MCP, доступ к БД |
+| Go backend | Конфигурация, JSON-логи, /health, мок-вход/JWT, защищённый /me и пользователи PostgreSQL | Права инструментов, онбординг, чат, MCP |
 | Инфраструктура | Compose для backend, PostgreSQL с pgvector и Redis; тома и healthcheck БД/Redis | Подключение остальных приложений |
 | Frontend | Папка под интерфейс; каркас в [PR #57](https://github.com/ai-buddy-hc2026/ai-buddy/pull/57) | Слияние и интеграция с API |
 | AI-service и CI | Реализация и контракт в [PR #60](https://github.com/ai-buddy-hc2026/ai-buddy/pull/60) | Слияние и сквозная проверка |
@@ -96,7 +96,7 @@ URL-кодирования в переопределённом `DATABASE_URL`.
 
 `ai-service` и зависимости от него в Compose не добавлены: их добавит Макс.
 
-- Настройки локального запуска: [.env.example](.env.example). POSTGRES_PASSWORD - тестовый пароль PostgreSQL, а не пароль входа пользователя. В MVP предусмотрен mock-login без пароля. Опубликованные порты привязаны к 127.0.0.1.
+- Настройки локального запуска: [.env.example](.env.example). POSTGRES_PASSWORD - тестовый пароль PostgreSQL. Мок-вход без пароля использует логины из [docs/users.md](docs/users.md). Для старого .env добавьте JWT_SIGNING_KEY и JWT_TTL по примеру; опубликованный ключ только для локального демо. Опубликованные порты привязаны к 127.0.0.1.
 - Адреса postgres:5432 и redis:6379 используются внутри Docker-сети. API на хосте по умолчанию доступен по http://localhost:8080.
 - При изменении BACKEND_PORT обновляется VITE_API_BASE_URL для будущего frontend: Vite использует его при сборке. Frontend явно обращается к API; backend должен разрешить соответствующий CORS origin при интеграции.
 - Для специальных символов в реквизитах PostgreSQL переопределите DATABASE_URL с URL-кодированием.

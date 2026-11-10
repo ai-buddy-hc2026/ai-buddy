@@ -14,6 +14,8 @@ func TestRunInvalidConfig(t *testing.T) {
 }
 
 func TestRunAddressInUse(t *testing.T) {
+	t.Setenv("JWT_SIGNING_KEY", "synthetic-test-key-32-bytes-or-more")
+	t.Setenv("JWT_TTL", "1h")
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
