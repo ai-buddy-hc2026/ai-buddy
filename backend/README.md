@@ -83,6 +83,9 @@ Backend запускается после успешного завершени�
 блокирует запуск backend. HTTP-процесс DDL не выполняет. Явный повторный запуск:
 `docker compose run --rm db-init`.
 
+Healthcheck PostgreSQL проверяет TCP, чтобы временный Unix-сервер первичной
+инициализации не считался готовым для подключения из `db-init`.
+
 SQL встроен в бинарник: `internal/database/migrations/*.sql` и
 `internal/database/seeds/users.sql`. Миграции применяются по имени файла,
 учитываются в `schema_migrations` с SHA-256. Применённые файлы не редактируются:
