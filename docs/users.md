@@ -3,14 +3,14 @@
 
 ## Команды
 
-| node | name |
+| team_id | name |
 |---|---|
 | `team_1` | Team 1 |
 | `team_2` | Team 2 |
 
 ## Пользователи
 
-| login | display_name | role | team_code | buddy_id | manager_id |
+| login | display_name | role | team_id | buddy_id | manager_id |
 |---|---|---|---|---|---|
 | `intern_anya` | Anya | `intern` | `team_1` | `buddy_ilya` | `lead_maria` |
 | `buddy_ilya` | Ilya | `buddy` | `team_1` | `NULL` | `lead_maria` |
