@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Spark",
+        title="AI-buddy",
         lifespan=lifespan,
     )
     application.add_middleware(
