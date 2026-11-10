@@ -78,7 +78,7 @@ docker compose logs -f backend frontend
 | `postgres` | Внутри сети доступен как `postgres:5432`. Расширение `vector` создаётся при первой инициализации БД. |
 | `redis` | Внутри сети доступен как `redis:6379`, включено сохранение AOF. |
 
-По умолчанию интерфейс будет доступен по `http://localhost:5173`, API —
+По умолчанию интерфейс будет доступен по `http://localhost:5173`, API -
 `http://localhost:8080` (проверка каркаса: `GET /health`). Для запросов из браузера
 backend должен разрешать CORS с адреса frontend. Адреса `backend`, `postgres` и `redis`
 используются только внутри Docker-сети. При изменении `BACKEND_PORT` обновить
