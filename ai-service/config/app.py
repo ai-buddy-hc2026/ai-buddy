@@ -16,8 +16,10 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str
     LLM_BASE_URL: str
     LLM_MODEL: str
-    LLM_API_KEY: str
+    LLM_API_KEY: str = ""
     POSTGRES_URL: str = ""
+
+    AI_SERVICE_TOKEN: str
 
     @property
     def redis_url(self) -> str:
