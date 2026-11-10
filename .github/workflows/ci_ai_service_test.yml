@@ -14,25 +14,31 @@ jobs:
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
+
       - name: Set Python
         uses: actions/setup-python@v5
         with:
           python-version: 3.13
+          cache: 'pip'
+          cache-dependency-path: ai-service/requirements/test.txt
 
-      - name: Install Dependecies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r ai-service/requirements/test.txt
+          pip install pytest-cov
+
       - name: Create env.test
         run: |
-          cat << 'EOF' > .env
+          cat << 'EOF' > ai-service/.env
           ${{ secrets.ENV_TEST_SECRET }}
           EOF
-
-      - name: Unit test
-        run: pytest tests/unit
+      - name: Run Unit & Integration Tests
+        run: pytest tests/unit tests/integration --cov=. --cov-report=term --cov-report=xml:coverage.xml
         working-directory: ai-service
-
-      - name: Integration test
-        run: pytest tests/integration
-        working-directory: ai-service
+      - name: Upload Python Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: ai-service/coverage.xml
+          if-no-files-found: error
