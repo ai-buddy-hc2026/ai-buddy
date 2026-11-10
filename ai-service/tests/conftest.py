@@ -32,7 +32,7 @@ def infra_containers():
             f"{ollama.get_exposed_port(11434)}"
         )
 
-        test_model = "qwen2.5:0.5b"
+        test_model = "DeepSeek-R1:1.5b"
         response = requests.post(
             f"{ollama_url}/api/pull",
             json={"name": test_model, "stream": False},
