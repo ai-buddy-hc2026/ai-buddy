@@ -1,0 +1,36 @@
+name: go test
+on:
+  push:
+    branches:
+      - ai-service
+      - main
+      - master
+  pull_request:
+    branches:
+      - ai-service
+      - main
+      - master
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+      - name: Set Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - name: Download dependencies
+        run: go mod download
+      - name: Test
+        run: go test -v -race -coverprofile=coverage.txt ./...
+
+      - name: Upload Go Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Go-coverage
+          path: backend/coverage.txt
+          if-no-files-found: error

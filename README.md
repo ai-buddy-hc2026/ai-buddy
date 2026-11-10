@@ -1,67 +1,76 @@
 # AI-buddy
 
-Помощник стажёра Авито в онбординге. Проект для Hack&Change 2026.
+Помощник стажёра Авито в онбординге. Проект для Hack&Change 2026: план адаптации, ответы с источниками, подтверждаемые действия и помощь наставника.
+
+## Текущее состояние
+
+Прототип пока не завершён. Таблица отражает реализацию в базовом main при подготовке документа; открытый PR не считается готовой возможностью.
+
+| Часть | Что уже есть | Что ещё предстоит |
+|-------|--------------|-------------------|
+| Go backend | Env-конфигурация, JSON-логи, GET /health, корректная остановка, тесты и Dockerfile | Авторизация, права, прикладные API, MCP, доступ к БД |
+| Инфраструктура | Compose для backend, PostgreSQL с pgvector и Redis; тома и healthcheck БД/Redis | Подключение остальных приложений |
+| Frontend | Папка под интерфейс; каркас в [PR #57](https://github.com/ai-buddy-hc2026/ai-buddy/pull/57) | Слияние и интеграция с API |
+| AI-service и CI | Реализация и контракт в [PR #60](https://github.com/ai-buddy-hc2026/ai-buddy/pull/60) | Слияние и сквозная проверка |
+| База данных | [Проект схемы](docs/db.md) добавлен в main через PR #62 | Прикладные миграции и seed |
+
+`/health` проверяет HTTP-сервер. Он не подтверждает наличие прикладных сценариев или подключение Go к PostgreSQL и Redis.
+
+## Документация
+
+| Вопрос | Где читать |
+|--------|------------|
+| Требования организаторов | [Выжимка кейса](docs/requirements/case.md) |
+| Выбранный объём и критерии готовности | [MVP и сценарии](docs/mvp.md) |
+| Новая задача в отдельном чате, Git и передача результата | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Запуск и проверки Go API | [backend/README.md](backend/README.md) |
+| Выбор контекста агентом | [AGENTS.md](AGENTS.md); вход Claude Code через [CLAUDE.md](CLAUDE.md) |
+| Контракт Go/Python | docs/ai-contract.md в [PR Макса #60](https://github.com/ai-buddy-hc2026/ai-buddy/pull/60/files) |
+| Схема БД и подробные правила дедлайнов | [docs/db.md](docs/db.md) |
+
+После слияния соответствующего PR заменяйте ссылку на PR ссылкой на файл. Статус «черновик» снимается после согласования, а не после появления документа в репозитории.
 
 ## Структура
 
-| Папка | Что внутри |
+| Папка | Назначение |
 |-------|------------|
-| `backend/` | API на Go, роли и права, MCP-сервисы |
-| `ai-service/` | AI-сервис на Python: агент, стриминг, LLM |
-| `frontend/` | Интерфейс стажёра и наставника (React + TS) |
-| `specs/` | SDD-спецификации: агент, инструменты, сценарии |
-| `seed/` | Тестовые данные и база знаний |
-| `docs/` | Документы: OpenAPI, схема БД, метрики, качество |
-| `tests/eval/` | Тестовые вопросы и атаки на права |
+| backend/ | Go API, в дальнейшем авторизация, policy-слой и MCP |
+| ai-service/ | Python-сервис для агента, LLM и RAG |
+| frontend/ | Интерфейс React + TypeScript |
+| specs/ | Спецификации поведения агента и инструментов |
+| seed/ | Синтетические данные и база знаний |
+| docs/ | Требования, контракты, схема БД и документация проверок |
+| tests/eval/ | Вопросы для проверки ответов и атаки на права |
 
-## Как работаем
+## Быстрый запуск того, что работает
 
-1. `main` защищён. Прямой push в `main` запрещён, только через PR.
-2. Каждая задача - issue на доске. Берёшь задачу - ставишь себя в Assignees и двигаешь карточку в `In progress`.
-3. Ветка на задачу: `feat/...`, `fix/...`, `docs/...`, `test/...`, `chore/...`.
-4. Коммиты в формате `тип: описание`, например `feat: GET /health`.
-5. В описании PR пишем `Closes #номер`. Ревью делает любой другой участник.
-6. Координация только текстом: общий чат команды и GitHub.
+Нужны Docker Engine с Linux-контейнерами и Docker Compose с поддержкой `--wait`. Убедитесь, что `docker version` выводит Client и Server без ошибки.
 
-```bash
-git clone https://github.com/ai-buddy-hc2026/ai-buddy.git
-cd ai-buddy
-git checkout -b feat/my-task
-# работа
-git push -u origin feat/my-task
-# открыть PR на GitHub
-```
-
-## Запуск
-
-Нужны Docker Engine (или Docker Desktop с Linux-контейнерами) и Docker Compose v2.
-Окружение предназначено для локальной разработки; порты доступны только на `127.0.0.1`,
-пароль БД в примере тестовый.
-
-Скопировать настройки (PowerShell):
+Из корня репозитория, PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 docker compose config --quiet
+docker compose up --build -d --wait backend
+curl.exe -i http://localhost:8080/health
 ```
 
-В Bash вместо `Copy-Item` использовать `cp .env.example .env`.
+При существующем `.env` повторно копировать пример не нужно. В Bash используйте `cp .env.example .env` и `curl` вместо `Copy-Item` и `curl.exe`.
 
-Сейчас в репозитории только структура проекта. PostgreSQL 16 с pgvector и Redis 7
-можно запустить отдельно, не дожидаясь каркасов приложений:
+Ожидается HTTP 200 с `{"status":"ok"}`. Compose поднимет PostgreSQL и Redis и запустит backend после успешных healthcheck зависимостей. Frontend этой командой не запускается; полный `docker compose up --build` требует его Dockerfile и кода.
+
+Проверка инфраструктуры:
 
 ```bash
-docker compose up -d --wait postgres redis
 docker compose ps
 docker compose exec postgres psql -U ai_buddy -d ai_buddy -c "SELECT extversion FROM pg_extension WHERE extname = 'vector';"
 docker compose exec redis redis-cli ping
+docker compose logs --tail 50 backend
 ```
 
-Если менялись `POSTGRES_USER` или `POSTGRES_DB`, подставить их в команду `psql`.
-Ожидаются версия расширения `vector` и ответ `PONG`.
+При изменённых POSTGRES_USER или POSTGRES_DB подставьте их в команду psql. Ожидаются версия vector и ответ PONG.
 
-Compose также описывает `backend` и `frontend`. Полный запуск станет доступен после
-добавления кода и `backend/Dockerfile`, `frontend/Dockerfile` владельцами сервисов:
+## Настройки и данные
 
 ```bash
 docker compose up --build -d
@@ -87,13 +96,23 @@ URL-кодирования в переопределённом `DATABASE_URL`.
 
 `ai-service` и зависимости от него в Compose не добавлены: их добавит Макс.
 
+- Настройки локального запуска: [.env.example](.env.example). POSTGRES_PASSWORD - тестовый пароль PostgreSQL, а не пароль входа пользователя. В MVP предусмотрен mock-login без пароля. Опубликованные порты привязаны к 127.0.0.1.
+- Адреса postgres:5432 и redis:6379 используются внутри Docker-сети. API на хосте по умолчанию доступен по http://localhost:8080.
+- При изменении BACKEND_PORT обновляется VITE_API_BASE_URL для будущего frontend: Vite использует его при сборке. Frontend явно обращается к API; backend должен разрешить соответствующий CORS origin при интеграции.
+- Для специальных символов в реквизитах PostgreSQL переопределите DATABASE_URL с URL-кодированием.
+- PostgreSQL и Redis используют именованные тома. Изменение POSTGRES_* в .env не меняет уже созданную базу и пользователей.
+- SQL из docker/postgres/init/ выполняется при первой инициализации. Он включает vector, но не создаёт прикладную схему и seed.
+
 Остановка с сохранением данных:
 
 ```bash
 docker compose down
 ```
 
-Данные хранятся в именованных томах `postgres_data` и `redis_data`. Изменение
-`POSTGRES_*` в `.env` не меняет пользователей и базы в уже созданном томе.
-SQL из `docker/postgres/init/` выполняется только для новой БД; миграции и seed
-приложения должны быть добавлены вместе с backend.
+## Проверки и работа над проектом
+
+Команды тестов, покрытия и линтера Go: [backend/README.md](backend/README.md#проверки). Версия Go зафиксирована в backend/go.mod, настройки линтера в backend/.golangci.yml.
+
+Проверки выбираются по изменению: [CONTRIBUTING.md](CONTRIBUTING.md#проверки-по-типу-изменения). Для документации проверяются ссылки, согласованность и формат; для Compose конфигурация и затронутые сервисы.
+
+Тестовые учётные записи, настройки LLM, миграции, SDD, сквозные тесты, видео и презентация добавляются вместе с соответствующей реализацией. До этого README не заявляет их готовность.
