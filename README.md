@@ -12,7 +12,7 @@
 | Инфраструктура | Compose для backend, PostgreSQL с pgvector и Redis; тома и healthcheck БД/Redis | Подключение остальных приложений |
 | Frontend | Папка под интерфейс; каркас в [PR #57](https://github.com/ai-buddy-hc2026/ai-buddy/pull/57) | Слияние и интеграция с API |
 | AI-service и CI | Реализация и контракт в [PR #60](https://github.com/ai-buddy-hc2026/ai-buddy/pull/60) | Слияние и сквозная проверка |
-| База данных | Проект схемы в [PR #62](https://github.com/ai-buddy-hc2026/ai-buddy/pull/62) | Согласование, миграции и seed |
+| База данных | [Проект схемы](docs/db.md) добавлен в main через PR #62 | Прикладные миграции и seed |
 
 `/health` проверяет HTTP-сервер. Он не подтверждает наличие прикладных сценариев или подключение Go к PostgreSQL и Redis.
 
@@ -26,7 +26,7 @@
 | Запуск и проверки Go API | [backend/README.md](backend/README.md) |
 | Выбор контекста агентом | [AGENTS.md](AGENTS.md); вход Claude Code через [CLAUDE.md](CLAUDE.md) |
 | Контракт Go/Python | docs/ai-contract.md в [PR Макса #60](https://github.com/ai-buddy-hc2026/ai-buddy/pull/60/files) |
-| Черновик схемы БД | docs/db.md в [PR #62](https://github.com/ai-buddy-hc2026/ai-buddy/pull/62/files) |
+| Схема БД и подробные правила дедлайнов | [docs/db.md](docs/db.md) |
 
 После слияния соответствующего PR заменяйте ссылку на PR ссылкой на файл. Статус «черновик» снимается после согласования, а не после появления документа в репозитории.
 
@@ -72,7 +72,7 @@ docker compose logs --tail 50 backend
 
 ## Настройки и данные
 
-- Настройки локального запуска: [.env.example](.env.example). Пароль тестовый, опубликованные порты привязаны к 127.0.0.1.
+- Настройки локального запуска: [.env.example](.env.example). POSTGRES_PASSWORD - тестовый пароль PostgreSQL, а не пароль входа пользователя. В MVP предусмотрен mock-login без пароля. Опубликованные порты привязаны к 127.0.0.1.
 - Адреса postgres:5432 и redis:6379 используются внутри Docker-сети. API на хосте по умолчанию доступен по http://localhost:8080.
 - При изменении BACKEND_PORT обновляется VITE_API_BASE_URL для будущего frontend: Vite использует его при сборке. Frontend явно обращается к API; backend должен разрешить соответствующий CORS origin при интеграции.
 - Для специальных символов в реквизитах PostgreSQL переопределите DATABASE_URL с URL-кодированием.
