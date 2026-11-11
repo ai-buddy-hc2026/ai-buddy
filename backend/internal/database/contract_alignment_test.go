@@ -397,3 +397,62 @@ func TestAbsenceListScopeAndCursor(t *testing.T) {
 		t.Fatal("lead lost team scope")
 	}
 }
+
+// TestPythonClientWithGo проверяет клиент из отдельного checkout без зависимости Go от Python в обычном запуске.
+func TestPythonClientWithGo(t *testing.T) {
+	python, source := os.Getenv("MCP_PYTHON"), os.Getenv("MCP_CLIENT_SOURCE")
+	if python == "" || source == "" {
+		t.Skip("MCP_PYTHON and MCP_CLIENT_SOURCE are not set")
+	}
+	source, err := filepath.Abs(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, id := toolFixture(t)
+	handler, err := mcpserver.New(s, "synthetic-mcp-service-token-32-characters")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	script := fmt.Sprintf(`import asyncio,importlib.util,sys,time,types
+config=types.ModuleType("config")
+config.get_settings=lambda:types.SimpleNamespace(MCP_SERVER_URL=%q,MCP_SERVICE_TOKEN="synthetic-mcp-service-token-32-characters")
+sys.modules["config"]=config
+spec=importlib.util.spec_from_file_location("client",%q)
+module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+async def main():
+ proposals=[]
+ async def publish(name,details): proposals.append((name,details))
+ async with module.GenerationMCPClient(request_id=%q,deadline_monotonic=time.monotonic()+45,publish_action_proposal=publish) as client:
+  assert len(client.get_tools_for_llm())==5
+  manager=await client.call_tool("employees.get_manager",{})
+  assert manager["manager"]["id"]=="10000000-0000-0000-0000-000000000002"
+  plan=await client.call_tool("checklist.get_plan",{})
+  assert len(plan["tasks"])==15
+  policy=await client.call_tool("absences.get_policy",{})
+  assert policy["notice_period_days"]==3
+  try: await client.call_tool("absences.create_request",{"date":"2030-01-01","type":"day_off"})
+  except module.MCPContractError as error: assert error.code=="CONFIRMATION_REQUIRED"
+  else: raise AssertionError("direct write allowed")
+  await client.propose_action("absences.create_request",{"date":"2030-01-01","type":"day_off"})
+  assert proposals==[("absences.create_request",{"date":"2030-01-01","type":"day_off"})]
+ print("PR85 client with Go: initialize/list/read/write-denial/proposal OK")
+asyncio.run(main())
+`, server.URL, source, id)
+	path := filepath.Join(t.TempDir(), "client_check.py")
+	if err := os.WriteFile(path, []byte(script), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, python, path).CombinedOutput()
+	if err != nil {
+		t.Fatalf("client compatibility: %v\n%s", err, output)
+	}
+	t.Log(string(output))
+	var count int
+	if err := s.pool.QueryRow(ctx, "SELECT (SELECT count(*) FROM absence_requests)+(SELECT count(*) FROM actions_log)").Scan(&count); err != nil || count != 0 {
+		t.Fatalf("client bypassed confirmation: count=%d err=%v", count, err)
+	}
+}

@@ -236,11 +236,15 @@ MCP-курсоры отсутствий привязаны к пользоват
 и TEST_DATABASE_URL на синтетическую тестовую БД, затем запустите:
 `go test -v ./internal/database -run TestPythonSDKWithGo`. Тест проверяет реальный SDK: initialize/list/read и отказ прямой записи.
 
-Проверка неизмененного клиента PR #85 (a469d55) с его mcp==2.3.0 обнаружила
-ошибку распаковки: streamable_http_client возвращает два потока, клиент ожидает
-три значения. Это происходит до MCP initialize. Python-код здесь не исправлялся;
-полную совместимость PR #85 нельзя объявить до исправления клиента и повторной
-проверки всего AI-сервиса.
+Исправленный клиент PR #85 проверен с Go SDK 1.8.0 и Python MCP SDK 2.3.0:
+initialize, tools/list, чтение, запрет прямой записи и публикация предложения
+без создания actions_log/absence_requests из Python. В клиенте и моке теста
+исправлена распаковка двух потоков streamable_http_client вместо трех значений.
+Для воспроизведения задайте MCP_CLIENT_SOURCE абсолютным путем к
+ai-service/integrations/mcp_client.py из checkout PR #85 и запустите
+`go test -v ./internal/database -run TestPythonClientWithGo` с теми же
+MCP_PYTHON и TEST_DATABASE_URL. Конфигурация теста синтетическая; Redis,
+LLM и UI не участвуют. Полный запуск AI-сервиса проверяется отдельно.
 
 ## Стажеры, действия и эскалации
 
