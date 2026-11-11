@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - 'codex/**'
+      - 'feat/**'
       - ai-service
       - main
       - master
@@ -53,6 +54,10 @@ jobs:
           docker compose config --quiet
           docker compose up --build -d --wait backend
           test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM users')" = 6
+          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM onboarding_plans')" = 2
+          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM tasks')" = 30
+          docker compose run --rm db-init
+          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM task_status_history')" = 30
           python3 - <<'PY'
           import json
           import urllib.error
@@ -77,7 +82,7 @@ jobs:
           with urllib.request.urlopen(request) as response:
               assert response.status == 200
               assert json.load(response)['login'] == 'intern_anya'
-          print('health=200, login=200, me=200, no-token=401, users=6')
+          print('health=200, login=200, me=200, no-token=401, users=6, plans=2, tasks=30, history=30')
           PY
 
       - name: Compose logs on failure
