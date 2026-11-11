@@ -107,11 +107,14 @@ class PgStore:
         if team_id is None:
             where, params = "team_id IS NULL", (vec, vec, limit)
         else:
-            where, params = "(team_id IS NULL OR team_id::text = %s)", (
-                vec,
-                str(team_id),
-                vec,
-                limit,
+            where, params = (
+                "(team_id IS NULL OR team_id::text = %s)",
+                (
+                    vec,
+                    str(team_id),
+                    vec,
+                    limit,
+                ),
             )
         sql = (
             "SELECT doc_title, section, content, team_id, source, 1 - (embedding <=> %s::vector) AS score "

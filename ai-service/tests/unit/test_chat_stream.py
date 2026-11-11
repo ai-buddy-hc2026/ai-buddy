@@ -24,7 +24,9 @@ def redis_container() -> Iterator[RedisContainer]:
 
 
 @pytest_asyncio.fixture
-async def redis_client(redis_container: RedisContainer) -> AsyncIterator[aioredis.Redis]:
+async def redis_client(
+    redis_container: RedisContainer,
+) -> AsyncIterator[aioredis.Redis]:
     client = aioredis.Redis(
         host=redis_container.get_container_host_ip(),
         port=int(redis_container.get_exposed_port(6379)),

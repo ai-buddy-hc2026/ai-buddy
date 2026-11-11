@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 import pytest
 
 from app.rag.mentor_chunker import chunk_mentor_response
