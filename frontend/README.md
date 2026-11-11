@@ -6,6 +6,8 @@
 
 ## Запуск
 
+Нужен Node.js 24, как в Docker и CI.
+
 ```bash
 cd frontend
 npm ci
@@ -24,6 +26,9 @@ npm run dev
 | `npm run format`       | Prettier, исправляет файлы         |
 | `npm run format:check` | Prettier, только проверка (для CI) |
 | `npm run typecheck`    | Проверка типов                     |
+
+CI выполняет форматирование, ESLint, проверку типов и сборку. Vitest и скрипта
+`test:coverage` пока нет; unit-тесты и отчёт покрытия добавляются отдельно.
 
 ## Docker
 
