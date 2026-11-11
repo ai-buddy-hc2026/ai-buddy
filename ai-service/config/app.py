@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     POSTGRES_URL: str = ""
 
     AI_SERVICE_TOKEN: str
+    MCP_SERVER_URL: str = "http://backend:8080/mcp"
+    MCP_SERVICE_TOKEN: str = ""
 
     @property
     def redis_url(self) -> str:

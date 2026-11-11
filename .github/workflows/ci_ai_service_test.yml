@@ -6,10 +6,11 @@ on:
       - master
   pull_request:
     branches:
+      - 'feat/**'
       - main
       - master
 jobs:
-  lint-test:
+  ai-service-test:
     runs-on: ubuntu-latest
     steps:
       - name: Git Checkout
@@ -34,7 +35,7 @@ jobs:
           ${{ secrets.ENV_TEST_SECRET }}
           EOF
       - name: Run Unit & Integration Tests
-        run: pytest tests/contract tests/unit tests/integration --cov=. --cov-report=term --cov-report=xml:coverage.xml
+        run: pytest tests/contract tests/unit --cov=. --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=60
         working-directory: ai-service
       - name: Upload Python Coverage Artifact
         uses: actions/upload-artifact@v4

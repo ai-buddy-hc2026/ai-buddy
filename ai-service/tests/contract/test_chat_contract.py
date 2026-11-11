@@ -42,6 +42,8 @@ class FakeRedis:
 
 
 class FakeAI:
+    llm_client = object()
+
     def __init__(self, parts=("Привет ", "мир"), error=None, delay=0):
         self.parts = parts
         self.error = error
@@ -49,13 +51,13 @@ class FakeAI:
         self.calls = 0
         self.closed = False
 
-    async def get_ai_stream(self, _message, _history):
+    async def stream_step(self, _messages, _tools):
         self.calls += 1
         try:
             for part in self.parts:
                 if self.delay:
                     await asyncio.sleep(self.delay)
-                yield part
+                yield {"type": "token", "text": part}
             if self.error:
                 raise self.error
         finally:

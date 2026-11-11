@@ -11,7 +11,7 @@
 | Go backend | Конфигурация, /health, мок-вход/JWT, /me, план и статусы задач; чат с SSE и историей; policy-слой, 6 MCP-инструментов по исходному контракту, предложения в SSE, HTTP-подтверждение, списки стажеров и своих действий | Подключение UI подтверждения, ответы наставника, RAG-источники, остальные API |
 | Инфраструктура | Compose для backend, Python, PostgreSQL с pgvector и Redis; тестовый провайдер LLM в compose.test.yml | Интеграция frontend |
 | Frontend | Папка под интерфейс; каркас в [PR #57](https://github.com/ai-buddy-hc2026/ai-buddy/pull/57) | Слияние и интеграция с API |
-| AI-service и CI | Код и [черновик контракта](docs/ai-contract.md) из PR #60/#65; профиль #24 проверен через Compose с синтетической LLM и добавлен в CI | Полный контракт, RAG и инструменты |
+| AI-service и CI | Добавлены MCP-клиент, tool-calling, логирование, тестовая Compose-конфигурация и Python unit/integration тесты; MCP-контракт остаётся черновиком | Сквозные MCP-тесты требуют Go API по контракту; Playwright S-3/S-SEC не входят в эту реализацию |
 | База данных | Миграции пользователей, планов, задач, истории статусов, событий, чата, действий и синтетических отсутствий; seed: 2 команды, 6 пользователей, 2 плана, 30 задач | Таблицы KB; загрузка связей задач с реальными документами |
 
 API онбординга по #21 использует авторизацию из [PR #77](https://github.com/ai-buddy-hc2026/ai-buddy/pull/77) и миграции/seed из [PR #78](https://github.com/ai-buddy-hc2026/ai-buddy/pull/78), уже влитые в main. Изменения #21 пока находятся в этой ветке.
@@ -43,8 +43,9 @@ API онбординга по #21 использует авторизацию и
 использует Python-клиент [PR #85](https://github.com/ai-buddy-hc2026/ai-buddy/pull/85):
 `/mcp`, шесть tools со схемами и стандартными ответами, предложение через Redis,
 сохранение в Go и `POST /actions/{id}/confirm`. escalation.create остается внутренней
-операцией Go и исключен из базового MCP-профиля. Код Python не изменен.
-UI подтверждения и полный запуск вместе с AI-сервисом остаются отдельной интеграцией.
+операцией Go и исключен из базового MCP-профиля. Python tool-calling и интеграционные тесты добавлены в PR #85.
+PR #85 основан на #86: тесты собирают Go и Python из одной ветки. UI подтверждения
+остается отдельной задачей.
 
 `/health` проверяет HTTP-сервер. Он не подтверждает наличие прикладных сценариев или подключение Go к PostgreSQL и Redis.
 
@@ -151,3 +152,47 @@ docker compose down
 Проверки выбираются по изменению: [CONTRIBUTING.md](CONTRIBUTING.md#проверки-по-типу-изменения). Для документации проверяются ссылки, согласованность и формат; для Compose конфигурация и затронутые сервисы.
 
 Тестовые учётные записи, настройки LLM, миграции, SDD, сквозные тесты, видео и презентация добавляются вместе с соответствующей реализацией. До этого README не заявляет их готовность.
+
+## Интеграционные тесты AI-сервиса в Docker Compose
+
+Тестовая инфраструктура запускается отдельно от основной:
+
+```powershell
+docker compose -f docker-compose.test.yml up --build --detach --wait --wait-timeout 900
+docker compose -f docker-compose.test.yml exec ai-service pytest tests/integration
+docker compose -f docker-compose.test.yml down --volumes --remove-orphans
+```
+
+MCP-сквозной тест можно запустить отдельно:
+
+```powershell
+docker compose -f docker-compose.test.yml up --build --detach --wait --wait-timeout 900
+docker compose -f docker-compose.test.yml exec ai-service pytest tests/integration/test_mcp_e2e.py -q
+docker compose -f docker-compose.test.yml down --volumes --remove-orphans
+```
+
+Тест получает JWT через mock-login, отправляет сообщение в Go API, поднимает
+внутри AI-service временный HTTP-сервер с детерминированным LLM и проходит весь
+цикл Go API -> Python -> настоящий MCP клиент -> Go MCP -> Python -> Go SSE.
+Внешняя LLM для этого теста не вызывается. Go должен направлять внутренние
+запросы на `http://ai-service:8000` и использовать тестовые токены из Compose.
+Сценарий отгула проверяет action_proposal, статус proposed, пустой result,
+нулевое число попыток исполнения и отсутствие заявки при чтении списка до confirm.
+
+Для полного набора AI-service замените команду pytest на `pytest tests/unit tests/integration`.
+AI-service в тестовом Compose остаётся в режиме ожидания, чтобы команды pytest можно
+было запускать через `docker compose exec`. Фикстуры используют запущенные Redis,
+PostgreSQL и Ollama вместо создания дополнительных Testcontainers. Ollama загружает
+модель `llama3.2:1b` при первом запуске; её данные хранятся в отдельном volume.
+
+Отдельный CI workflow выполняет `tests/integration` этим же Compose-файлом.
+MCP-сквозной тест ожидает, что Go предоставляет описанные в контракте
+`/auth/mock-login`, `/chat/messages`, `/chat/stream/{request_id}` и `/mcp`.
+Добавление теста само по себе не подтверждает наличие этих маршрутов в Go backend.
+
+Тестовые учётные записи, настройки LLM, миграции, SDD, сквозные тесты, видео и презентация добавляются вместе с соответствующей реализацией. До этого README не заявляет их готовность.
+
+Тестовая конфигурация монтирует seed только для чтения и задает отдельные
+синтетические JWT/MCP-ключи. Сценарий отсутствия выполняется за buddy_ilya,
+у которого в seed назначен согласующий lead_maria. У самой lead_maria
+согласующий отсутствует, поэтому ее заявка должна отклоняться по контракту.

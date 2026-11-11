@@ -1,4 +1,7 @@
+import os
+
 import pytest_asyncio
+import redis.asyncio as aioredis
 import requests
 from httpx import ASGITransport, AsyncClient
 from testcontainers.community.postgres import PostgresContainer
@@ -13,6 +16,10 @@ from main import app
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 def infra_containers():
+    if os.getenv("TEST_INFRA_FROM_COMPOSE") == "1":
+        yield {}
+        return
+
     ollama_container = (
         DockerContainer("ollama/ollama:latest")
         .with_exposed_ports(11434)
@@ -58,6 +65,26 @@ def infra_containers():
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def ai_service(infra_containers):
     return AIService()
+
+
+@pytest_asyncio.fixture
+async def redis_client(infra_containers):
+    if os.getenv("TEST_INFRA_FROM_COMPOSE") == "1":
+        settings = get_settings()
+        client = aioredis.Redis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+        )
+    else:
+        redis_container = infra_containers["redis"]
+        client = aioredis.Redis(
+            host=redis_container.get_container_host_ip(),
+            port=int(redis_container.get_exposed_port(6379)),
+            decode_responses=True,
+        )
+    await client.ping()
+    yield client
+    await client.aclose()
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")

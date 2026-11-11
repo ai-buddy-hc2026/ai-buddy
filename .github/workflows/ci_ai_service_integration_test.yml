@@ -1,0 +1,31 @@
+name: ai-service integration tests
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - 'feat/**'
+      - main
+      - master
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Start test services
+        run: docker compose -f docker-compose.test.yml up --build --detach --wait --wait-timeout 900
+
+      - name: Run integration tests
+        run: docker compose -f docker-compose.test.yml exec --no-TTY ai-service pytest tests/integration
+
+      - name: Show test service logs
+        if: failure()
+        run: docker compose -f docker-compose.test.yml logs --no-color
+
+      - name: Stop test services
+        if: always()
+        run: docker compose -f docker-compose.test.yml down --volumes --remove-orphans
