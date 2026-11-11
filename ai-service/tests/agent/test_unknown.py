@@ -1,5 +1,9 @@
 from app.agent.context import UserContext
-from app.agent.unknown import escalation_proposal, unknown_answer_text, who_to_ask
+from app.agent.unknown import (
+    escalation_proposal,
+    unknown_answer_text,
+    who_to_ask,
+)
 
 INTERN = UserContext(user_id="u1", role="intern", team_id="t1")
 
@@ -23,8 +27,13 @@ def test_proposal_for_intern_trims_history():
     hist = [{"role": "user", "content": f"м{i}"} for i in range(10)]
     p = escalation_proposal("Какой бюджет?", INTERN, hist)
     assert p["action"] == "escalation.create" and p["type"] == "action_proposal"
-    assert len(p["payload"]["context"]) == 6 and p["payload"]["question"] == "Какой бюджет?"
+    assert (
+        len(p["payload"]["context"]) == 6 and p["payload"]["question"] == "Какой бюджет?"
+    )
 
 
 def test_no_proposal_for_non_intern():
-    assert escalation_proposal("q", UserContext(user_id="b", role="buddy", team_id="t"), []) is None
+    assert (
+        escalation_proposal("q", UserContext(user_id="b", role="buddy", team_id="t"), [])
+        is None
+    )

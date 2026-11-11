@@ -1,4 +1,9 @@
-from app.rag.chunker import build_chunks, chunk_document, parse_document, split_with_overlap
+from app.rag.chunker import (
+    build_chunks,
+    chunk_document,
+    parse_document,
+    split_with_overlap,
+)
 
 DOC = """> **Тестовая инструкция, не регламент Авито.**
 
@@ -48,7 +53,9 @@ def test_seed_docs(kb_dir):
     assert len(files) >= 1
     for f in files:
         text = f.read_text(encoding="utf-8")
-        assert text.splitlines()[0].startswith("> **Тестовая инструкция, не регламент Авито"), f.name
+        assert text.splitlines()[0].startswith(
+            "> **Тестовая инструкция, не регламент Авито"
+        ), f.name
         assert "\u2014" not in text, f"длинное тире в {f.name}"
     chunks = build_chunks(kb_dir, 800, 80)
     assert chunks and all(c.text.strip() and len(c.text) <= 800 for c in chunks)

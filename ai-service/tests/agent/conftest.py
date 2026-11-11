@@ -1,7 +1,8 @@
-﻿import pytest
+﻿import hashlib
 from pathlib import Path
-import hashlib
+
 import numpy as np
+import pytest
 
 KB_DIR = Path(__file__).parent.parent.parent / "seed" / "kb"
 

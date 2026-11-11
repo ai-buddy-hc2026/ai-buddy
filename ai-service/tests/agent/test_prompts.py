@@ -4,8 +4,14 @@ from app.agent.prompts import build_system_prompt
 
 def make(**kw):
     base = dict(
-        user_id="u1", role="intern", team_id="t1", name="Аня", team_name="Команда А",
-        stage="неделя 2", tasks_done=6, tasks_total=14,
+        user_id="u1",
+        role="intern",
+        team_id="t1",
+        name="Аня",
+        team_name="Команда А",
+        stage="неделя 2",
+        tasks_done=6,
+        tasks_total=14,
         next_step=NextStep("Открыть первый PR", "до пятницы"),
     )
     base.update(kw)
@@ -14,7 +20,15 @@ def make(**kw):
 
 def test_prompt_contains_context():
     p = build_system_prompt(make())
-    for part in ["Аня", "стажёр", "Команда А", "неделя 2", "6 из 14", "Открыть первый PR", "до пятницы"]:
+    for part in [
+        "Аня",
+        "стажёр",
+        "Команда А",
+        "неделя 2",
+        "6 из 14",
+        "Открыть первый PR",
+        "до пятницы",
+    ]:
         assert part in p
 
 
