@@ -339,7 +339,7 @@ async def test_mcp_client_initializes_and_fetches_tools(
     @asynccontextmanager
     async def fake_streamable_http_client(url: str, http_client):
         captured_headers.update(http_client.headers)
-        yield object(), object(), None
+        yield object(), object()
 
     monkeypatch.setattr(mcp_client, "ClientSession", FakeSession)
     monkeypatch.setattr(

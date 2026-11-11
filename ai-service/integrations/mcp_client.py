@@ -111,7 +111,7 @@ class GenerationMCPClient:
                 timeout=timeout,
             )
             await self._exit_stack.enter_async_context(http_client)
-            read_stream, write_stream, _ = await self._exit_stack.enter_async_context(
+            read_stream, write_stream = await self._exit_stack.enter_async_context(
                 streamable_http_client(
                     url=self.server_url,
                     http_client=http_client,
