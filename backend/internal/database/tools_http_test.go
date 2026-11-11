@@ -22,7 +22,7 @@ func TestMCPWithPostgresContext(t *testing.T) {
 		denied bool
 	}{
 		{`{}`, false},
-		{`{"employee_id":"10000000-0000-0000-0000-000000000004"}`, true},
+		{`{"employee_id":"2db7cc77-4114-52d8-a833-f670ab60e4e0"}`, true},
 	} {
 		body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"employees.get_manager","arguments":` + tc.args + `}}`
 		r := httptest.NewRequest("POST", "http://localhost/mcp", strings.NewReader(body))
@@ -57,7 +57,7 @@ func TestMCPWithPostgresContext(t *testing.T) {
 		if !tc.denied && response.Result.IsError {
 			t.Fatal(w.Body.String())
 		}
-		if !tc.denied && response.Result.StructuredContent.Data.Manager.ID != "10000000-0000-0000-0000-000000000002" {
+		if !tc.denied && response.Result.StructuredContent.Data.Manager.ID != "4a59a828-3b1a-55e4-bf9b-81db5ad6183a" {
 			t.Fatal(w.Body.String())
 		}
 	}

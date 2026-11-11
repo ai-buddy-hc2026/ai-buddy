@@ -20,7 +20,7 @@ func TestPolicyDenialsPersistWithoutForeignData(t *testing.T) {
 		t.Fatal(err)
 	}
 	task := plan.Stages[0].Tasks[0]
-	foreign := "10000000-0000-0000-0000-000000000004"
+	foreign := "2db7cc77-4114-52d8-a833-f670ab60e4e0"
 	for _, tc := range []struct {
 		method, path, body string
 		code               int

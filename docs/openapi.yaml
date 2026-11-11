@@ -659,7 +659,7 @@ components:
       format: uuid
       pattern: '^(?!00000000-0000-0000-0000-000000000000$)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
       description: Ненулевой UUID в нижнем регистре, без префиксов; версия UUID не закреплена.
-      example: 10000000-0000-0000-0000-000000000001
+      example: a24a3478-cf42-51b1-b05b-9833260247a5
     NullableUUID:
       type: string
       format: uuid

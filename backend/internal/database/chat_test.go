@@ -14,7 +14,7 @@ import (
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/identifier"
 )
 
-const chatAnya = "10000000-0000-0000-0000-000000000001"
+const chatAnya = "a24a3478-cf42-51b1-b05b-9833260247a5"
 
 func chatStore(t *testing.T) *Chat {
 	t.Helper()
@@ -59,7 +59,7 @@ func TestChatStorageHistoryAndPermissions(t *testing.T) {
 	if _, _, err := store.Create(ctx, chatAnya, id, chat.Input{Message: "Еще"}); !errors.Is(err, chat.ErrRunning) {
 		t.Fatal("parallel generation accepted", err)
 	}
-	for _, actor := range []string{"10000000-0000-0000-0000-000000000002", "10000000-0000-0000-0000-000000000004"} {
+	for _, actor := range []string{"4a59a828-3b1a-55e4-bf9b-81db5ad6183a", "2db7cc77-4114-52d8-a833-f670ab60e4e0"} {
 		if _, err := store.Get(ctx, actor, record.RequestID); !errors.Is(err, chat.ErrNotFound) {
 			t.Fatal("foreign stream accepted", err)
 		}
