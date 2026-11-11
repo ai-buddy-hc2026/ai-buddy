@@ -24,7 +24,7 @@ func TestRoutes(t *testing.T) {
 	} {
 		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
 			var logs bytes.Buffer
-			handler := NewHandler(slog.New(slog.NewJSONHandler(&logs, nil)), nil)
+			handler := NewHandler(slog.New(slog.NewJSONHandler(&logs, nil)), nil, nil)
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, httptest.NewRequest(tc.method, tc.path, nil))
 			if recorder.Code != tc.status {
@@ -58,7 +58,7 @@ func (w failedWriter) Write([]byte) (int, error) { return 0, errors.New("disconn
 
 func TestHealthWriteError(t *testing.T) {
 	var logs bytes.Buffer
-	handler := NewHandler(slog.New(slog.NewJSONHandler(&logs, nil)), nil)
+	handler := NewHandler(slog.New(slog.NewJSONHandler(&logs, nil)), nil, nil)
 	handler.ServeHTTP(failedWriter{header: make(http.Header)}, httptest.NewRequest(http.MethodGet, "/health", nil))
 	if !strings.Contains(logs.String(), "disconnected") {
 		t.Fatal("write failure was not logged")

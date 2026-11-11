@@ -26,7 +26,7 @@ func TestPostgresLoginAndRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := httpapi.NewHandler(slog.New(slog.NewJSONHandler(io.Discard, nil)), service)
+	handler := httpapi.NewHandler(slog.New(slog.NewJSONHandler(io.Discard, nil)), service, nil)
 	request := func(method, path, token string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, path, strings.NewReader(`{"login":"intern_anya"}`))
 		r.Header.Set("Content-Type", "application/json")

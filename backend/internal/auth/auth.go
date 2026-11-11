@@ -2,11 +2,11 @@ package auth
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"strings"
 	"time"
 
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/identifier"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -92,21 +92,11 @@ func (s *Service) Authenticate(ctx context.Context, raw string) (User, error) {
 	}, jwt.WithValidMethods([]string{"HS256"}), jwt.WithExpirationRequired(),
 		jwt.WithIssuedAt(), jwt.WithIssuer("ai-buddy"), jwt.WithAudience("ai-buddy-web"), jwt.WithTimeFunc(s.now))
 	if err != nil || !token.Valid || claims.IssuedAt == nil || claims.Subject != claims.UserID ||
-		!validUUID(claims.UserID) || !validUUID(claims.TeamID) ||
+		!identifier.ValidUUID(claims.UserID) || !identifier.ValidUUID(claims.TeamID) ||
 		(claims.Role != "intern" && claims.Role != "buddy" && claims.Role != "lead") ||
 		!claims.ExpiresAt.After(claims.IssuedAt.Time) {
 		return User{}, ErrUnauthorized
 	}
 	// Роль и команда JWT являются снимком. Актуальный профиль берётся из БД.
 	return s.store.FindByID(ctx, claims.UserID)
-}
-
-func validUUID(value string) bool {
-	if len(value) != 36 || value != strings.ToLower(value) || value == "00000000-0000-0000-0000-000000000000" ||
-		value[8] != '-' || value[13] != '-' || value[18] != '-' || value[23] != '-' {
-		return false
-	}
-	compact := strings.ReplaceAll(value, "-", "")
-	_, err := hex.DecodeString(compact)
-	return len(compact) == 32 && err == nil
 }

@@ -51,5 +51,5 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	return server.Serve(ctx, listener, httpapi.NewHandler(logger, service), logger)
+	return server.Serve(ctx, listener, httpapi.NewHandler(logger, service, database.NewOnboarding(pool)), logger)
 }

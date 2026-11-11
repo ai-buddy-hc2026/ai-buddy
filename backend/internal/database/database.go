@@ -1,6 +1,7 @@
 package database
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"embed"
@@ -109,11 +110,14 @@ func migrate(ctx context.Context, tx pgx.Tx, files fs.FS) error {
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", name, err)
 		}
+		// Git checkout на Windows и Linux не должен менять версию миграции.
+		body = bytes.ReplaceAll(body, []byte("\r\n"), []byte("\n"))
 		checksum := fmt.Sprintf("%x", sha256.Sum256(body))
+		legacyCRLF := fmt.Sprintf("%x", sha256.Sum256(bytes.ReplaceAll(body, []byte("\n"), []byte("\r\n"))))
 		var previous string
 		err = tx.QueryRow(ctx, "SELECT checksum FROM schema_migrations WHERE name = $1", name).Scan(&previous)
 		if err == nil {
-			if previous != checksum {
+			if previous != checksum && previous != legacyCRLF {
 				return fmt.Errorf("migration %s changed after application", name)
 			}
 			continue
