@@ -3,7 +3,6 @@ package database
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/identifier"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -81,7 +81,7 @@ func parseChecklist(data []byte) (checklistSeed, error) {
 	}
 	ids := make(map[string]bool)
 	unique := func(id string) bool {
-		if !seedUUID(id) || ids[id] {
+		if !identifier.ValidUUID(id) || ids[id] {
 			return false
 		}
 		ids[id] = true
@@ -101,7 +101,7 @@ func parseChecklist(data []byte) (checklistSeed, error) {
 	plans := make(map[string]seedPlan)
 	interns := make(map[string]bool)
 	for _, plan := range seed.Plans {
-		if !unique(plan.ID) || !teams[plan.TeamID] || !seedUUID(plan.InternID) || interns[plan.InternID] || strings.TrimSpace(plan.Title) == "" ||
+		if !unique(plan.ID) || !teams[plan.TeamID] || !identifier.ValidUUID(plan.InternID) || interns[plan.InternID] || strings.TrimSpace(plan.Title) == "" ||
 			!seedDate(plan.StartDate) || plan.StartDate != seed.StartDate || !seedStage(plan.Stage) || plan.Status != "active" {
 			return seed, errors.New("invalid or duplicate checklist plan")
 		}
@@ -113,7 +113,7 @@ func parseChecklist(data []byte) (checklistSeed, error) {
 		plan, ok := plans[task.PlanID]
 		key := task.PlanID + ":" + task.SeedKey
 		position := fmt.Sprintf("%s:%s:%d", task.PlanID, task.Stage, task.Position)
-		if !unique(task.ID) || !ok || task.TeamID != plan.TeamID || !seedUUID(task.AssigneeID) || strings.TrimSpace(task.SeedKey) == "" ||
+		if !unique(task.ID) || !ok || task.TeamID != plan.TeamID || !identifier.ValidUUID(task.AssigneeID) || strings.TrimSpace(task.SeedKey) == "" ||
 			keys[key] || positions[position] || !seedStage(task.Stage) || strings.TrimSpace(task.Title) == "" || task.Position < 0 ||
 			task.Status != "todo" || task.Version != 1 || task.UpdatedAt.IsZero() {
 			return seed, errors.New("invalid or duplicate checklist task")
@@ -128,7 +128,7 @@ func parseChecklist(data []byte) (checklistSeed, error) {
 		task, ok := tasks[link.TaskID]
 		key := link.TaskID + ":" + link.DocumentID
 		position := fmt.Sprintf("%s:%d", link.TaskID, link.Position)
-		if !ok || task.TeamID != link.TeamID || !seedUUID(link.DocumentID) || ids[link.DocumentID] || link.Position < 0 || links[key] || linkPositions[position] {
+		if !ok || task.TeamID != link.TeamID || !identifier.ValidUUID(link.DocumentID) || ids[link.DocumentID] || link.Position < 0 || links[key] || linkPositions[position] {
 			return seed, errors.New("invalid or duplicate checklist document link")
 		}
 		links[key], linkPositions[position] = true, true
@@ -143,16 +143,6 @@ func seedDate(value string) bool {
 
 func seedStage(value string) bool {
 	return value == "week_1" || value == "week_2" || value == "weeks_3_4"
-}
-
-func seedUUID(value string) bool {
-	if len(value) != 36 || value != strings.ToLower(value) || value == "00000000-0000-0000-0000-000000000000" ||
-		value[8] != '-' || value[13] != '-' || value[18] != '-' || value[23] != '-' {
-		return false
-	}
-	compact := strings.ReplaceAll(value, "-", "")
-	_, err := hex.DecodeString(compact)
-	return len(compact) == 32 && err == nil
 }
 
 func seedChecklist(ctx context.Context, tx pgx.Tx, seed checklistSeed) error {

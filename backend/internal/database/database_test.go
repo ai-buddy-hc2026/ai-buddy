@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io/fs"
 	"os"
@@ -60,7 +61,7 @@ func TestPrepareRepeatAndConstraints(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	for table, want := range map[string]int{"teams": 2, "users": 6, "schema_migrations": 2, "onboarding_plans": 2, "tasks": 30, "task_status_history": 30} {
+	for table, want := range map[string]int{"teams": 2, "users": 6, "schema_migrations": 3, "onboarding_plans": 2, "tasks": 30, "task_status_history": 30} {
 		var got int
 		if err := pool.QueryRow(ctx, "SELECT count(*) FROM "+table).Scan(&got); err != nil || got != want {
 			t.Fatalf("%s count=%d, want=%d, err=%v", table, got, want, err)
@@ -129,5 +130,31 @@ func TestOpenInvalidURL(t *testing.T) {
 		if pool, err := Open(context.Background(), url); err == nil || pool != nil || strings.Contains(err.Error(), "secret") {
 			t.Fatalf("expected safe connection error, got %v", err)
 		}
+	}
+}
+
+func TestMigrationChecksumAcrossLineEndings(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+	if err := Prepare(ctx, pool, "../../../seed/checklist.json"); err != nil {
+		t.Fatal(err)
+	}
+	body, err := fs.ReadFile(scripts, "migrations/0002_onboarding.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lf := strings.ReplaceAll(string(body), "\r\n", "\n")
+	legacy := fmt.Sprintf("%x", sha256.Sum256([]byte(strings.ReplaceAll(lf, "\n", "\r\n"))))
+	if _, err := pool.Exec(ctx, "UPDATE schema_migrations SET checksum=$1 WHERE name='migrations/0002_onboarding.sql'", legacy); err != nil {
+		t.Fatal(err)
+	}
+	if err := Prepare(ctx, pool, "../../../seed/checklist.json"); err != nil {
+		t.Fatalf("equivalent CRLF migration rejected: %v", err)
+	}
+	if _, err := pool.Exec(ctx, "UPDATE schema_migrations SET checksum='different-content' WHERE name='migrations/0002_onboarding.sql'"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Prepare(ctx, pool, "../../../seed/checklist.json"); err == nil {
+		t.Fatal("changed migration accepted")
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/auth"
 )
 
-func NewHandler(logger *slog.Logger, service *auth.Service) http.Handler {
+func NewHandler(logger *slog.Logger, service *auth.Service, plans OnboardingStore) http.Handler {
 	mux := http.NewServeMux()
 	if service != nil {
 		mux.HandleFunc("POST /auth/mock-login", mockLogin(service))
@@ -24,6 +24,11 @@ func NewHandler(logger *slog.Logger, service *auth.Service) http.Handler {
 			_ = json.NewEncoder(w).Encode(u)
 		})))
 	}
+	if service != nil && plans != nil {
+		mux.Handle("GET /onboarding/plan", RequireAuth(service, getPlan(plans)))
+		mux.Handle("PATCH /tasks/{id}", RequireAuth(service, updateTask(plans)))
+	}
+
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if _, err := w.Write([]byte("{\"status\":\"ok\"}\n")); err != nil {

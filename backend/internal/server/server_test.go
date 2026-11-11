@@ -23,7 +23,7 @@ func TestServeAndShutdown(t *testing.T) {
 	defer cancel()
 	result := make(chan error, 1)
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	go func() { result <- Serve(ctx, listener, httpapi.NewHandler(logger, nil), logger) }()
+	go func() { result <- Serve(ctx, listener, httpapi.NewHandler(logger, nil, nil), logger) }()
 	client := &http.Client{Timeout: 3 * time.Second}
 	defer client.CloseIdleConnections()
 	response, err := client.Get("http://" + listener.Addr().String() + "/health")
