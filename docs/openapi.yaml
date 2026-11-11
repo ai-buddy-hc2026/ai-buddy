@@ -19,7 +19,7 @@ info:
     Все текстовые лимиты считаются в Unicode code points после обрезки крайних пробелов.
 
     Предложения черновика: GET /chat/messages, GET /buddy/escalations,
-    выбор intern_id при чтении плана, тело /answer с publish_to_kb,
+    тело /answer с publish_to_kb,
     ответы списков с курсором, восстановление беседы через GET /chat/messages
     без conversation_id. У пользователя одна активная беседа в этом черновике:
     GET возвращает её ID, первый POST без ID атомарно создаёт или выбирает её.
@@ -32,7 +32,6 @@ x-review-questions:
   - Сверить реализацию SSE и обязательный revision с docs/ai-contract.md; не менять внутренний контракт молча.
   - Уточнить схемы details/result действий по спецификациям инструментов (#49).
   - Подтвердить области видимости и формулы метрик с аналитиком (#52).
-  - Подтвердить выбор next_task_id и этапа по чек-листу PR #61.
   - Согласовать единственную активную беседу, пагинацию истории и токен версии ответа наставника.
 servers:
   - url: http://localhost:8080
@@ -137,7 +136,12 @@ paths:
         Buddy видит только явно назначенных ему стажёров, lead только свою команду.
         Это тот же план и тот же прогресс, отдельные копии для наставника не создаются.
         Прогресс = число done / число всех задач плана; у пустого плана percent = 0.
-        Выбор следующего шага и смена этапа требуют сверки с чек-листом PR #61.
+        next_task_id - первая незавершенная задача по порядку этапов week_1,
+        week_2, weeks_3_4, затем position и id. Включает blocked и задачи наставника.
+        При пустом плане или завершении всех задач next_task_id=null.
+        current_stage читается из БД; PATCH задачи автоматически не меняет этап
+        или статус плана. Это правило согласовано для #21.
+        Пока реальные материалы KB не загружены, tasks[].materials=[].
       parameters:
         - $ref: '#/components/parameters/InternId'
       responses:
@@ -164,6 +168,14 @@ paths:
         Повтор с актуальной version и тем же status возвращает задачу без увеличения
         версии и без нового события; повтор со старой version возвращает 409.
         Изменение, история статуса и событие метрик сохраняются одной транзакцией.
+        Менять задачу может только assignee_id: стажер в своем плане,
+        buddy в плане назначенного стажера, lead в плане своей команды.
+        Для видимой задачи с другим исполнителем возвращается 403 POLICY_DENIED;
+        объект вне области доступа или отсутствующий объект дает одинаковый 404.
+        Для неактивного плана возвращается 409 PLAN_NOT_ACTIVE. Допускаются
+        переходы между любыми значениями TaskStatus. Явный PATCH пользователя
+        является отдельным UI-сценарием; подтверждение агентных действий
+        через action_proposal этим endpoint не заменяется.
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -197,6 +209,7 @@ paths:
       operationId: getChatMessages
       summary: Восстановить историю своей беседы после перезагрузки
       x-draft-proposal: true
+      x-implementation: '#24: история и пагинация реализованы, actions пока пуст'
       description: |
         Без conversation_id выбирает единственную активную беседу пользователя;
         если её ещё нет, возвращает conversation_id = null и пустые массивы.
@@ -234,6 +247,7 @@ paths:
       tags: [chat]
       operationId: sendChatMessage
       summary: Сохранить сообщение и начать одну генерацию ответа
+      x-implementation: '#24: token/done/error, без MCP, действий и RAG-источников'
       description: |
         conversation_id можно не передавать: Go атомарно выбирает или создаёт единственную
         активную беседу пользователя. Существующая беседа должна принадлежать ему.
@@ -283,7 +297,13 @@ paths:
       tags: [chat]
       operationId: streamChatRequest
       summary: Читать или восстановить SSE одной генерации по request_id
+      x-implementation: '#24: token/done/error, heartbeat, Last-Event-ID; один процесс Go'
       description: |
+        Реализация #24 поддерживает token/done/error с пустыми sources.
+        tool_call/action_proposal и RAG-источники ниже остаются целевым контрактом.
+        После потери буфера сохраняется только терминальный итог. Для потерянной
+        running-генерации курсор выше восстановленного seq дает 400: нужно прочитать
+        историю без Last-Event-ID; прозрачного продолжения генерации нет.
         id означает request_id, не ID беседы или сообщения. Доступ только владельцу.
         Bearer передаётся в Authorization: frontend использует fetch с чтением SSE
         либо клиент с поддержкой заголовков. Нативный EventSource не позволяет задать
@@ -621,7 +641,7 @@ components:
         application/json:
           schema: {$ref: '#/components/schemas/Error'}
     Conflict:
-      description: VERSION_CONFLICT, GENERATION_IN_PROGRESS, ACTION_NOT_CONFIRMABLE или ESCALATION_CLOSED
+      description: VERSION_CONFLICT, PLAN_NOT_ACTIVE, GENERATION_IN_PROGRESS, ACTION_NOT_CONFIRMABLE или ESCALATION_CLOSED
       content:
         application/json:
           schema: {$ref: '#/components/schemas/Error'}

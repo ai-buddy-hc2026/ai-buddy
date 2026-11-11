@@ -1,0 +1,185 @@
+import asyncio
+import json
+from uuid import uuid4
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from redis.exceptions import ConnectionError as RedisConnectionError
+
+from api.v1 import chat
+from core import security
+from core.ai_service import LLMUnavailableError, get_ai_service
+from core.dependencies import get_redis
+from main import app
+from schemas.chat import ChatRequest
+
+
+class FakeRedis:
+    def __init__(self):
+        self.values = {}
+        self.events = []
+        self.expirations = {}
+        self.fail_publish = False
+        self.fail_registry = False
+
+    async def set(self, key, value, *, nx=False, ex=None):
+        if self.fail_registry:
+            raise RedisConnectionError("private-registry-details")
+        if nx and key in self.values:
+            return False
+        self.values[key] = value
+        self.expirations[key] = ex
+        return True
+
+    async def get(self, key):
+        return self.values.get(key)
+
+    async def publish(self, _key, value):
+        if self.fail_publish:
+            raise RedisConnectionError("private-publication-details")
+        self.events.append(json.loads(value))
+        return 1
+
+
+class FakeAI:
+    llm_client = object()
+
+    def __init__(self, parts=("Привет ", "мир"), error=None, delay=0):
+        self.parts = parts
+        self.error = error
+        self.delay = delay
+        self.calls = 0
+        self.closed = False
+
+    async def stream_step(self, _messages, _tools):
+        self.calls += 1
+        try:
+            for part in self.parts:
+                if self.delay:
+                    await asyncio.sleep(self.delay)
+                yield {"type": "token", "text": part}
+            if self.error:
+                raise self.error
+        finally:
+            self.closed = True
+
+
+def payload():
+    return {
+        "request_id": str(uuid4()),
+        "conversation_id": "30000000-0000-0000-0000-000000000001",
+        "user_id": "10000000-0000-0000-0000-000000000001",
+        "team_id": "00000000-0000-0000-0000-000000000001",
+        "role": "intern",
+        "stage": "week_1",
+        "timestamp": "2026-11-11T12:30:00Z",
+        "timezone": "Europe/Moscow",
+        "message": "Вопрос",
+        "history": [],
+    }
+
+
+@pytest.fixture
+def configured_dependencies(monkeypatch):
+    redis = FakeRedis()
+    ai = FakeAI()
+    monkeypatch.setattr(security.settings, "AI_SERVICE_TOKEN", "synthetic-service-token")
+    app.dependency_overrides[get_redis] = lambda: redis
+    app.dependency_overrides[get_ai_service] = lambda: ai
+    yield redis, ai
+    app.dependency_overrides.clear()
+
+
+async def test_http_acceptance_idempotency_and_errors(configured_dependencies):
+    redis, ai = configured_dependencies
+    transport = ASGITransport(app=app)
+    headers = {"Authorization": "Bearer synthetic-service-token"}
+    data = payload()
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        denied = await client.post("/chat", json=data)
+        assert denied.status_code == 401
+        assert denied.json()["error"]["code"] == "UNAUTHORIZED"
+        invalid = await client.post(
+            "/chat",
+            json={"message": "private-input"},
+            headers=headers,
+        )
+        assert invalid.status_code == 400
+        assert invalid.json()["error"]["code"] == "INVALID_REQUEST"
+        assert "private-input" not in invalid.text
+        accepted = await client.post("/chat", json=data, headers=headers)
+        assert accepted.status_code == 202
+        assert accepted.json() == {
+            "request_id": data["request_id"],
+            "accepted": True,
+            "duplicate": False,
+        }
+        duplicate = await client.post("/chat", json=data, headers=headers)
+        assert duplicate.status_code == 202
+        assert duplicate.json()["duplicate"] is True
+        conflict = await client.post(
+            "/chat",
+            json={**data, "message": "Другой вопрос"},
+            headers=headers,
+        )
+        assert conflict.status_code == 409
+        assert conflict.json()["error"]["code"] == "REQUEST_ID_CONFLICT"
+        assert ai.calls == 1 and ai.closed
+        assert [event["event"] for event in redis.events] == ["token", "token", "done"]
+        assert [event["seq"] for event in redis.events] == [1, 2, 3]
+        assert redis.events[-1]["data"] == {"full_text": "Привет мир", "sources": []}
+        assert redis.expirations[f"chat:{data['request_id']}"] == 600
+        redis.fail_registry = True
+        unavailable = await client.post("/chat", json=payload(), headers=headers)
+        assert unavailable.status_code == 503
+        assert unavailable.json()["error"]["code"] == "SERVICE_UNAVAILABLE"
+        assert "private-registry-details" not in unavailable.text
+
+
+@pytest.mark.parametrize(
+    ("ai", "code"),
+    [
+        (
+            FakeAI(parts=(), error=LLMUnavailableError("private-provider-details")),
+            "LLM_UNAVAILABLE",
+        ),
+        (FakeAI(parts=(), error=TimeoutError("private-timeout")), "LLM_TIMEOUT"),
+        (FakeAI(parts=(), error=ValueError("private-error")), "INTERNAL_ERROR"),
+        (FakeAI(parts=()), "INTERNAL_ERROR"),
+        (FakeAI(parts=("я" * 20_001,)), "INTERNAL_ERROR"),
+    ],
+)
+async def test_generation_failures_are_terminal_and_safe(ai, code):
+    redis = FakeRedis()
+    data = ChatRequest.model_validate(payload())
+    await chat.pubsub_publish(data, ai, redis)
+    assert ai.closed
+    assert len(redis.events) == 1
+    event = redis.events[0]
+    assert event["event"] == "error"
+    assert event["seq"] == 1
+    assert event["data"]["code"] == code
+    assert "private" not in event["data"]["message"]
+    assert json.loads(redis.values[f"chat:{data.request_id}"])["state"] == "failed"
+
+
+async def test_whole_generation_deadline(monkeypatch):
+    monkeypatch.setattr(chat, "GENERATION_TIMEOUT_SECONDS", 0.02)
+    redis = FakeRedis()
+    ai = FakeAI(delay=0.1)
+    await chat.pubsub_publish(ChatRequest.model_validate(payload()), ai, redis)
+    assert ai.closed
+    assert [event["event"] for event in redis.events] == ["error"]
+    assert redis.events[0]["data"]["code"] == "LLM_TIMEOUT"
+
+
+async def test_redis_loss_does_not_publish_conflicting_sequence(caplog):
+    redis = FakeRedis()
+    redis.fail_publish = True
+    ai = FakeAI()
+    data = ChatRequest.model_validate(payload())
+    await chat.pubsub_publish(data, ai, redis)
+    assert redis.events == []
+    assert ai.closed
+    assert "private-publication-details" not in caplog.text
+    assert json.loads(redis.values[f"chat:{data.request_id}"])["state"] == "failed"

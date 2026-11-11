@@ -47,7 +47,7 @@ func TestMockLoginAndMiddleware(t *testing.T) {
 		t.Fatal(err)
 	}
 	var logs bytes.Buffer
-	handler := NewHandler(slog.New(slog.NewJSONHandler(&logs, nil)), service)
+	handler := NewHandler(slog.New(slog.NewJSONHandler(&logs, nil)), service, nil)
 	for _, tc := range []struct {
 		name, body, media string
 		status            int

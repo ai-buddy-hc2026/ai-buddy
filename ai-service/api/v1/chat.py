@@ -8,6 +8,8 @@ from typing import Any
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from openai import APITimeoutError, OpenAIError
+from redis.exceptions import RedisError
 
 from config import RouteTags
 from core.ai_service import (
@@ -107,6 +109,8 @@ async def pubsub_publish(
 ) -> None:
     channel_key = f"chat:{chat_data.request_id}"
     seq = 0
+    proposal_count = 0
+    state, error_code = "failed", "INTERNAL_ERROR"
     full_text = ""
     deadline = time.monotonic() + GENERATION_TIMEOUT_SECONDS
     messages = [item.model_dump() for item in chat_data.history]
@@ -119,7 +123,7 @@ async def pubsub_publish(
         action_type: str,
         details: dict[str, Any],
     ) -> None:
-        nonlocal seq
+        nonlocal seq, proposal_count
         seq += 1
         await publish_event(
             ActionProposalEventFromPython(
@@ -129,6 +133,8 @@ async def pubsub_publish(
                 data=ActionProposalData(action_type=action_type, details=details),
             ),
         )
+
+        proposal_count += 1
 
     async def publish_error(code: str, message: str) -> None:
         nonlocal seq
@@ -140,19 +146,9 @@ async def pubsub_publish(
             data=ErrorData(code=code, message=message),
         )
         await publish_event(event_error)
-        await redis.set(
-            channel_key,
-            json.dumps(
-                {
-                    "fingerprint": generate_fingerprint(chat_data),
-                    "state": "failed",
-                    "error": code,
-                },
-            ),
-            ex=600,
-        )
 
-    try:
+    async def generate() -> None:
+        nonlocal seq, full_text
         if ai_service.llm_client is None:
             raise LLMUnavailableError("LLM_API_KEY is not configured")
 
@@ -168,8 +164,9 @@ async def pubsub_publish(
                 tool_calls: dict[int, dict[str, str]] = {}
                 step_text = ""
 
-                async with asyncio.timeout(max(0, deadline - time.monotonic())):
-                    async for chunk in ai_service.stream_step(messages, tools):
+                stream = ai_service.stream_step(messages, tools)
+                try:
+                    async for chunk in stream:
                         if chunk["type"] == "token":
                             text = chunk["text"]
                             if len(full_text) + len(text) > MAX_RESPONSE_LENGTH:
@@ -189,6 +186,14 @@ async def pubsub_publish(
                             _append_tool_call_delta(tool_calls, chunk["tool_call"])
                         else:
                             raise ValueError("Неизвестный тип фрагмента ответа модели")
+
+                finally:
+                    close = getattr(stream, "aclose", None)
+                    if close is not None:
+                        try:
+                            await close()
+                        except Exception:
+                            logger.warning("Не удалось закрыть поток LLM")
 
                 if not tool_calls:
                     break
@@ -281,52 +286,57 @@ async def pubsub_publish(
                 )
                 messages.extend(tool_results)
 
-        seq += 1
-        await publish_event(
-            DoneEvent(
-                event="done",
-                request_id=chat_data.request_id,
-                seq=seq,
-                data=DoneData(full_text=full_text, sources=[]),
-            ),
-        )
-        await redis.set(
-            channel_key,
-            json.dumps(
-                {
-                    "fingerprint": generate_fingerprint(chat_data),
-                    "state": "completed",
-                },
-            ),
-            ex=600,
-        )
-    except LLMTimeoutError:
-        await publish_error(
-            "LLM_TIMEOUT",
-            "Превышено время ожидания ответа от языковой модели.",
-        )
-    except LLMUnavailableError:
-        await publish_error("LLM_UNAVAILABLE", "Ассистент временно недоступен.")
-    except TimeoutError:
-        await publish_error(
-            "LLM_TIMEOUT",
-            "Превышено время ожидания ответа от языковой модели.",
-        )
-    except MCPContractError:
-        await publish_error(
-            "TOOL_FAILED",
-            "Не удалось получить или выполнить инструмент.",
-        )
+    try:
+        async with asyncio.timeout(max(0, deadline - time.monotonic())):
+            await generate()
+            if not full_text and not proposal_count:
+                raise ValueError("Пустой ответ без предложения действия")
+            seq += 1
+            await publish_event(
+                DoneEvent(
+                    event="done",
+                    request_id=chat_data.request_id,
+                    seq=seq,
+                    data=DoneData(full_text=full_text, sources=[]),
+                ),
+            )
+            state = "completed"
+    except RedisError:
+        # После потери публикации Go завершит запрос по своему дедлайну.
+        logger.warning("Не удалось опубликовать событие в Redis")
     except Exception as error:
-        logger.error(
-            "Ошибка генерации request_id=%s error_type=%s",
-            chat_data.request_id,
-            type(error).__name__,
-        )
-        await publish_error(
-            "INTERNAL_ERROR",
-            "Не удалось завершить генерацию ответа.",
-        )
+        if isinstance(error, (LLMTimeoutError, APITimeoutError, TimeoutError)):
+            error_code = "LLM_TIMEOUT"
+            message = "Превышено время ожидания ответа от языковой модели."
+        elif isinstance(error, (LLMUnavailableError, OpenAIError)):
+            error_code = "LLM_UNAVAILABLE"
+            message = "Ассистент временно недоступен."
+        elif isinstance(error, MCPContractError):
+            error_code = "TOOL_FAILED"
+            message = "Не удалось получить или выполнить инструмент."
+        else:
+            error_code = "INTERNAL_ERROR"
+            message = "Не удалось завершить генерацию ответа."
+            logger.error(
+                "Ошибка генерации request_id=%s error_type=%s",
+                chat_data.request_id,
+                type(error).__name__,
+            )
+        try:
+            await publish_error(error_code, message)
+        except RedisError:
+            logger.warning("Не удалось опубликовать ошибку в Redis")
+    finally:
+        final_state = {
+            "fingerprint": generate_fingerprint(chat_data),
+            "state": state,
+        }
+        if state == "failed":
+            final_state["error"] = error_code
+        try:
+            await redis.set(channel_key, json.dumps(final_state), ex=600)
+        except RedisError:
+            logger.warning("Не удалось сохранить состояние генерации в Redis")
 
 
 @chat_router.post("/chat", status_code=status.HTTP_202_ACCEPTED)
@@ -340,28 +350,28 @@ async def get_chat_state(
     channel_key = f"chat:{chat_data.request_id}"
     fingerprint = generate_fingerprint(chat_data)
 
-    initial_state = json.dumps({"fingerprint": fingerprint, "state": "pending"})
-    is_new = await redis.set(channel_key, initial_state, nx=True, ex=600)
-
-    if not is_new:
-        raw_data = await redis.get(channel_key)
-        if raw_data:
-            cached_data = json.loads(raw_data)
-            if cached_data.get("fingerprint") == fingerprint:
-                return ChatResponse(
-                    request_id=chat_data.request_id,
-                    accepted=True,
-                    duplicate=True,
-                )
+    initial_state = json.dumps({"fingerprint": fingerprint, "state": "generating"})
+    try:
+        is_new = await redis.set(channel_key, initial_state, nx=True, ex=600)
+        if not is_new:
+            raw_data = await redis.get(channel_key)
+            if raw_data:
+                cached_data = json.loads(raw_data)
+                if cached_data.get("fingerprint") == fingerprint:
+                    return ChatResponse(
+                        request_id=chat_data.request_id,
+                        accepted=True,
+                        duplicate=True,
+                    )
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="request_id in use with different data",
+            )
+    except (RedisError, ValueError, TypeError) as error:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="request_id in use with different data",
-        )
-    await redis.set(
-        channel_key,
-        json.dumps({"fingerprint": fingerprint, "state": "generating"}),
-        ex=600,
-    )
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="generation registry unavailable",
+        ) from error
 
     background_tasks.add_task(pubsub_publish, chat_data, ai_service, redis)
 

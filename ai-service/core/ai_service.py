@@ -26,6 +26,8 @@ class AIService:
             AsyncOpenAI(
                 base_url=settings.LLM_BASE_URL,
                 api_key=settings.LLM_API_KEY,
+                timeout=60,
+                max_retries=0,
             )
             if settings.LLM_API_KEY
             else None
@@ -61,13 +63,16 @@ class AIService:
                 stream=True,
                 **kwargs,
             )
-            async for chunk in response:
-                delta = chunk.choices[0].delta
-                if delta.content:
-                    yield {"type": "token", "text": delta.content}
-                if delta.tool_calls:
-                    for tc in delta.tool_calls:
-                        yield {"type": "tool_call_delta", "tool_call": tc}
+            try:
+                async for chunk in response:
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        yield {"type": "token", "text": delta.content}
+                    if delta.tool_calls:
+                        for tc in delta.tool_calls:
+                            yield {"type": "tool_call_delta", "tool_call": tc}
+            finally:
+                await response.close()
         except APITimeoutError as e:
             raise LLMTimeoutError("LLM timeout") from e
         except (APIConnectionError, APIStatusError) as e:
