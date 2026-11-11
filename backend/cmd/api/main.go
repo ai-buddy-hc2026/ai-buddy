@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"os"
@@ -10,10 +11,12 @@ import (
 	"time"
 
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/auth"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/chat"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/config"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/database"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/httpapi"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/server"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -51,5 +54,27 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	return server.Serve(ctx, listener, httpapi.NewHandler(logger, service, database.NewOnboarding(pool)), logger)
+	chatCfg, err := config.LoadChat(cfg.RedisURL)
+	if err != nil {
+		return err
+	}
+	var streams *chat.Service
+	if chatCfg.Enabled {
+		redisOptions, err := redis.ParseURL(cfg.RedisURL)
+		if err != nil {
+			return fmt.Errorf("invalid REDIS_URL")
+		}
+		redisOptions.Protocol = 2
+		redisOptions.MaxRetries = -1
+		redisOptions.ContextTimeoutEnabled = true
+		redisOptions.DisableIdentity = true
+		client := redis.NewClient(redisOptions)
+		defer func() { _ = client.Close() }()
+		streams, err = chat.NewService(ctx, database.NewChat(pool), chat.RedisBroker{Client: client}, &chat.PythonClient{URL: chatCfg.ServiceURL, Token: chatCfg.ServiceToken}, chat.Options{})
+		if err != nil {
+			return err
+		}
+		defer streams.Close()
+	}
+	return server.Serve(ctx, listener, httpapi.NewHandler(logger, service, database.NewOnboarding(pool), streams), logger)
 }
