@@ -51,7 +51,11 @@ func TestCorporateToolsAccess(t *testing.T) {
 			for _, team := range []string{"team", "other", ""} {
 				for _, owner := range []string{"actor", "other"} {
 					want := (role == "intern" || role == "buddy" || role == "lead") && team == "team" && (op == GetAbsencePolicy || owner == "actor")
-					got := Check(Actor{ID: "actor", TeamID: "team", Role: role}, op, Resource{TeamID: team, OwnerID: owner})
+					resource := Resource{TeamID: team, OwnerID: owner, BuddyID: "actor"}
+					if op == ListAbsences {
+						want = (role == "buddy" || role == "lead") && team == "team"
+					}
+					got := Check(Actor{ID: "actor", TeamID: "team", Role: role}, op, resource)
 					if (got == "") != want {
 						t.Fatalf("role=%q op=%q team=%q owner=%q reason=%q", role, op, team, owner, got)
 					}

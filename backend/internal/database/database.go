@@ -72,6 +72,9 @@ func prepare(ctx context.Context, pool *pgxpool.Pool, files fs.FS, checklist che
 	if _, err := tx.Exec(ctx, string(seed)); err != nil {
 		return fmt.Errorf("seed users: %w", err)
 	}
+	if _, err := tx.Exec(ctx, `INSERT INTO absence_policies(team_id,notice_period_days,allowed_types) SELECT id,3,'[{"code":"day_off","label":"Отгул"}]'::jsonb FROM teams ON CONFLICT(team_id) DO NOTHING`); err != nil {
+		return fmt.Errorf("seed absence policies: %w", err)
+	}
 	if err := seedChecklist(ctx, tx, checklist); err != nil {
 		return err
 	}

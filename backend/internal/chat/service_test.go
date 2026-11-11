@@ -367,3 +367,45 @@ func TestRestartAndShutdown(t *testing.T) {
 		t.Fatal("closed service accepted request")
 	}
 }
+
+func TestProposalProcessedBeforeSSEAndReplay(t *testing.T) {
+	store, broker := newMemoryStore(), newFakeBroker()
+	calls := 0
+	service, err := NewService(context.Background(), store, broker, senderFunc(func(ctx context.Context, p Payload) error {
+		proposal := NewEvent(p.RequestID, 1, "action_proposal", map[string]any{"action_type": "absences.create_request", "details": map[string]any{"date": "2030-01-01", "type": "day_off"}})
+		broker.emit(p.RequestID, proposal)
+		broker.emit(p.RequestID, proposal)
+		full := ""
+		broker.emit(p.RequestID, NewEvent(p.RequestID, 2, "done", Done{FullText: &full, Sources: []json.RawMessage{}}))
+		<-ctx.Done()
+		return ctx.Err()
+	}), Options{ProcessEvent: func(_ context.Context, id string, e Event) (Event, error) {
+		calls++
+		return NewEvent(id, e.Seq, e.Type, map[string]any{"action_type": "absences.create_request", "action_id": "50000000-0000-0000-0000-000000000001", "status": "proposed", "details": map[string]any{}}), nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.Close()
+	accepted, err := service.Start(context.Background(), testActor, Input{Message: "Создать заявку"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	feed := waitTerminal(t, service, accepted)
+	events, done, _ := feed.Snapshot(0)
+	if !done || len(events) != 2 || events[0].Type != "action_proposal" || events[1].Type != "done" || calls != 1 {
+		t.Fatalf("events=%+v processed=%d", events, calls)
+	}
+	var data map[string]any
+	if json.Unmarshal(events[0].Data, &data) != nil || data["action_id"] == nil {
+		t.Fatal("unprocessed proposal reached SSE")
+	}
+	replay, err := service.Open(context.Background(), testActor, accepted.RequestID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	copied, _, _ := replay.Snapshot(0)
+	if string(copied[0].Data) != string(events[0].Data) {
+		t.Fatal("replay changed proposal")
+	}
+}

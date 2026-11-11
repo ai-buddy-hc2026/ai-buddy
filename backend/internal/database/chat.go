@@ -241,8 +241,17 @@ func (s *Chat) Finish(ctx context.Context, id string, event chat.Event) error {
 		return chat.ErrInvalid
 	}
 	if event.Type == "done" {
-		if text == "" || utf8.RuneCountInString(text) > 20000 {
+		if utf8.RuneCountInString(text) > 20000 {
 			return chat.ErrInvalid
+		}
+		if text == "" {
+			var proposed bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM actions_log WHERE request_id=$1)`, id).Scan(&proposed); err != nil {
+				return err
+			}
+			if !proposed {
+				return chat.ErrInvalid
+			}
 		}
 		if _, err := tx.Exec(ctx, "INSERT INTO chat_messages (request_id,role,content) VALUES ($1,'assistant',$2)", id, text); err != nil {
 			return err
@@ -355,6 +364,23 @@ func (s *Chat) History(ctx context.Context, actorID, conversationID, cursor stri
 			return result, err
 		}
 		turn.Messages = messages
+		actionRows, err := tx.Query(ctx, `SELECT `+publicActionColumns+` FROM actions_log WHERE request_id=$1 AND actor_id=$2 AND team_id=$3 ORDER BY proposal_seq,id`, record.RequestID, actor.id, actor.teamID)
+		if err != nil {
+			return result, err
+		}
+		actions, err := pgx.CollectRows(actionRows, func(row pgx.CollectableRow) (json.RawMessage, error) {
+			action, err := readPublicAction(row)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(action)
+		})
+		if err != nil {
+			return result, err
+		}
+		if actions != nil {
+			turn.Actions = actions
+		}
 		result.Items = append(result.Items, turn)
 	}
 	var activeRecord chat.Record

@@ -8,7 +8,7 @@
 
 | Часть | Что уже есть | Что ещё предстоит |
 |-------|--------------|-------------------|
-| Go backend | Конфигурация, /health, мок-вход/JWT, /me, план и статусы задач; чат с SSE и историей; policy-слой, 7 MCP-инструментов, списки стажеров и своих действий | Интеграция tool-calling, предложений и подтверждений действий с чатом/UI, ответы наставника, RAG-источники, остальные API |
+| Go backend | Конфигурация, /health, мок-вход/JWT, /me, план и статусы задач; чат с SSE и историей; policy-слой, 6 MCP-инструментов по исходному контракту, предложения в SSE, HTTP-подтверждение, списки стажеров и своих действий | Подключение UI подтверждения, ответы наставника, RAG-источники, остальные API |
 | Инфраструктура | Compose для backend, Python, PostgreSQL с pgvector и Redis; тестовый провайдер LLM в compose.test.yml | Интеграция frontend |
 | Frontend | Папка под интерфейс; каркас в [PR #57](https://github.com/ai-buddy-hc2026/ai-buddy/pull/57) | Слияние и интеграция с API |
 | AI-service и CI | Код и [черновик контракта](docs/ai-contract.md) из PR #60/#65; профиль #24 проверен через Compose с синтетической LLM и добавлен в CI | Полный контракт, RAG и инструменты |
@@ -16,8 +16,8 @@
 
 API онбординга по #21 использует авторизацию из [PR #77](https://github.com/ai-buddy-hc2026/ai-buddy/pull/77) и миграции/seed из [PR #78](https://github.com/ai-buddy-hc2026/ai-buddy/pull/78), уже влитые в main. Изменения #21 пока находятся в этой ветке.
 
-Ветка feat/chat-sse для #24 основана на [PR #79](https://github.com/ai-buddy-hc2026/ai-buddy/pull/79)
-по #21. Реализован профиль token/done/error без MCP, действий и RAG-источников.
+Исходная ветка feat/chat-sse для #24 основана на [PR #79](https://github.com/ai-buddy-hc2026/ai-buddy/pull/79)
+по #21. В ней реализован профиль token/done/error без MCP, действий и RAG-источников.
 Сквозная проверка с настоящим Python и синтетическим провайдером, маршруты и
 ограничения описаны в [backend/README.md](backend/README.md#чат-и-sse-24).
 
@@ -31,12 +31,20 @@ API онбординга по #21 использует авторизацию и
 В ней добавлены шесть внутренних MCP-инструментов: checklist.*, employees.get_manager
 и absences.*, синтетическое хранение отсутствий и исполнитель подтвержденных действий.
 Контракт и границы: [docs/mcp.md](docs/mcp.md). Подключение Python tool-calling,
-обработка action_proposal и UI подтверждения пока не реализованы.
+обработка action_proposal и UI подтверждения в исходной ветке отсутствовали.
 
 Ветка `feat/escalations-actions-api` зависит от открытого [PR #83](https://github.com/ai-buddy-hc2026/ai-buddy/pull/83).
-Добавлены MCP escalation.create, GET /buddy/interns и GET /actions. Правила
+В исходной ветке добавлены MCP escalation.create, GET /buddy/interns и GET /actions. Правила
 доступа, снимка контекста и пагинации: [docs/activity.md](docs/activity.md).
 Входящие вопросы наставника, ответы и публикация в KB остаются отдельными задачами.
+
+Ветка `feat/mcp-contract-alignment` основана на открытом [PR #84](https://github.com/ai-buddy-hc2026/ai-buddy/pull/84).
+Она возвращает Go к исходному [MCP-контракту 1.1-draft](docs/mcp.md), который
+использует Python-клиент [PR #85](https://github.com/ai-buddy-hc2026/ai-buddy/pull/85):
+`/mcp`, шесть tools со схемами и стандартными ответами, предложение через Redis,
+сохранение в Go и `POST /actions/{id}/confirm`. escalation.create остается внутренней
+операцией Go и исключен из базового MCP-профиля. Код Python не изменен.
+UI подтверждения и полный запуск вместе с AI-сервисом остаются отдельной интеграцией.
 
 `/health` проверяет HTTP-сервер. Он не подтверждает наличие прикладных сценариев или подключение Go к PostgreSQL и Redis.
 

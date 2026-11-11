@@ -130,7 +130,7 @@ func Failure(id string, seq int, code string) Event {
 	return NewEvent(id, seq, "error", Error{Code: code, Message: message})
 }
 
-// ParseEvent реализует профиль #24: token/done/error без действий и RAG.
+// ParseEvent проверяет транспорт; предложения дополнительно проверяет Go-хранилище.
 func ParseEvent(raw []byte, id string) (Event, error) {
 	var event Event
 	if !utf8.Valid(raw) || json.Unmarshal(raw, &event) != nil || event.RequestID != id || !identifier.ValidUUID(event.RequestID) || event.Seq < 1 || len(event.Data) == 0 {
@@ -145,10 +145,16 @@ func ParseEvent(raw []byte, id string) (Event, error) {
 		event.Data, _ = json.Marshal(token)
 	case "done":
 		var done Done
-		if json.Unmarshal(event.Data, &done) != nil || done.FullText == nil || *done.FullText == "" || utf8.RuneCountInString(*done.FullText) > 20000 || done.Sources == nil || len(done.Sources) != 0 {
+		if json.Unmarshal(event.Data, &done) != nil || done.FullText == nil || utf8.RuneCountInString(*done.FullText) > 20000 || done.Sources == nil || len(done.Sources) != 0 {
 			return event, ErrInvalid
 		}
 		event.Data, _ = json.Marshal(done)
+	case "tool_call", "action_proposal":
+		var value map[string]json.RawMessage
+		if json.Unmarshal(event.Data, &value) != nil || value == nil {
+			return event, ErrInvalid
+		}
+		event.Data, _ = json.Marshal(value)
 	case "error":
 		var failure Error
 		if json.Unmarshal(event.Data, &failure) != nil || strings.TrimSpace(failure.Message) == "" {

@@ -12,7 +12,7 @@ import (
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/identifier"
 )
 
-type listScope struct{ Kind, Actor, Team, Status, Conversation string }
+type listScope struct{ Kind, Actor, Team, Status, Conversation, Role string }
 type listCursor struct {
 	Version   int
 	Scope     listScope

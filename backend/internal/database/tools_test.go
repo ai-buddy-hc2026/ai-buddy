@@ -65,12 +65,15 @@ func toolActionFixture(t *testing.T, s *Tools, requestID string, operation polic
 }
 
 func callAction(s *Tools, requestID string, operation policy.Operation, actionID string) (any, error) {
-	raw, _ := json.Marshal(tools.ActionInput{ActionID: actionID})
-	return s.Call(context.Background(), requestID, operation, raw)
+	var actorID string
+	if err := s.pool.QueryRow(context.Background(), `SELECT user_id::text FROM chat_requests WHERE id=$1`, requestID).Scan(&actorID); err != nil {
+		return nil, err
+	}
+	return s.ExecuteConfirmed(context.Background(), actorID, actionID)
 }
 
 func absenceParams() tools.AbsenceParameters {
-	return tools.AbsenceParameters{Date: time.Now().AddDate(0, 0, 2).Format(time.DateOnly), Type: "отгул", Approver: "10000000-0000-0000-0000-000000000003"}
+	return tools.AbsenceParameters{Date: time.Now().AddDate(0, 0, 30).Format(time.DateOnly), Type: "day_off", Approver: "10000000-0000-0000-0000-000000000002"}
 }
 
 func canonicalToolResult(result any) (string, error) {
@@ -89,7 +92,7 @@ func canonicalToolResult(result any) (string, error) {
 func TestToolReadContextAndScope(t *testing.T) {
 	s, requestID := toolFixture(t)
 	ctx := context.Background()
-	for _, op := range []policy.Operation{policy.GetPlan, policy.GetManager, policy.GetAbsencePolicy, policy.ListAbsences} {
+	for _, op := range []policy.Operation{policy.GetPlan, policy.GetManager, policy.GetAbsencePolicy} {
 		if _, err := s.Call(ctx, requestID, op, json.RawMessage(`{}`)); err != nil {
 			t.Fatalf("%s: %v", op, err)
 		}
@@ -97,7 +100,7 @@ func TestToolReadContextAndScope(t *testing.T) {
 	for _, op := range []policy.Operation{policy.GetManager, policy.ListAbsences} {
 		for _, employee := range []string{"10000000-0000-0000-0000-000000000002", "10000000-0000-0000-0000-000000000004"} {
 			raw := json.RawMessage(fmt.Sprintf(`{"employee_id":%q}`, employee))
-			if _, err := s.Call(ctx, requestID, op, raw); !errors.Is(err, tools.ErrDenied) {
+			if _, err := s.Call(ctx, requestID, op, raw); !errors.Is(err, tools.ErrInvalid) {
 				t.Fatalf("foreign employee allowed: %v", err)
 			}
 		}
@@ -106,7 +109,7 @@ func TestToolReadContextAndScope(t *testing.T) {
 	if _, err := s.Call(ctx, leadRequest, policy.ListAbsences, json.RawMessage(`{}`)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Call(ctx, leadRequest, policy.ListAbsences, json.RawMessage(`{"employee_id":"10000000-0000-0000-0000-000000000001"}`)); !errors.Is(err, tools.ErrDenied) {
+	if _, err := s.Call(ctx, leadRequest, policy.ListAbsences, json.RawMessage(`{"employee_id":"10000000-0000-0000-0000-000000000001"}`)); !errors.Is(err, tools.ErrInvalid) {
 		t.Fatal("lead saw foreign absences", err)
 	}
 	for _, raw := range []string{`{"role":"lead"}`, `{"team_id":"other"}`, `{"request_id":"other"}`} {
@@ -114,13 +117,13 @@ func TestToolReadContextAndScope(t *testing.T) {
 			t.Fatalf("context override accepted: %v", err)
 		}
 	}
-	if _, err := s.Call(ctx, requestID, "unknown", json.RawMessage(`{}`)); !errors.Is(err, tools.ErrDenied) {
+	if _, err := s.Call(ctx, requestID, "unknown", json.RawMessage(`{}`)); !errors.Is(err, tools.ErrInvalid) {
 		t.Fatal(err)
 	}
 	if _, err := s.pool.Exec(ctx, `UPDATE chat_requests SET created_at=now()-interval '2 hours',deadline_at=now()-interval '1 hour' WHERE id=$1`, requestID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Call(ctx, requestID, policy.GetManager, json.RawMessage(`{}`)); !errors.Is(err, tools.ErrContext) {
+	if _, err := s.Call(ctx, requestID, policy.GetManager, json.RawMessage(`{}`)); !errors.Is(err, tools.ErrClosed) {
 		t.Fatal("expired context accepted", err)
 	}
 }
@@ -233,7 +236,7 @@ func TestAbsenceConfirmationFailureAndRetry(t *testing.T) {
 		t.Fatal("agent confirmed action", err)
 	}
 	otherRequest := toolRequest(t, s, "10000000-0000-0000-0000-000000000004")
-	if _, err := callAction(s, otherRequest, policy.CreateAbsence, actionID); !errors.Is(err, tools.ErrDenied) {
+	if _, err := callAction(s, otherRequest, policy.CreateAbsence, actionID); !errors.Is(err, tools.ErrNotFound) {
 		t.Fatal("foreign action accepted", err)
 	}
 	if _, err := s.pool.Exec(ctx, `UPDATE actions_log SET status='confirmed',confirmed_by=actor_id,confirmed_at=now() WHERE id=$1`, actionID); err != nil {
@@ -259,13 +262,13 @@ func TestAbsenceConfirmationFailureAndRetry(t *testing.T) {
 	invalid := absenceParams()
 	invalid.Date = "2020-01-01"
 	badID := toolActionFixture(t, s, requestID, policy.CreateAbsence, invalid, true)
-	if _, err := callAction(s, requestID, policy.CreateAbsence, badID); !errors.Is(err, tools.ErrInvalid) {
+	if _, err := callAction(s, requestID, policy.CreateAbsence, badID); !errors.Is(err, tools.ErrBusinessConflict) {
 		t.Fatal("past date accepted", err)
 	}
 	invalid = absenceParams()
-	invalid.Approver = "10000000-0000-0000-0000-000000000002"
+	invalid.Approver = "10000000-0000-0000-0000-000000000003"
 	badID = toolActionFixture(t, s, requestID, policy.CreateAbsence, invalid, true)
-	if _, err := callAction(s, requestID, policy.CreateAbsence, badID); !errors.Is(err, tools.ErrConflict) {
+	if _, err := callAction(s, requestID, policy.CreateAbsence, badID); !errors.Is(err, tools.ErrBusinessConflict) {
 		t.Fatal("substituted approver accepted", err)
 	}
 }

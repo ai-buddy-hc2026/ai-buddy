@@ -41,9 +41,16 @@ func Check(actor Actor, operation Operation, resource Resource) string {
 		if operation == UpdateStatus && resource.AssigneeID != actor.ID {
 			return "assignee_denied"
 		}
-	case CreateChat, ReadChat, GetManager, ListAbsences, CreateAbsence, ListActions:
+	case CreateChat, ReadChat, GetManager, CreateAbsence, ListActions:
 		if resource.OwnerID != actor.ID {
 			return "owner_denied"
+		}
+	case ListAbsences:
+		if actor.Role == "intern" {
+			return "role_denied"
+		}
+		if actor.Role == "buddy" && resource.BuddyID != actor.ID {
+			return "assignment_denied"
 		}
 	case CreateEscalation:
 		if actor.Role != "intern" {

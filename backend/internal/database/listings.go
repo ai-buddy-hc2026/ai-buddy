@@ -132,24 +132,7 @@ func (s *Listings) ListActions(ctx context.Context, actorID string, q activity.Q
 	if err != nil {
 		return page, err
 	}
-	items, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (activity.Action, error) {
-		var a activity.Action
-		var parameters, lastError json.RawMessage
-		err := row.Scan(&a.ID, &a.RequestID, &a.ProposalSeq, &a.ActionType, &parameters, &a.Status, &a.Result, &lastError, &a.AttemptCount, &a.CreatedAt, &a.UpdatedAt)
-		if err != nil {
-			return a, err
-		}
-		a.Details, a.Result, err = actionPublicFields(a.ActionType, parameters, a.Result)
-		if err != nil {
-			return a, err
-		}
-		if len(lastError) > 0 && string(lastError) != "null" {
-			a.LastError = &activity.ErrorDetail{Code: "TOOL_FAILED", Message: "Действие не выполнено. Повторите попытку после проверки параметров."}
-		}
-		a.CreatedAt = a.CreatedAt.UTC()
-		a.UpdatedAt = a.UpdatedAt.UTC()
-		return a, nil
-	})
+	items, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (activity.Action, error) { return readPublicAction(row) })
 	if err != nil {
 		return page, err
 	}
@@ -180,8 +163,8 @@ func actionPublicFields(kind string, parameters, result json.RawMessage) (json.R
 		"escalation.create":       {"buddy_id", "question", "context_snapshot"},
 	}
 	resultAllowed := map[string][]string{
-		"absences.create_request": {"id", "date", "type", "status", "approver"},
-		"checklist.update_status": {"id", "plan_id", "assignee_id", "stage", "title", "description", "position", "due_date", "status", "version", "updated_at", "materials"},
+		"absences.create_request": {"action_id", "external_id", "status", "approver"},
+		"checklist.update_status": {"task_id", "old_status", "status", "version", "updated_at"},
 		"escalation.create":       {"id", "status", "buddy_id"},
 	}
 	filter := func(raw json.RawMessage, fields []string) (json.RawMessage, error) {
@@ -203,4 +186,31 @@ func actionPublicFields(kind string, parameters, result json.RawMessage) (json.R
 	}
 	publicResult, err := filter(result, resultAllowed[kind])
 	return details, publicResult, err
+}
+
+func readPublicAction(row pgx.Row) (activity.Action, error) {
+
+	var a activity.Action
+	var parameters, lastError json.RawMessage
+	err := row.Scan(&a.ID, &a.RequestID, &a.ProposalSeq, &a.ActionType, &parameters, &a.Status, &a.Result, &lastError, &a.AttemptCount, &a.CreatedAt, &a.UpdatedAt)
+	if err != nil {
+		return a, err
+	}
+	a.Details, a.Result, err = actionPublicFields(a.ActionType, parameters, a.Result)
+	if err != nil {
+		return a, err
+	}
+	if len(lastError) > 0 && string(lastError) != "null" {
+		a.LastError = &activity.ErrorDetail{Code: "TOOL_FAILED", Message: "Действие не выполнено. Повторите попытку после проверки параметров."}
+		var detail activity.ErrorDetail
+		if json.Unmarshal(lastError, &detail) == nil {
+			switch detail.Code {
+			case "VERSION_CONFLICT", "CONFLICT", "IDEMPOTENCY_CONFLICT", "DEPENDENCY_UNAVAILABLE", "TIMEOUT", "INTERNAL_ERROR":
+				a.LastError = &activity.ErrorDetail{Code: detail.Code, Message: "Действие не выполнено: " + detail.Code}
+			}
+		}
+	}
+	a.CreatedAt = a.CreatedAt.UTC()
+	a.UpdatedAt = a.UpdatedAt.UTC()
+	return a, nil
 }

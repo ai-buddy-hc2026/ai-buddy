@@ -129,7 +129,7 @@ func TestEscalationConfirmationAndScope(t *testing.T) {
 		t.Fatal("later context accepted", err)
 	}
 	actionID := toolActionFixture(t, s, requestID, policy.CreateEscalation, params, true)
-	if _, err := callAction(s, foreignRequest, policy.CreateEscalation, actionID); !errors.Is(err, tools.ErrDenied) {
+	if _, err := callAction(s, foreignRequest, policy.CreateEscalation, actionID); !errors.Is(err, tools.ErrNotFound) {
 		t.Fatal("foreign action allowed", err)
 	}
 	if _, err := s.pool.Exec(ctx, `UPDATE users SET buddy_id=NULL WHERE id=$1`, chatAnya); err != nil {

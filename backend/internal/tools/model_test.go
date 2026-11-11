@@ -12,12 +12,12 @@ func TestAbsenceDatesAndTypes(t *testing.T) {
 		date, kind string
 		valid      bool
 	}{
-		{"2026-11-12", "отгул", true}, // В Якутске уже следующий день.
-		{"2026-11-11", "отгул", false},
-		{"2027-11-12", "отпуск", true},
-		{"2027-11-13", "отпуск", false},
-		{"2026-02-30", "отгул", false},
-		{"2026-11-12T00:00:00Z", "отгул", false},
+		{"2026-11-15", "day_off", true}, // В Якутске уже следующий день.
+		{"2026-11-11", "day_off", false},
+		{"2027-11-12", "day_off", true},
+		{"2027-11-13", "day_off", true},
+		{"2026-02-30", "day_off", false},
+		{"2026-11-12T00:00:00Z", "day_off", false},
 		{"2026-11-12", "unknown", false},
 	} {
 		err := ValidateAbsence(AbsenceParameters{Date: tc.date, Type: tc.kind}, now, "Asia/Yakutsk")

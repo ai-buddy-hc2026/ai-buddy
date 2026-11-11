@@ -56,6 +56,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	mcpCfg, err := config.LoadMCP()
+	if err != nil {
+		return err
+	}
+	toolStore, err := database.NewTools(pool, mcpCfg.AbsencesFailRate)
+	if err != nil {
+		return err
+	}
 	chatCfg, err := config.LoadChat(cfg.RedisURL)
 	if err != nil {
 		return err
@@ -72,15 +80,11 @@ func run() error {
 		redisOptions.DisableIdentity = true
 		client := redis.NewClient(redisOptions)
 		defer func() { _ = client.Close() }()
-		streams, err = chat.NewService(ctx, database.NewChat(pool), chat.RedisBroker{Client: client}, &chat.PythonClient{URL: chatCfg.ServiceURL, Token: chatCfg.ServiceToken}, chat.Options{})
+		streams, err = chat.NewService(ctx, database.NewChat(pool), chat.RedisBroker{Client: client}, &chat.PythonClient{URL: chatCfg.ServiceURL, Token: chatCfg.ServiceToken}, chat.Options{ProcessEvent: toolStore.ProcessEvent})
 		if err != nil {
 			return err
 		}
 		defer streams.Close()
-	}
-	mcpCfg, err := config.LoadMCP()
-	if err != nil {
-		return err
 	}
 	handler := httpapi.NewHandler(logger, service, database.NewOnboarding(pool), streams)
 	listings, err := database.NewListings(pool, authCfg.SigningKey)
@@ -88,17 +92,14 @@ func run() error {
 		return err
 	}
 	handler = httpapi.WithListings(handler, service, listings)
+	handler = httpapi.WithConfirmation(handler, service, toolStore)
 	if mcpCfg.Token != "" {
-		store, err := database.NewTools(pool, mcpCfg.AbsencesFailRate)
-		if err != nil {
-			return err
-		}
-		toolsHandler, err := mcpserver.New(store, mcpCfg.Token)
+		toolsHandler, err := mcpserver.New(toolStore, mcpCfg.Token)
 		if err != nil {
 			return err
 		}
 		mux := http.NewServeMux()
-		mux.Handle("/internal/mcp", toolsHandler)
+		mux.Handle("/mcp", toolsHandler)
 		mux.Handle("/", handler)
 		handler = mux
 	}

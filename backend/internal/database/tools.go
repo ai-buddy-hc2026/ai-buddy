@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,138 +22,49 @@ type Tools struct {
 	pool        *pgxpool.Pool
 	failureRate float64
 	now         func() time.Time
+	cursorKey   [32]byte
 }
 
 func NewTools(pool *pgxpool.Pool, failureRate float64) (*Tools, error) {
 	if pool == nil || math.IsNaN(failureRate) || failureRate < 0 || failureRate > 1 {
 		return nil, tools.ErrInvalid
 	}
-	return &Tools{pool: pool, failureRate: failureRate, now: time.Now}, nil
+	// Ключ курсора живет в рамках процесса; он не является разрешением доступа.
+	store := &Tools{pool: pool, failureRate: failureRate, now: time.Now}
+	if _, err := cryptorand.Read(store.cursorKey[:]); err != nil {
+		return nil, err
+	}
+	return store, nil
 }
 
-// Bind проверяет сохраненный контекст для каждого HTTP-запроса MCP.
-func (s *Tools) Bind(ctx context.Context, requestID string) error {
+// Context связывает MCP только с активной сохраненной генерацией.
+func (s *Tools) Context(ctx context.Context, requestID string) (tools.Context, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return err
+		return tools.Context{}, err
 	}
 	defer rollbackOnboarding(tx)
-	_, err = s.actor(ctx, tx, requestID, false)
-	return err
+	actor, err := s.actor(ctx, tx, requestID, true)
+	return tools.Context{ActorID: actor.id, TeamID: actor.teamID, Role: actor.role}, err
 }
 
 func (s *Tools) actor(ctx context.Context, tx pgx.Tx, requestID string, active bool) (planActor, error) {
 	if !identifier.ValidUUID(requestID) {
 		return planActor{}, tools.ErrContext
 	}
-	var userID string
-	err := tx.QueryRow(ctx, `SELECT user_id::text FROM chat_requests WHERE id=$1 AND (NOT $2::boolean OR (status='running' AND deadline_at>now())) FOR SHARE`, requestID, active).Scan(&userID)
+	var userID, status string
+	var inTime bool
+	err := tx.QueryRow(ctx, `SELECT user_id::text,status,deadline_at>now() FROM chat_requests WHERE id=$1 FOR SHARE`, requestID).Scan(&userID, &status, &inTime)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return planActor{}, tools.ErrContext
+		return planActor{}, tools.ErrUnknownRequest
 	}
 	if err != nil {
 		return planActor{}, err
 	}
+	if active && (status != "running" || !inTime) {
+		return planActor{}, tools.ErrClosed
+	}
 	return loadPlanActor(ctx, tx, userID, true)
-}
-
-// Call повторно проверяет контекст, права и подтверждение внутри операции.
-func (s *Tools) Call(ctx context.Context, requestID string, operation policy.Operation, raw json.RawMessage) (any, error) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer rollbackOnboarding(tx)
-	actor, err := s.actor(ctx, tx, requestID, operation != policy.CreateAbsence && operation != policy.UpdateStatus && operation != policy.CreateEscalation)
-	if err != nil {
-		return nil, err
-	}
-	resource := policy.Resource{TeamID: actor.teamID, OwnerID: actor.id}
-	var result any
-	switch operation {
-	case policy.GetPlan:
-		var input tools.PlanInput
-		if err := tools.Decode(raw, &input); err != nil {
-			return nil, err
-		}
-		if input.InternID != "" && !identifier.ValidUUID(input.InternID) {
-			return nil, tools.ErrInvalid
-		}
-		// GetPlan сам загружает актуального пользователя и проверяет область плана.
-		if err := tx.Commit(ctx); err != nil {
-			return nil, err
-		}
-		return NewOnboarding(s.pool).GetPlan(ctx, actor.id, input.InternID)
-	case policy.GetManager, policy.ListAbsences:
-		var input tools.EmployeeInput
-		if err := tools.Decode(raw, &input); err != nil {
-			return nil, err
-		}
-		if input.EmployeeID != "" {
-			if !identifier.ValidUUID(input.EmployeeID) {
-				return nil, tools.ErrInvalid
-			}
-			resource.OwnerID = input.EmployeeID
-		}
-		if reason := policy.Check(actor.policyActor(), operation, resource); reason != "" {
-			return nil, denyPolicy(ctx, s.pool, tx, actor, operation, reason, tools.ErrDenied)
-		}
-		if operation == policy.GetManager {
-			result, err = manager(ctx, tx, actor)
-		} else {
-			result, err = s.absences(ctx, tx, actor)
-		}
-	case policy.GetAbsencePolicy:
-		if err := tools.Decode(raw, &tools.EmptyInput{}); err != nil {
-			return nil, err
-		}
-		if reason := policy.Check(actor.policyActor(), operation, resource); reason != "" {
-			return nil, denyPolicy(ctx, s.pool, tx, actor, operation, reason, tools.ErrDenied)
-		}
-		var timezone string
-		err = tx.QueryRow(ctx, `SELECT COALESCE(u.timezone,t.timezone) FROM users u JOIN teams t ON t.id=u.team_id WHERE u.id=$1`, actor.id).Scan(&timezone)
-		result = tools.AbsencePolicy{Revision: 1, Title: "Тестовая инструкция, не регламент Авито", Types: []string{"отгул", "отпуск"}, MaxAdvanceDays: 365, Timezone: timezone}
-	case policy.CreateAbsence, policy.UpdateStatus, policy.CreateEscalation:
-		var input tools.ActionInput
-		if err := tools.Decode(raw, &input); err != nil {
-			return nil, err
-		}
-		if !identifier.ValidUUID(input.ActionID) {
-			return nil, tools.ErrInvalid
-		}
-		return s.execute(ctx, tx, actor, requestID, operation, input.ActionID)
-	default:
-		return nil, denyPolicy(ctx, s.pool, tx, actor, operation, "operation_denied", tools.ErrDenied)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return result, tx.Commit(ctx)
-}
-
-func manager(ctx context.Context, tx pgx.Tx, actor planActor) (tools.Manager, error) {
-	var result tools.Manager
-	err := tx.QueryRow(ctx, `SELECT m.id::text,m.display_name FROM users u JOIN users m ON m.id=u.manager_id AND m.team_id=u.team_id JOIN teams t ON t.id=m.team_id WHERE u.id=$1 AND m.active AND t.active AND m.role IN ('buddy','lead') FOR SHARE OF m`, actor.id).Scan(&result.ID, &result.Name)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return result, tools.ErrNoManager
-	}
-	return result, err
-}
-
-func (s *Tools) absences(ctx context.Context, tx pgx.Tx, actor planActor) (any, error) {
-	rows, err := tx.Query(ctx, `SELECT 'ABS-' || lpad(id::text, greatest(4,length(id::text)), '0'),absence_date::text,absence_type,status,approver_id::text FROM absence_requests WHERE team_id=$1 AND employee_id=$2 ORDER BY absence_date DESC,id DESC`, actor.teamID, actor.id)
-	if err != nil {
-		return nil, err
-	}
-	items, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (tools.Absence, error) {
-		var item tools.Absence
-		err := row.Scan(&item.ID, &item.Date, &item.Type, &item.Status, &item.Approver)
-		return item, err
-	})
-	if items == nil {
-		items = []tools.Absence{}
-	}
-	return map[string]any{"items": items}, err
 }
 
 type toolAction struct {
@@ -193,7 +105,13 @@ func (s *Tools) execute(ctx context.Context, tx pgx.Tx, actor planActor, request
 	var result any
 	switch operation {
 	case policy.UpdateStatus:
-		result, err = NewOnboarding(s.pool).updateStatus(ctx, tx, actor, params.TaskID, onboarding.StatusChange{Status: params.Status, Version: params.Version})
+		var oldStatus string
+		if err := tx.QueryRow(ctx, `SELECT status FROM tasks WHERE id=$1`, params.TaskID).Scan(&oldStatus); err != nil {
+			return nil, err
+		}
+		var task onboarding.Task
+		task, err = NewOnboarding(s.pool).updateStatus(ctx, tx, actor, params.TaskID, onboarding.StatusChange{Status: params.Status, Version: params.Version})
+		result = tools.StatusResult{TaskID: task.ID, OldStatus: oldStatus, Status: task.Status, Version: task.Version, UpdatedAt: task.UpdatedAt}
 	case policy.CreateEscalation:
 		result, err = s.createEscalation(ctx, tx, actor, requestID, actionID, action)
 	case policy.CreateAbsence:
@@ -201,7 +119,8 @@ func (s *Tools) execute(ctx context.Context, tx pgx.Tx, actor planActor, request
 	}
 	if err != nil {
 		// Ошибки policy уже откатили транзакцию и записали отказ отдельно.
-		if _, saveErr := tx.Exec(ctx, `UPDATE actions_log SET status='failed',finished_at=now(),last_error='{"code":"TOOL_FAILED"}',updated_at=now() WHERE id=$1`, actionID); saveErr != nil {
+		detail, _ := json.Marshal(actionFailure(err))
+		if _, saveErr := tx.Exec(ctx, `UPDATE actions_log SET status='failed',finished_at=now(),last_error=$2,updated_at=now() WHERE id=$1`, actionID, detail); saveErr != nil {
 			if errors.Is(saveErr, pgx.ErrTxClosed) {
 				return nil, err
 			}
@@ -213,7 +132,7 @@ func (s *Tools) execute(ctx context.Context, tx pgx.Tx, actor planActor, request
 		if saveErr := tx.Commit(ctx); saveErr != nil {
 			return nil, saveErr
 		}
-		return nil, err
+		return nil, &actionExecutionError{err}
 	}
 	encoded, err := json.Marshal(result)
 	if err != nil {
@@ -230,13 +149,17 @@ func (s *Tools) authorizeTask(ctx context.Context, tx pgx.Tx, actor planActor, t
 	var buddy *string
 	err := tx.QueryRow(ctx, `SELECT p.intern_id::text,i.buddy_id::text,t.assignee_id::text FROM tasks t JOIN onboarding_plans p ON p.id=t.plan_id AND p.team_id=t.team_id JOIN users i ON i.id=p.intern_id AND i.team_id=p.team_id WHERE t.id=$1 AND t.team_id=$2 AND i.active AND i.role='intern' FOR UPDATE OF t FOR SHARE OF p,i`, taskID, actor.teamID).Scan(&owner, &buddy, &assignee)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return denyPolicy(ctx, s.pool, tx, actor, policy.UpdateStatus, "resource_unavailable", tools.ErrDenied)
+		return denyPolicy(ctx, s.pool, tx, actor, policy.UpdateStatus, "resource_unavailable", tools.ErrNotFound)
 	}
 	if err != nil {
 		return err
 	}
 	if reason := policy.Check(actor.policyActor(), policy.UpdateStatus, planResource(actor, owner, buddy, assignee)); reason != "" {
-		return denyPolicy(ctx, s.pool, tx, actor, policy.UpdateStatus, reason, tools.ErrDenied)
+		denied := tools.ErrNotFound
+		if reason == "assignee_denied" {
+			denied = tools.ErrDenied
+		}
+		return denyPolicy(ctx, s.pool, tx, actor, policy.UpdateStatus, reason, denied)
 	}
 	return nil
 }
@@ -250,15 +173,19 @@ func (s *Tools) createAbsence(ctx context.Context, tx pgx.Tx, actor planActor, a
 	if err := tx.QueryRow(ctx, `SELECT COALESCE(u.timezone,t.timezone) FROM users u JOIN teams t ON t.id=u.team_id WHERE u.id=$1`, actor.id).Scan(&timezone); err != nil {
 		return nil, err
 	}
-	if err := tools.ValidateAbsence(params, s.now(), timezone); err != nil {
+	configuration, err := absencePolicy(ctx, tx, actor)
+	if err != nil {
+		return nil, err
+	}
+	if err := tools.ValidateAbsence(params, s.now(), timezone, configuration); err != nil {
 		return nil, err
 	}
 	approver, err := manager(ctx, tx, actor)
 	if err != nil {
 		return nil, err
 	}
-	if params.Approver != approver.ID {
-		return nil, tools.ErrConflict
+	if approver == nil || params.Approver != approver.ID {
+		return nil, tools.ErrBusinessConflict
 	}
 	if rand.Float64() < s.failureRate {
 		return nil, tools.ErrUnavailable
@@ -268,5 +195,5 @@ func (s *Tools) createAbsence(ctx context.Context, tx pgx.Tx, actor planActor, a
 	if err != nil {
 		return nil, err
 	}
-	return tools.Absence{ID: fmt.Sprintf("ABS-%04d", id), Date: params.Date, Type: params.Type, Status: "pending_approval", Approver: approver.ID}, nil
+	return tools.CreateAbsenceResult{ActionID: actionID, ExternalID: fmt.Sprintf("ABS-%04d", id), Status: "pending_approval", Approver: approver.ID}, nil
 }

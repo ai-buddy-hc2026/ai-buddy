@@ -10,13 +10,18 @@ import (
 )
 
 var (
-	ErrInvalid      = errors.New("INVALID_ARGUMENT")
-	ErrContext      = errors.New("INVALID_CONTEXT")
-	ErrDenied       = errors.New("POLICY_DENIED")
-	ErrConfirmation = errors.New("CONFIRMATION_REQUIRED")
-	ErrConflict     = errors.New("IDEMPOTENCY_CONFLICT")
-	ErrUnavailable  = errors.New("TOOL_UNAVAILABLE")
-	ErrNoManager    = errors.New("MANAGER_NOT_ASSIGNED")
+	ErrInvalid              = errors.New("INVALID_ARGUMENT")
+	ErrContext              = errors.New("INVALID_CONTEXT")
+	ErrDenied               = errors.New("POLICY_DENIED")
+	ErrConfirmation         = errors.New("CONFIRMATION_REQUIRED")
+	ErrConflict             = errors.New("IDEMPOTENCY_CONFLICT")
+	ErrUnavailable          = errors.New("TOOL_UNAVAILABLE")
+	ErrNoManager            = errors.New("MANAGER_NOT_ASSIGNED")
+	ErrNotFound             = errors.New("NOT_FOUND")
+	ErrClosed               = errors.New("REQUEST_CLOSED")
+	ErrUnknownRequest       = errors.New("REQUEST_NOT_FOUND")
+	ErrBusinessConflict     = errors.New("CONFLICT")
+	ErrActionNotConfirmable = errors.New("ACTION_NOT_CONFIRMABLE")
 )
 
 type PlanInput struct {
@@ -60,13 +65,46 @@ type EscalationResult struct {
 type Manager struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+	Role string `json:"role"`
+}
+type Context struct{ ActorID, TeamID, Role string }
+type ListAbsencesInput struct {
+	Cursor string `json:"cursor,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+}
+type AbsenceType struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+type PolicyData struct {
+	NoticePeriodDays int           `json:"notice_period_days"`
+	RequiresApproval bool          `json:"requires_approval"`
+	AllowedTypes     []AbsenceType `json:"allowed_types"`
+}
+type CreateAbsenceInput struct {
+	Date string `json:"date"`
+	Type string `json:"type"`
+}
+type CreateAbsenceResult struct {
+	ActionID   string `json:"action_id"`
+	ExternalID string `json:"external_id"`
+	Status     string `json:"status"`
+	Approver   string `json:"approver"`
+}
+type StatusResult struct {
+	TaskID    string    `json:"task_id"`
+	OldStatus string    `json:"old_status"`
+	Status    string    `json:"status"`
+	Version   int       `json:"version"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 type Absence struct {
-	ID       string `json:"id"`
-	Date     string `json:"date"`
-	Type     string `json:"type"`
-	Status   string `json:"status"`
-	Approver string `json:"approver"`
+	ID         string `json:"external_id"`
+	EmployeeID string `json:"employee_id"`
+	Date       string `json:"date"`
+	Type       string `json:"type"`
+	Status     string `json:"status"`
+	Approver   string `json:"approver"`
 }
 type AbsencePolicy struct {
 	Revision       int      `json:"revision"`
@@ -90,19 +128,29 @@ func Decode(raw json.RawMessage, target any) error {
 }
 
 // ValidateAbsence применяет синтетические правила демо, а не регламент компании.
-func ValidateAbsence(p AbsenceParameters, now time.Time, timezone string) error {
+func ValidateAbsence(p AbsenceParameters, now time.Time, timezone string, domain ...PolicyData) error {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
 		return ErrUnavailable
 	}
 	date, err := time.ParseInLocation(time.DateOnly, p.Date, loc)
-	if err != nil || date.Format(time.DateOnly) != p.Date || (p.Type != "отгул" && p.Type != "отпуск") {
+	if err != nil || date.Format(time.DateOnly) != p.Date {
 		return ErrInvalid
+	}
+	configuration := PolicyData{NoticePeriodDays: 3, RequiresApproval: true, AllowedTypes: []AbsenceType{{Code: "day_off", Label: "Отгул"}}}
+	if len(domain) > 0 {
+		configuration = domain[0]
+	}
+	allowed := false
+	for _, kind := range configuration.AllowedTypes {
+		if kind.Code == p.Type {
+			allowed = true
+		}
 	}
 	local := now.In(loc)
 	today := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, loc)
-	if date.Before(today) || date.After(today.AddDate(0, 0, 365)) {
-		return ErrInvalid
+	if !allowed || date.Before(today.AddDate(0, 0, configuration.NoticePeriodDays)) {
+		return ErrBusinessConflict
 	}
 	return nil
 }

@@ -209,7 +209,7 @@ paths:
       operationId: getChatMessages
       summary: Восстановить историю своей беседы после перезагрузки
       x-draft-proposal: true
-      x-implementation: '#24: история и пагинация реализованы, actions пока пуст'
+      x-implementation: 'feat/mcp-contract-alignment: история, пагинация и сохраненные карточки действий'
       description: |
         Без conversation_id выбирает единственную активную беседу пользователя;
         если её ещё нет, возвращает conversation_id = null и пустые массивы.
@@ -247,7 +247,7 @@ paths:
       tags: [chat]
       operationId: sendChatMessage
       summary: Сохранить сообщение и начать одну генерацию ответа
-      x-implementation: '#24: token/done/error, без MCP, действий и RAG-источников'
+      x-implementation: 'feat/mcp-contract-alignment: token/tool_call/action_proposal/done/error, без RAG-источников'
       description: |
         conversation_id можно не передавать: Go атомарно выбирает или создаёт единственную
         активную беседу пользователя. Существующая беседа должна принадлежать ему.
@@ -392,6 +392,7 @@ paths:
     post:
       tags: [actions]
       operationId: confirmAction
+      x-implementation: 'feat/mcp-contract-alignment: внутреннее выполнение Go с повторной проверкой прав'
       summary: Явно подтвердить сохранённое действие или повторить неудачную попытку
       description: |
         Вызывается только после нажатия подтверждения в UI. Тело и новый ключ от клиента
