@@ -14,6 +14,7 @@ import (
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/auth"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/chat"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/identifier"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/policy"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -57,6 +58,10 @@ func (s *Chat) Create(ctx context.Context, actorID, id string, input chat.Input)
 	if err != nil {
 		return record, payload, err
 	}
+	actor := planActor{id: payload.UserID, teamID: payload.TeamID, role: payload.Role}
+	if reason := policy.Check(actor.policyActor(), policy.CreateChat, policy.Resource{TeamID: actor.teamID, OwnerID: actor.id}); reason != "" {
+		return record, payload, denyPolicy(ctx, s.pool, tx, actor, policy.CreateChat, reason, chat.ErrNotFound)
+	}
 	if _, err := time.LoadLocation(payload.Timezone); err != nil {
 		return record, payload, chat.ErrUnavailable
 	}
@@ -69,7 +74,7 @@ func (s *Chat) Create(ctx context.Context, actorID, id string, input chat.Input)
 		}
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
-		return record, payload, chat.ErrNotFound
+		return record, payload, denyPolicy(ctx, s.pool, tx, actor, policy.CreateChat, "resource_unavailable", chat.ErrNotFound)
 	}
 	if err != nil {
 		return record, payload, err
@@ -174,10 +179,13 @@ func (s *Chat) Get(ctx context.Context, actorID, id string) (chat.Record, error)
 	}
 	err = scanRequest(tx.QueryRow(ctx, "SELECT "+requestColumns+" FROM chat_requests r WHERE r.id=$1 AND r.user_id=$2 AND r.team_id=$3", id, actor.id, actor.teamID), &record)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return record, chat.ErrNotFound
+		return chat.Record{}, denyPolicy(ctx, s.pool, tx, actor, policy.ReadChat, "resource_unavailable", chat.ErrNotFound)
 	}
 	if err != nil {
 		return record, err
+	}
+	if reason := policy.Check(actor.policyActor(), policy.ReadChat, policy.Resource{TeamID: record.TeamID, OwnerID: record.UserID}); reason != "" {
+		return chat.Record{}, denyPolicy(ctx, s.pool, tx, actor, policy.ReadChat, reason, chat.ErrNotFound)
 	}
 	if record.Status == "done" {
 		if err := tx.QueryRow(ctx, "SELECT content FROM chat_messages WHERE request_id=$1 AND role='assistant'", id).Scan(&record.FullText); err != nil {
@@ -285,7 +293,7 @@ func (s *Chat) History(ctx context.Context, actorID, conversationID, cursor stri
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		if conversationID != "" {
-			return result, chat.ErrNotFound
+			return result, denyPolicy(ctx, s.pool, tx, actor, policy.ReadChat, "resource_unavailable", chat.ErrNotFound)
 		}
 		if cursor != "" {
 			return result, chat.ErrCursor
@@ -294,6 +302,9 @@ func (s *Chat) History(ctx context.Context, actorID, conversationID, cursor stri
 	}
 	if err != nil {
 		return result, err
+	}
+	if reason := policy.Check(actor.policyActor(), policy.ReadChat, policy.Resource{TeamID: actor.teamID, OwnerID: actor.id}); reason != "" {
+		return result, denyPolicy(ctx, s.pool, tx, actor, policy.ReadChat, reason, chat.ErrNotFound)
 	}
 	result.ConversationID = &conv
 	var afterTime time.Time
