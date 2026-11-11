@@ -209,6 +209,7 @@ paths:
       operationId: getChatMessages
       summary: Восстановить историю своей беседы после перезагрузки
       x-draft-proposal: true
+      x-implementation: '#24: история и пагинация реализованы, actions пока пуст'
       description: |
         Без conversation_id выбирает единственную активную беседу пользователя;
         если её ещё нет, возвращает conversation_id = null и пустые массивы.
@@ -246,6 +247,7 @@ paths:
       tags: [chat]
       operationId: sendChatMessage
       summary: Сохранить сообщение и начать одну генерацию ответа
+      x-implementation: '#24: token/done/error, без MCP, действий и RAG-источников'
       description: |
         conversation_id можно не передавать: Go атомарно выбирает или создаёт единственную
         активную беседу пользователя. Существующая беседа должна принадлежать ему.
@@ -295,7 +297,13 @@ paths:
       tags: [chat]
       operationId: streamChatRequest
       summary: Читать или восстановить SSE одной генерации по request_id
+      x-implementation: '#24: token/done/error, heartbeat, Last-Event-ID; один процесс Go'
       description: |
+        Реализация #24 поддерживает token/done/error с пустыми sources.
+        tool_call/action_proposal и RAG-источники ниже остаются целевым контрактом.
+        После потери буфера сохраняется только терминальный итог. Для потерянной
+        running-генерации курсор выше восстановленного seq дает 400: нужно прочитать
+        историю без Last-Event-ID; прозрачного продолжения генерации нет.
         id означает request_id, не ID беседы или сообщения. Доступ только владельцу.
         Bearer передаётся в Authorization: frontend использует fetch с чтением SSE
         либо клиент с поддержкой заголовков. Нативный EventSource не позволяет задать
