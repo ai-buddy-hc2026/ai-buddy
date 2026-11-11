@@ -3,13 +3,13 @@ import logging
 import time
 from typing import Any, Awaitable, Callable
 
-import jsonschema
 import httpx2
+import jsonschema
 from jsonschema import Draft202012Validator, FormatChecker
-
-from config import get_settings
 from mcp import ClientSession, types
 from mcp.client.streamable_http import streamable_http_client
+
+from config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -115,10 +115,10 @@ class GenerationMCPClient:
                 streamable_http_client(
                     url=self.server_url,
                     http_client=http_client,
-                )
+                ),
             )
             self._session = await self._exit_stack.enter_async_context(
-                ClientSession(read_stream, write_stream)
+                ClientSession(read_stream, write_stream),
             )
 
             init_result = await asyncio.wait_for(
@@ -131,7 +131,7 @@ class GenerationMCPClient:
                                 name="ai-buddy-python",
                                 version=self.app_version,
                             ),
-                        )
+                        ),
                     ),
                     types.InitializeResult,
                 ),
@@ -223,7 +223,10 @@ class GenerationMCPClient:
         ]
 
     def _validate_json(
-        self, instance: Any, schema: dict[str, Any] | None, label: str
+        self,
+        instance: Any,
+        schema: dict[str, Any] | None,
+        label: str,
     ) -> None:
         if not schema:
             raise MCPContractError("INTERNAL_ERROR", f"Отсутствует схема для {label}")
@@ -243,7 +246,9 @@ class GenerationMCPClient:
 
         if name not in self._tools_schemas:
             raise MCPContractError(
-                "POLICY_DENIED", f"Инструмент {name} недоступен", retryable=False
+                "POLICY_DENIED",
+                f"Инструмент {name} недоступен",
+                retryable=False,
             )
 
         schemas = self._tools_schemas[name]
@@ -267,7 +272,9 @@ class GenerationMCPClient:
                     attempt,
                 )
                 return await self._execute_read_call(
-                    name, arguments, schemas["outputSchema"]
+                    name,
+                    arguments,
+                    schemas["outputSchema"],
                 )
             except MCPContractError as err:
                 can_retry = (
@@ -339,7 +346,9 @@ class GenerationMCPClient:
             )
         except asyncio.TimeoutError as exc:
             raise MCPContractError(
-                "TIMEOUT", f"Таймаут вызова {name}", retryable=True
+                "TIMEOUT",
+                f"Таймаут вызова {name}",
+                retryable=True,
             ) from exc
         except httpx2.HTTPStatusError as exc:
             raise self._http_error(exc) from exc

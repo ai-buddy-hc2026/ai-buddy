@@ -18,7 +18,11 @@ from core.ai_service import (
 )
 from core.dependencies import get_redis
 from core.security import verify_token
-from integrations.mcp_client import GenerationMCPClient, MCPContractError, WRITE_TOOLS
+from integrations.mcp_client import (
+    WRITE_TOOLS,
+    GenerationMCPClient,
+    MCPContractError,
+)
 from schemas.chat import ChatRequest, ChatResponse
 from schemas.event import (
     ActionProposalData,
@@ -123,7 +127,7 @@ async def pubsub_publish(
                 request_id=chat_data.request_id,
                 seq=seq,
                 data=ActionProposalData(action_type=action_type, details=details),
-            )
+            ),
         )
 
     async def publish_error(code: str, message: str) -> None:
@@ -179,7 +183,7 @@ async def pubsub_publish(
                                     request_id=chat_data.request_id,
                                     seq=seq,
                                     data=TokenData(text=text),
-                                )
+                                ),
                             )
                         elif chunk["type"] == "tool_call_delta":
                             _append_tool_call_delta(tool_calls, chunk["tool_call"])
@@ -225,7 +229,7 @@ async def pubsub_publish(
                                 "name": call["name"],
                                 "arguments": raw_arguments,
                             },
-                        }
+                        },
                     )
                     seq += 1
                     await publish_event(
@@ -237,7 +241,7 @@ async def pubsub_publish(
                                 tool_name=call["name"],
                                 arguments=arguments,
                             ),
-                        )
+                        ),
                     )
 
                     if call["name"] in WRITE_TOOLS:
@@ -253,7 +257,7 @@ async def pubsub_publish(
                                     "code": error.code,
                                     "message": error.message,
                                     "retryable": error.retryable,
-                                }
+                                },
                             }
                     if result.get("ok") is False:
                         result = {
@@ -265,7 +269,7 @@ async def pubsub_publish(
                             "role": "tool",
                             "tool_call_id": call["id"],
                             "content": json.dumps(result, ensure_ascii=False),
-                        }
+                        },
                     )
 
                 messages.append(
@@ -273,7 +277,7 @@ async def pubsub_publish(
                         "role": "assistant",
                         "content": step_text or None,
                         "tool_calls": assistant_tool_calls,
-                    }
+                    },
                 )
                 messages.extend(tool_results)
 
@@ -284,7 +288,7 @@ async def pubsub_publish(
                 request_id=chat_data.request_id,
                 seq=seq,
                 data=DoneData(full_text=full_text, sources=[]),
-            )
+            ),
         )
         await redis.set(
             channel_key,

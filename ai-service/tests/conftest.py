@@ -1,9 +1,9 @@
 import os
 
 import pytest_asyncio
+import redis.asyncio as aioredis
 import requests
 from httpx import ASGITransport, AsyncClient
-import redis.asyncio as aioredis
 from testcontainers.community.postgres import PostgresContainer
 from testcontainers.community.redis import RedisContainer
 from testcontainers.core.container import DockerContainer
