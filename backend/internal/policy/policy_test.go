@@ -45,6 +45,22 @@ func TestAccessMatrix(t *testing.T) {
 	}
 }
 
+func TestCorporateToolsAccess(t *testing.T) {
+	for _, role := range []string{"intern", "buddy", "lead", "admin", ""} {
+		for _, op := range []Operation{GetManager, GetAbsencePolicy, ListAbsences, CreateAbsence} {
+			for _, team := range []string{"team", "other", ""} {
+				for _, owner := range []string{"actor", "other"} {
+					want := (role == "intern" || role == "buddy" || role == "lead") && team == "team" && (op == GetAbsencePolicy || owner == "actor")
+					got := Check(Actor{ID: "actor", TeamID: "team", Role: role}, op, Resource{TeamID: team, OwnerID: owner})
+					if (got == "") != want {
+						t.Fatalf("role=%q op=%q team=%q owner=%q reason=%q", role, op, team, owner, got)
+					}
+				}
+			}
+		}
+	}
+}
+
 func TestMissingIdentityDenied(t *testing.T) {
 	for _, actor := range []Actor{{}, {ID: "actor", Role: "intern"}, {TeamID: "team", Role: "lead"}} {
 		if Check(actor, GetPlan, Resource{TeamID: "team", OwnerID: "actor"}) != "invalid_actor" {

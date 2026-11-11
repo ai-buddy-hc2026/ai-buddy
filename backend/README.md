@@ -208,6 +208,18 @@ HTTP-схемы соответствуют черновику [PR #68](https://g
 Общий OpenAPI остается черновиком. В этой ветке реализованы `/me` и операции
 онбординга #21 ниже; база ветки - миграции/seed #78 и авторизация #77.
 
+## Внутренние MCP-инструменты
+
+При заданном MCP_SERVICE_TOKEN backend включает `/internal/mcp`. Токен отдельный
+от JWT_SIGNING_KEY и AI_SERVICE_TOKEN, минимум 32 байта. Для старого .env добавьте
+MCP_SERVICE_TOKEN по .env.example; без него MCP выключен. ABSENCES_FAIL_RATE=0-1
+задает вероятность искусственного сбоя создания отсутствия, по умолчанию 0.
+
+Миграция 0005 создает actions_log и absence_requests и связывает events.action_id.
+Шесть инструментов и правила привязки к request_id описаны в [контракте MCP](../docs/mcp.md).
+Создание заявок и изменение задач через MCP требуют уже сохраненного подтверждения;
+endpoint подтверждения и обработчик action_proposal пока не реализованы.
+
 ## API онбординга
 
 Оба endpoint требуют `Authorization: Bearer <access_token>`.
@@ -232,7 +244,7 @@ HTTP-схемы соответствуют черновику [PR #68](https://g
 Миграция 0003 создает events для транзакционной записи task_status_changed.
 Миграция 0004 добавляет conversations, chat_requests и chat_messages, снимает
 временное ограничение events.request_id и добавляет составной FK по команде.
-events.action_id по-прежнему ограничен NULL до реализации действий.
+Миграция 0005 снимает ограничение NULL с events.action_id и добавляет FK на actions_log.
 История и события генезиса seed не смешиваются: после чистого db-init
 task_status_history содержит 30 записей, events пуста.
 
