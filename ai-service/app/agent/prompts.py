@@ -29,15 +29,11 @@ def _context_block(ctx: UserContext) -> str:
     if ctx.name:
         lines.append(f"- Имя: {clean(ctx.name)}")
     lines.append(f"- Роль: {ROLE_LABELS.get(ctx.role, clean(ctx.role))}")
-    lines.append(
-        f"- Команда: {clean(ctx.team_name) if ctx.team_name else 'не указана'}"
-    )
+    lines.append(f"- Команда: {clean(ctx.team_name) if ctx.team_name else 'не указана'}")
     if ctx.stage:
         lines.append(f"- Этап адаптации: {clean(ctx.stage)}")
     if ctx.tasks_done is not None and ctx.tasks_total is not None:
-        lines.append(
-            f"- Прогресс: {int(ctx.tasks_done)} из {int(ctx.tasks_total)} задач"
-        )
+        lines.append(f"- Прогресс: {int(ctx.tasks_done)} из {int(ctx.tasks_total)} задач")
     if ctx.next_step:
         deadline = (
             f" (дедлайн: {clean(ctx.next_step.deadline)})"

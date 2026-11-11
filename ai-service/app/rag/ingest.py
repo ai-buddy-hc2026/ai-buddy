@@ -27,8 +27,7 @@ def ingest(
         raise RuntimeError(f"В {kb_dir} нет .md файлов с содержимым")
     vectors = embedder.embed_passages([c.embed_text for c in chunks])
     rows = [
-        ChunkRow(c.doc_title, c.section, c.text, v, None)
-        for c, v in zip(chunks, vectors)
+        ChunkRow(c.doc_title, c.section, c.text, v, None) for c, v in zip(chunks, vectors)
     ]
     store.replace_source(SEED_SOURCE, rows)
     return len(rows)
