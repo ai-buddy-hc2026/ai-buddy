@@ -11,7 +11,7 @@
 | Go backend | Env-конфигурация, JSON-логи, GET /health, корректная остановка, тесты и Dockerfile | Авторизация, права, прикладные API, MCP, доступ к БД |
 | Инфраструктура | Compose для backend, PostgreSQL с pgvector и Redis; тома и healthcheck БД/Redis | Подключение остальных приложений |
 | Frontend | Папка под интерфейс; каркас в [PR #57](https://github.com/ai-buddy-hc2026/ai-buddy/pull/57) | Слияние и интеграция с API |
-| AI-service и CI | Реализация и контракт в [PR #60](https://github.com/ai-buddy-hc2026/ai-buddy/pull/60) | Слияние и сквозная проверка |
+| AI-service и CI | Код, CI и [черновик контракта](docs/ai-contract.md) добавлены в main через PR #60 и #65 | Сквозная проверка и сверка реализации с контрактом |
 | База данных | Миграции teams/users и повторяемый seed: 2 команды, 6 пользователей | Остальные таблицы, планы и чек-лист по [схеме](docs/db.md) |
 
 `/health` проверяет HTTP-сервер. Он не подтверждает наличие прикладных сценариев или подключение Go к PostgreSQL и Redis.
@@ -22,10 +22,11 @@
 |--------|------------|
 | Требования организаторов | [Выжимка кейса](docs/requirements/case.md) |
 | Выбранный объём и критерии готовности | [MVP и сценарии](docs/mvp.md) |
+| Внешний HTTP API Go, схемы и SSE | [Черновик OpenAPI](docs/openapi.yaml), требует ревью frontend и AI-service |
 | Новая задача в отдельном чате, Git и передача результата | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Запуск и проверки Go API | [backend/README.md](backend/README.md) |
 | Выбор контекста агентом | [AGENTS.md](AGENTS.md); вход Claude Code через [CLAUDE.md](CLAUDE.md) |
-| Контракт Go/Python | docs/ai-contract.md в [PR Макса #60](https://github.com/ai-buddy-hc2026/ai-buddy/pull/60/files) |
+| Контракт Go/Python | [docs/ai-contract.md](docs/ai-contract.md), статус 1.2-draft |
 | Схема БД и подробные правила дедлайнов | [docs/db.md](docs/db.md) |
 
 После слияния соответствующего PR заменяйте ссылку на PR ссылкой на файл. Статус «черновик» снимается после согласования, а не после появления документа в репозитории.
