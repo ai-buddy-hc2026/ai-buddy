@@ -4,6 +4,7 @@
 или вызов ingest_kb() из lifespan FastAPI (в threadpool).
 Повторный запуск безопасен: чанки источника seed пересоздаются.
 """
+
 from __future__ import annotations
 
 import sys
@@ -18,12 +19,16 @@ from .store import ChunkRow, PgStore, Store
 SEED_SOURCE = "seed"
 
 
-def ingest(kb_dir: Path, embedder: Embedder, store: Store, max_chars: int, overlap: int) -> int:
+def ingest(
+    kb_dir: Path, embedder: Embedder, store: Store, max_chars: int, overlap: int
+) -> int:
     chunks = build_chunks(kb_dir, max_chars, overlap)
     if not chunks:
         raise RuntimeError(f"В {kb_dir} нет .md файлов с содержимым")
     vectors = embedder.embed_passages([c.embed_text for c in chunks])
-    rows = [ChunkRow(c.doc_title, c.section, c.text, v, None) for c, v in zip(chunks, vectors)]
+    rows = [
+        ChunkRow(c.doc_title, c.section, c.text, v, None) for c, v in zip(chunks, vectors)
+    ]
     store.replace_source(SEED_SOURCE, rows)
     return len(rows)
 

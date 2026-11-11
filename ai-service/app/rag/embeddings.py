@@ -1,4 +1,5 @@
 """Эмбеддинги. Модель по умолчанию: intfloat/multilingual-e5-base (768)."""
+
 from __future__ import annotations
 
 from typing import Protocol

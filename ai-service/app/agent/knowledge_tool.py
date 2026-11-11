@@ -1,4 +1,5 @@
 """Инструмент knowledge.search для агента и разбор ссылок на источники."""
+
 from __future__ import annotations
 
 import re
@@ -23,16 +24,19 @@ TOOL_DEFINITION = {
         ),
         "parameters": {
             "type": "object",
-            "properties": {"query": {"type": "string", "description": "Вопрос пользователя своими словами"}},
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Вопрос пользователя своими словами",
+                }
+            },
             "required": ["query"],
             "additionalProperties": False,
         },
     },
 }
 
-FOUND_INSTRUCTION = (
-    "Отвечай только по этим фрагментам. В конце ответа укажи номера использованных фрагментов: [источники: 1, 2]."
-)
+FOUND_INSTRUCTION = "Отвечай только по этим фрагментам. В конце ответа укажи номера использованных фрагментов: [источники: 1, 2]."
 NO_ANSWER_INSTRUCTION = (
     "В базе нет ответа. Скажи об этом честно, не придумывай. Назови, к кому обратиться (who_to_ask). "
     "Если suggest_escalation равно true, предложи передать вопрос наставнику."
@@ -52,7 +56,14 @@ def run_knowledge_search(
     query = str(args.get("query", "")).strip()
     if not query:
         return {"status": "error", "error": "empty_query"}
-    results = search(query, ctx.team_id, embedder=embedder, store=store, top_k=top_k, min_score=min_score)
+    results = search(
+        query,
+        ctx.team_id,
+        embedder=embedder,
+        store=store,
+        top_k=top_k,
+        min_score=min_score,
+    )
     if not results:
         return {
             "status": "no_answer",

@@ -1,4 +1,5 @@
 """Системный промпт агента. Правила дублируют specs/agent.md, но права проверяет Go, а не промпт."""
+
 from __future__ import annotations
 
 from .context import ROLE_LABELS, UserContext, clean
@@ -34,7 +35,11 @@ def _context_block(ctx: UserContext) -> str:
     if ctx.tasks_done is not None and ctx.tasks_total is not None:
         lines.append(f"- Прогресс: {int(ctx.tasks_done)} из {int(ctx.tasks_total)} задач")
     if ctx.next_step:
-        deadline = f" (дедлайн: {clean(ctx.next_step.deadline)})" if ctx.next_step.deadline else ""
+        deadline = (
+            f" (дедлайн: {clean(ctx.next_step.deadline)})"
+            if ctx.next_step.deadline
+            else ""
+        )
         lines.append(f"- Следующий шаг: {clean(ctx.next_step.title, 160)}{deadline}")
     elif ctx.role == "intern":
         lines.append("- Следующий шаг: неизвестен, вызови checklist_get_plan")

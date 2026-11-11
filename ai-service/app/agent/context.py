@@ -1,4 +1,5 @@
 """Контекст пользователя для системного промпта. Данные приходят от backend (Go), не из текста сообщения."""
+
 from __future__ import annotations
 
 import re
@@ -46,5 +47,9 @@ class UserContext:
             stage=clean(p.get("stage")) or None,
             tasks_done=progress.get("done"),
             tasks_total=progress.get("total"),
-            next_step=NextStep(clean(ns.get("title"), 160), clean(ns.get("deadline")) or None) if ns else None,
+            next_step=(
+                NextStep(clean(ns.get("title"), 160), clean(ns.get("deadline")) or None)
+                if ns
+                else None
+            ),
         )

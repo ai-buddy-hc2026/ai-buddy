@@ -1,4 +1,5 @@
 """Хранилища чанков: в памяти (тесты) и PostgreSQL + pgvector."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,7 +30,9 @@ class Store(Protocol):
 
     def add(self, source: str, rows: list[ChunkRow]) -> None: ...
 
-    def query(self, embedding: list[float], team_id: str | None, limit: int) -> list[Hit]: ...
+    def query(
+        self, embedding: list[float], team_id: str | None, limit: int
+    ) -> list[Hit]: ...
 
 
 def _visible(row_team: str | None, team_id: str | None) -> bool:
@@ -78,7 +81,14 @@ class PgStore:
             "INSERT INTO kb_chunks (team_id, doc_title, section, content, source, embedding) "
             "VALUES (%s, %s, %s, %s, %s, %s::vector)",
             [
-                (None if r.team_id is None else str(r.team_id), r.doc_title, r.section, r.text, source, _vec(r.embedding))
+                (
+                    None if r.team_id is None else str(r.team_id),
+                    r.doc_title,
+                    r.section,
+                    r.text,
+                    source,
+                    _vec(r.embedding),
+                )
                 for r in rows
             ],
         )
@@ -97,11 +107,18 @@ class PgStore:
         if team_id is None:
             where, params = "team_id IS NULL", (vec, vec, limit)
         else:
-            where, params = "(team_id IS NULL OR team_id::text = %s)", (vec, str(team_id), vec, limit)
+            where, params = "(team_id IS NULL OR team_id::text = %s)", (
+                vec,
+                str(team_id),
+                vec,
+                limit,
+            )
         sql = (
             "SELECT doc_title, section, content, team_id, source, 1 - (embedding <=> %s::vector) AS score "
             f"FROM kb_chunks WHERE {where} ORDER BY embedding <=> %s::vector LIMIT %s"
         )
         with self._connect() as conn, conn.cursor() as cur:
             cur.execute(sql, params)
-            return [Hit(r[0], r[1], r[2], float(r[5]), r[3], r[4]) for r in cur.fetchall()]
+            return [
+                Hit(r[0], r[1], r[2], float(r[5]), r[3], r[4]) for r in cur.fetchall()
+            ]

@@ -1,4 +1,5 @@
 """Ответ «не знаю»: кому писать и предложение эскалации."""
+
 from __future__ import annotations
 
 from .context import UserContext, clean
@@ -28,7 +29,9 @@ def unknown_answer_text(role: str) -> str:
     return text
 
 
-def escalation_proposal(question: str, ctx: UserContext, history: list[dict] | None = None) -> dict | None:
+def escalation_proposal(
+    question: str, ctx: UserContext, history: list[dict] | None = None
+) -> dict | None:
     """Предложение действия escalation.create. Выполняется только после подтверждения пользователя.
     Формат события согласовать с docs/ai-contract.md (Макс)."""
     if not can_escalate(ctx.role):

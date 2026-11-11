@@ -1,4 +1,5 @@
 """Чанкинг Markdown по заголовкам с перекрытием для длинных разделов."""
+
 from __future__ import annotations
 
 import re
@@ -61,7 +62,9 @@ def split_with_overlap(text: str, max_chars: int, overlap: int) -> list[str]:
         end = min(start + max_chars, len(text))
         if end < len(text):
             window_start = start + max_chars // 2
-            cut = max(text.rfind("\n", window_start, end), text.rfind(". ", window_start, end))
+            cut = max(
+                text.rfind("\n", window_start, end), text.rfind(". ", window_start, end)
+            )
             if cut == -1:
                 cut = text.rfind(" ", window_start, end)
             if cut != -1:
@@ -79,7 +82,9 @@ def split_with_overlap(text: str, max_chars: int, overlap: int) -> list[str]:
     return parts
 
 
-def chunk_document(markdown: str, fallback_title: str, max_chars: int, overlap: int) -> list[Chunk]:
+def chunk_document(
+    markdown: str, fallback_title: str, max_chars: int, overlap: int
+) -> list[Chunk]:
     title, sections = parse_document(markdown, fallback_title)
     chunks: list[Chunk] = []
     for heading, body in sections:
