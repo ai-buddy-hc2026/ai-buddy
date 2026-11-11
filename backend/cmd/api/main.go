@@ -83,6 +83,11 @@ func run() error {
 		return err
 	}
 	handler := httpapi.NewHandler(logger, service, database.NewOnboarding(pool), streams)
+	listings, err := database.NewListings(pool, authCfg.SigningKey)
+	if err != nil {
+		return err
+	}
+	handler = httpapi.WithListings(handler, service, listings)
 	if mcpCfg.Token != "" {
 		store, err := database.NewTools(pool, mcpCfg.AbsencesFailRate)
 		if err != nil {

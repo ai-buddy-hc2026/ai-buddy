@@ -40,6 +40,23 @@ type TaskParameters struct {
 	Status  string `json:"status"`
 	Version int    `json:"version"`
 }
+
+type ContextMessage struct {
+	MessageID string            `json:"message_id"`
+	Role      string            `json:"role"`
+	Content   string            `json:"content"`
+	Sources   []json.RawMessage `json:"sources"`
+}
+type EscalationParameters struct {
+	BuddyID         string           `json:"buddy_id"`
+	Question        string           `json:"question"`
+	ContextSnapshot []ContextMessage `json:"context_snapshot"`
+}
+type EscalationResult struct {
+	ID      string `json:"id"`
+	Status  string `json:"status"`
+	BuddyID string `json:"buddy_id"`
+}
 type Manager struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`

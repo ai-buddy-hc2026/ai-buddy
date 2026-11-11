@@ -12,6 +12,9 @@ const (
 	GetAbsencePolicy Operation = "absences.get_policy"
 	ListAbsences     Operation = "absences.list_for_employee"
 	CreateAbsence    Operation = "absences.create_request"
+	CreateEscalation Operation = "escalation.create"
+	ListBuddyInterns Operation = "buddy.list_interns"
+	ListActions      Operation = "actions.list"
 )
 
 type Actor struct{ ID, TeamID, Role string }
@@ -38,9 +41,23 @@ func Check(actor Actor, operation Operation, resource Resource) string {
 		if operation == UpdateStatus && resource.AssigneeID != actor.ID {
 			return "assignee_denied"
 		}
-	case CreateChat, ReadChat, GetManager, ListAbsences, CreateAbsence:
+	case CreateChat, ReadChat, GetManager, ListAbsences, CreateAbsence, ListActions:
 		if resource.OwnerID != actor.ID {
 			return "owner_denied"
+		}
+	case CreateEscalation:
+		if actor.Role != "intern" {
+			return "role_denied"
+		}
+		if resource.OwnerID != actor.ID {
+			return "owner_denied"
+		}
+	case ListBuddyInterns:
+		if actor.Role != "buddy" {
+			return "role_denied"
+		}
+		if resource.BuddyID != actor.ID {
+			return "assignment_denied"
 		}
 	case GetAbsencePolicy:
 	default:

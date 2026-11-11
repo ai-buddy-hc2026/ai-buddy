@@ -66,14 +66,14 @@ func TestMCPListAndCall(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]bool{"checklist.get_plan": true, "checklist.update_status": true, "employees.get_manager": true, "absences.get_policy": true, "absences.create_request": true, "absences.list_for_employee": true}
+	want := map[string]bool{"checklist.get_plan": true, "checklist.update_status": true, "employees.get_manager": true, "absences.get_policy": true, "absences.create_request": true, "absences.list_for_employee": true, "escalation.create": true}
 	for _, tool := range list.Tools {
 		if !want[tool.Name] {
 			t.Fatal("unexpected tool", tool.Name)
 		}
 		delete(want, tool.Name)
 		args := map[string]any{}
-		if tool.Name == "checklist.update_status" || tool.Name == "absences.create_request" {
+		if tool.Name == "checklist.update_status" || tool.Name == "absences.create_request" || tool.Name == "escalation.create" {
 			args["action_id"] = "50000000-0000-0000-0000-000000000001"
 		}
 		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: tool.Name, Arguments: args})
