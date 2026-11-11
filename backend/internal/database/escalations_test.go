@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/escalation"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/policy"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/tools"
 )
@@ -18,6 +21,93 @@ func escalationParams(t *testing.T, s *Tools, requestID string) tools.Escalation
 		t.Fatal(err)
 	}
 	return tools.EscalationParameters{BuddyID: "4a59a828-3b1a-55e4-bf9b-81db5ad6183a", Question: "Нужна помощь с задачей", ContextSnapshot: []tools.ContextMessage{message}}
+}
+
+func TestAnswerEscalationPublishesAndReplays(t *testing.T) {
+	s, requestID := toolFixture(t)
+	params := escalationParams(t, s, requestID)
+	actionID := toolActionFixture(t, s, requestID, policy.CreateEscalation, params, true)
+	if _, err := callAction(s, requestID, policy.CreateEscalation, actionID); err != nil {
+		t.Fatal(err)
+	}
+	var escalationID string
+	var version time.Time
+	if err := s.pool.QueryRow(context.Background(), `SELECT id::text,updated_at FROM escalations WHERE action_id=$1`, actionID).Scan(&escalationID, &version); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewEscalations(s.pool, []byte("synthetic-test-key-with-at-least-32-bytes"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := escalation.AnswerRequest{AnswerText: "Проверьте порядок релиза в тестовой инструкции.", AddToKB: true, Version: escalationVersion(version)}
+	result, err := store.Answer(context.Background(), params.BuddyID, escalationID, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "answered" || !result.AddToKB || result.KBStatus != "ready" || result.KBDocumentID == nil || result.AnswerText != request.AnswerText {
+		t.Fatalf("unexpected answer: %+v", result)
+	}
+	var docStatus, indexStatus, content string
+	var revision, indexedRevision int
+	if err := s.pool.QueryRow(context.Background(), `SELECT status,index_status,content,revision,indexed_revision FROM kb_documents WHERE source_escalation_id=$1`, escalationID).Scan(&docStatus, &indexStatus, &content, &revision, &indexedRevision); err != nil {
+		t.Fatal(err)
+	}
+	if docStatus != "published" || indexStatus != "ready" || indexedRevision != revision || !strings.Contains(content, "Тестовая инструкция, не регламент Авито") {
+		t.Fatalf("document is not ready and marked: %s %s %d/%d %s", docStatus, indexStatus, indexedRevision, revision, content)
+	}
+	search, err := NewKnowledge(s.pool).Search(context.Background(), chatAnya, "тестовой инструкции")
+	if err != nil || len(search.Items) != 1 || search.Items[0].Source.DocumentID != *result.KBDocumentID || search.Items[0].Source.Revision != 1 {
+		t.Fatalf("published answer was not searchable with its source: %+v %v", search, err)
+	}
+	page, err := store.List(context.Background(), params.BuddyID, escalation.ListQuery{Limit: 50, Status: "answered"})
+	if err != nil || len(page.Items) != 1 || page.Items[0].Version != result.Version || page.Items[0].Publication == nil {
+		t.Fatalf("mentor list did not expose current answer version: %+v %v", page, err)
+	}
+	request.Version = result.Version
+	replay, err := store.Answer(context.Background(), params.BuddyID, escalationID, request)
+	if err != nil || replay.KBDocumentID == nil || *replay.KBDocumentID != *result.KBDocumentID {
+		t.Fatalf("replay created a different result: %+v %v", replay, err)
+	}
+	request.AnswerText = "измененный ответ"
+	if _, err := store.Answer(context.Background(), params.BuddyID, escalationID, request); !errors.Is(err, escalation.ErrConflict) {
+		t.Fatalf("stale version accepted: %v", err)
+	}
+	var documents int
+	if err := s.pool.QueryRow(context.Background(), "SELECT count(*) FROM kb_documents WHERE source_escalation_id=$1", escalationID).Scan(&documents); err != nil || documents != 1 {
+		t.Fatalf("documents=%d err=%v", documents, err)
+	}
+}
+
+func TestAnswerEscalationRequiresAssignedBuddy(t *testing.T) {
+	s, requestID := toolFixture(t)
+	params := escalationParams(t, s, requestID)
+	actionID := toolActionFixture(t, s, requestID, policy.CreateEscalation, params, true)
+	if _, err := callAction(s, requestID, policy.CreateEscalation, actionID); err != nil {
+		t.Fatal(err)
+	}
+	var escalationID string
+	var version time.Time
+	if err := s.pool.QueryRow(context.Background(), `SELECT id::text,updated_at FROM escalations WHERE action_id=$1`, actionID).Scan(&escalationID, &version); err != nil {
+		t.Fatal(err)
+	}
+	request := escalation.AnswerRequest{AnswerText: "Ответ", Version: escalationVersion(version)}
+	store, err := NewEscalations(s.pool, []byte("synthetic-test-key-with-at-least-32-bytes"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Answer(context.Background(), chatAnya, escalationID, request); !errors.Is(err, escalation.ErrDenied) {
+		t.Fatalf("intern answered escalation: %v", err)
+	}
+	if _, err := s.pool.Exec(context.Background(), `UPDATE users SET buddy_id=NULL WHERE id=$1`, chatAnya); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Answer(context.Background(), params.BuddyID, escalationID, request); !errors.Is(err, escalation.ErrNotFound) {
+		t.Fatalf("former buddy answered after assignment changed: %v", err)
+	}
+	var answerText string
+	if err := s.pool.QueryRow(context.Background(), `SELECT COALESCE(answer_text,'') FROM escalations WHERE id=$1`, escalationID).Scan(&answerText); err != nil || answerText != "" {
+		t.Fatalf("denied answer was stored: %q %v", answerText, err)
+	}
 }
 
 func TestEscalationConcurrentReplay(t *testing.T) {

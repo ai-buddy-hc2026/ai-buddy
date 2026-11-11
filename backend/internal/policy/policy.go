@@ -13,6 +13,8 @@ const (
 	ListAbsences     Operation = "absences.list_for_employee"
 	CreateAbsence    Operation = "absences.create_request"
 	CreateEscalation Operation = "escalation.create"
+	AnswerEscalation Operation = "escalation.answer"
+	SearchKnowledge  Operation = "knowledge.search"
 	ListBuddyInterns Operation = "buddy.list_interns"
 	ListActions      Operation = "actions.list"
 )
@@ -65,6 +67,14 @@ func Check(actor Actor, operation Operation, resource Resource) string {
 		}
 		if resource.BuddyID != actor.ID {
 			return "assignment_denied"
+		}
+	case AnswerEscalation:
+		if actor.Role != "buddy" || resource.BuddyID != actor.ID {
+			return "assignment_denied"
+		}
+	case SearchKnowledge:
+		if actor.Role != "intern" {
+			return "role_denied"
 		}
 	case GetAbsencePolicy:
 	default:

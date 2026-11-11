@@ -18,8 +18,7 @@ info:
     Время передаётся в RFC 3339 UTC, календарные даты в YYYY-MM-DD.
     Все текстовые лимиты считаются в Unicode code points после обрезки крайних пробелов.
 
-    Предложения черновика: GET /chat/messages, GET /buddy/escalations,
-    тело /answer с publish_to_kb,
+    Предложение черновика: GET /chat/messages,
     ответы списков с курсором, восстановление беседы через GET /chat/messages
     без conversation_id. У пользователя одна активная беседа в этом черновике:
     GET возвращает её ID, первый POST без ID атомарно создаёт или выбирает её.
@@ -47,6 +46,8 @@ tags:
     description: Подтверждаемые действия
   - name: buddy
     description: Назначенные стажёры и переданные вопросы
+  - name: knowledge
+    description: Полнотекстовый поиск по опубликованным документам команды
   - name: metrics
     description: Черновой состав метрик
 security:
@@ -461,7 +462,6 @@ paths:
       tags: [buddy]
       operationId: listBuddyEscalations
       summary: Получить переданные текущему наставнику вопросы
-      x-draft-proposal: true
       description: |
         Только buddy с актуальным назначением. Возвращает разрешённый снимок контекста,
         а не доступ ко всей беседе. Порядок created_at DESC, id DESC.
@@ -498,9 +498,10 @@ paths:
       summary: Сохранить ответ наставника и по явному выбору опубликовать в KB
       description: |
         Только назначенный buddy, автор ответа. Закрытая эскалация даёт 409.
-        publish_to_kb обязателен: false сохраняет ответ без публикации, true означает
+        add_to_kb обязателен: false сохраняет ответ без публикации, true означает
         отдельное явное согласие пользователя в UI опубликовать текст для своей команды.
-        Один POST с true может сохранить ответ и поставить публикацию на индексацию.
+        При true документ создается или обновляется транзакционно и сразу попадает в
+        полнотекстовый индекс PostgreSQL; ответ не считается опубликованным до коммита.
         Go добавляет пометку «Тестовая инструкция, не регламент Авито» в документ KB.
         Повтор с тем же текстом возвращает существующий ответ/документ, не создаёт дублей.
         version обеспечивает проверку конкурентного изменения и вычисляется Go из updated_at
@@ -508,10 +509,9 @@ paths:
         повтор уже сохранённого текста и запрошенного состояния публикации, иначе 409.
         Изменение текста требует актуальной version. false не снимает старую публикацию
         и не обновляет её молча; true явно публикует новую revision при изменении текста.
-        202 означает pending-индексацию, а не доступность ответа в RAG. Для RAG нужны
-        published, ready и indexed_revision = revision. Состояние видно в списке эскалаций.
-        Точный повтор true при failed возвращает ошибку индексации без новой постановки;
-        механизм повторной индексации относится к реализации KB и здесь не определён.
+        Результат содержит состояние документа KB. Полнотекстовая индексация выполняется
+        локально в той же транзакции. Опубликованный ответ доступен стажерам той же команды
+        через GET /knowledge/search с источником. Чат пока не использует этот HTTP-поиск автоматически.
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -521,27 +521,55 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [answer_text, publish_to_kb, version]
+              required: [answer_text, add_to_kb, version]
               properties:
                 answer_text: {type: string, minLength: 1, maxLength: 20000}
-                publish_to_kb: {type: boolean}
+                add_to_kb: {type: boolean}
                 version: {type: string, minLength: 1}
       responses:
         '200':
           description: Ответ сохранён, либо возвращён существующий результат публикации
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Escalation'}
-        '202':
-          description: Ответ сохранён, документ ожидает индексации
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Escalation'}
+              schema: {$ref: '#/components/schemas/EscalationAnswerResult'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /knowledge/search:
+    get:
+      tags: [knowledge]
+      operationId: searchKnowledge
+      summary: Найти опубликованные документы своей команды
+      description: Только стажер. Возвращает документы, опубликованные и проиндексированные в PostgreSQL, со снимком источника.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 250}
+      responses:
+        '200':
+          description: До 10 доступных документов
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [source, content]
+                      properties:
+                        source: {$ref: '#/components/schemas/Source'}
+                        content: {type: string, maxLength: 30000}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /metrics/summary:
@@ -897,6 +925,19 @@ components:
         version: {type: string, minLength: 1, description: Непрозрачный токен конкурентного изменения из updated_at.}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
+    EscalationAnswerResult:
+      type: object
+      required: [id, status, answer_text, answered_by, answered_at, add_to_kb, kb_document_id, kb_status, version]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        status: {type: string, enum: [answered]}
+        answer_text: {type: string, minLength: 1, maxLength: 20000}
+        answered_by: {$ref: '#/components/schemas/UUID'}
+        answered_at: {type: string, format: date-time}
+        add_to_kb: {type: boolean}
+        kb_document_id: {$ref: '#/components/schemas/NullableUUID'}
+        kb_status: {type: string, enum: [not_added, ready]}
+        version: {type: string, minLength: 1, description: Непрозрачная версия эскалации из updated_at.}
     Metric:
       type: object
       required: [key, value, unit, status]

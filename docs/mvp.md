@@ -62,9 +62,10 @@ HTTP-схемы Go и схемы MCP согласуются отдельно. Н
 - `POST /chat/messages`, `GET /chat/stream/{id}`; здесь `id` - UUID генерации `request_id`.
 - `POST /actions/{id}/confirm`, `GET /actions`.
 - `GET /buddy/interns`, `POST /buddy/escalations/{id}/answer`.
+- `GET /knowledge/search` для опубликованных документов команды стажера.
 - `GET /metrics/summary`.
 
-Для покрытия истории после перезагрузки и работы наставника в черновик добавлены предложения `GET /chat/messages` и `GET /buddy/escalations`. Также описаны выбор разрешённого `intern_id` при чтении плана и явный `publish_to_kb` при ответе наставника. Точная форма этих операций и область видимости метрик помечены как предложения для ревью, а не как готовая реализация или окончательно согласованные схемы.
+Для покрытия истории после перезагрузки в черновик добавлено предложение `GET /chat/messages`. `GET /buddy/escalations` и ответ наставника используют проверку актуального назначения и version. Ответ использует явный `add_to_kb`; публикация доступна стажерам команды через полнотекстовый поиск PostgreSQL. Чат пока не вызывает поиск KB автоматически. Область видимости метрик помечена как предложение для ревью.
 
 MCP-набор: `checklist.get_plan`, `checklist.update_status`, `knowledge.search`, `employees.get_manager`, `absences.get_policy`, `absences.create_request`, `absences.list_for_employee`, `escalation.create`.
 
