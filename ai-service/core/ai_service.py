@@ -17,6 +17,8 @@ class AIService:
             AsyncOpenAI(
                 base_url=settings.LLM_BASE_URL,
                 api_key=settings.LLM_API_KEY,
+                timeout=60,
+                max_retries=0,
             )
             if settings.LLM_API_KEY
             else None
@@ -36,10 +38,13 @@ class AIService:
             messages=messages,
             stream=True,
         )
-        async for chunk in response:
-            token = chunk.choices[0].delta.content
-            if token:
-                yield token
+        try:
+            async for chunk in response:
+                token = chunk.choices[0].delta.content
+                if token:
+                    yield token
+        finally:
+            await response.close()
 
 
 def get_ai_service() -> AIService:

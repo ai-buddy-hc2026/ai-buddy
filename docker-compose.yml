@@ -61,6 +61,8 @@ services:
       JWT_TTL: ${JWT_TTL:-1h}
       DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-ai_buddy}:${POSTGRES_PASSWORD:-ai_buddy_dev}@postgres:5432/${POSTGRES_DB:-ai_buddy}?sslmode=disable}
       REDIS_URL: redis://redis:6379/0
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8000}
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?Set AI_SERVICE_TOKEN in .env}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     depends_on:
@@ -83,6 +85,7 @@ services:
       backend:
         condition: service_started
   ollama:
+    profiles: [ollama]
     image: ollama/ollama:latest
     container_name: ollama
     ports:
@@ -92,6 +95,7 @@ services:
     restart: unless-stopped
 
   ollama-init:
+    profiles: [ollama]
     image: ollama/ollama:latest
     container_name: ollama_init
     volumes:
@@ -112,7 +116,7 @@ services:
       "
     restart: "no"
 
-  ai-servise:
+  ai-service:
     build:
       context: ./ai-service
       dockerfile: Dockerfile
@@ -124,23 +128,18 @@ services:
       - LLM_MODEL=${LLM_MODEL:-llama3:8b}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
-      backend:
-        condition: service_healthy
       redis:
         condition: service_healthy
-      ollama:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; exit(0) if urllib.request.urlopen('http://backend:8000/health').getcode() == 200 else exit(1)"]
+      test: ["CMD", "python", "-c", "import urllib.request; exit(0) if urllib.request.urlopen('http://localhost:8000/health').getcode() == 200 else exit(1)"]
       interval: 10s
       timeout: 5s
       retries: 20
       start_period: 5s
     ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
+      - "127.0.0.1:${AI_SERVICE_PORT:-8000}:8000"
 volumes:
   postgres_data:
   redis_data:
