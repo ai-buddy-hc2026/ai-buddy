@@ -63,7 +63,7 @@ func (s *Tools) Call(ctx context.Context, requestID string, operation policy.Ope
 		return nil, err
 	}
 	defer rollbackOnboarding(tx)
-	actor, err := s.actor(ctx, tx, requestID, operation != policy.CreateAbsence && operation != policy.UpdateStatus)
+	actor, err := s.actor(ctx, tx, requestID, operation != policy.CreateAbsence && operation != policy.UpdateStatus && operation != policy.CreateEscalation)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (s *Tools) Call(ctx context.Context, requestID string, operation policy.Ope
 		var timezone string
 		err = tx.QueryRow(ctx, `SELECT COALESCE(u.timezone,t.timezone) FROM users u JOIN teams t ON t.id=u.team_id WHERE u.id=$1`, actor.id).Scan(&timezone)
 		result = tools.AbsencePolicy{Revision: 1, Title: "Тестовая инструкция, не регламент Авито", Types: []string{"отгул", "отпуск"}, MaxAdvanceDays: 365, Timezone: timezone}
-	case policy.CreateAbsence, policy.UpdateStatus:
+	case policy.CreateAbsence, policy.UpdateStatus, policy.CreateEscalation:
 		var input tools.ActionInput
 		if err := tools.Decode(raw, &input); err != nil {
 			return nil, err
@@ -191,9 +191,12 @@ func (s *Tools) execute(ctx context.Context, tx pgx.Tx, actor planActor, request
 		return nil, err
 	}
 	var result any
-	if operation == policy.UpdateStatus {
+	switch operation {
+	case policy.UpdateStatus:
 		result, err = NewOnboarding(s.pool).updateStatus(ctx, tx, actor, params.TaskID, onboarding.StatusChange{Status: params.Status, Version: params.Version})
-	} else {
+	case policy.CreateEscalation:
+		result, err = s.createEscalation(ctx, tx, actor, requestID, actionID, action)
+	case policy.CreateAbsence:
 		result, err = s.createAbsence(ctx, tx, actor, actionID, action)
 	}
 	if err != nil {

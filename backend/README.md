@@ -220,6 +220,18 @@ MCP_SERVICE_TOKEN по .env.example; без него MCP выключен. ABSEN
 Создание заявок и изменение задач через MCP требуют уже сохраненного подтверждения;
 endpoint подтверждения и обработчик action_proposal пока не реализованы.
 
+## Стажеры, действия и эскалации
+
+GET /buddy/interns возвращает активных стажеров, явно назначенных текущему buddy.
+GET /actions возвращает только свои действия с фильтрами status/conversation_id.
+Оба endpoint требуют JWT, поддерживают limit/cursor и работают без LLM.
+Курсоры подписаны и привязаны к пользователю, команде, типу списка и фильтрам.
+
+Миграция 0006 создает escalations. MCP escalation.create принимает action_id
+подтвержденного действия, передает вопрос текущему назначенному buddy и сохраняет
+только явно выбранный контекст. Создание, результат и escalation_created атомарны.
+Правила и ограничения: [docs/activity.md](../docs/activity.md).
+
 ## API онбординга
 
 Оба endpoint требуют `Authorization: Bearer <access_token>`.

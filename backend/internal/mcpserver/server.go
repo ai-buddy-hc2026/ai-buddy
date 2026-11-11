@@ -34,6 +34,7 @@ func New(store Store, token string) (http.Handler, error) {
 	register[tools.EmptyInput](server, store, policy.GetAbsencePolicy, "Получить синтетические правила отсутствий своей команды")
 	register[tools.EmployeeInput](server, store, policy.ListAbsences, "Получить свои синтетические отсутствия")
 	register[tools.ActionInput](server, store, policy.CreateAbsence, "Выполнить подтвержденное создание отсутствия по action_id")
+	register[tools.ActionInput](server, store, policy.CreateEscalation, "Передать подтвержденный вопрос назначенному наставнику по action_id")
 	transport := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true, MaxRequestBodyBytes: 64 << 10, PropagateRequestCancellation: true})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")

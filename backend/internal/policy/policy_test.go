@@ -61,6 +61,33 @@ func TestCorporateToolsAccess(t *testing.T) {
 	}
 }
 
+func TestEscalationAndListingRoles(t *testing.T) {
+	for _, role := range []string{"intern", "buddy", "lead", "admin", ""} {
+		actor := Actor{ID: "actor", TeamID: "team", Role: role}
+		for _, sameTeam := range []bool{true, false} {
+			resource := Resource{TeamID: "other", OwnerID: "actor", BuddyID: "actor"}
+			if sameTeam {
+				resource.TeamID = "team"
+			}
+			for _, tc := range []struct {
+				op    Operation
+				allow bool
+			}{
+				{CreateEscalation, role == "intern" && sameTeam},
+				{ListBuddyInterns, role == "buddy" && sameTeam},
+				{ListActions, (role == "intern" || role == "buddy" || role == "lead") && sameTeam},
+			} {
+				if got := Check(actor, tc.op, resource); (got == "") != tc.allow {
+					t.Fatalf("role=%s op=%s team=%v reason=%s", role, tc.op, sameTeam, got)
+				}
+			}
+		}
+	}
+	if Check(Actor{ID: "buddy", Role: "buddy", TeamID: "team"}, ListBuddyInterns, Resource{TeamID: "team", BuddyID: "other"}) != "assignment_denied" {
+		t.Fatal("wrong assignment allowed")
+	}
+}
+
 func TestMissingIdentityDenied(t *testing.T) {
 	for _, actor := range []Actor{{}, {ID: "actor", Role: "intern"}, {TeamID: "team", Role: "lead"}} {
 		if Check(actor, GetPlan, Resource{TeamID: "team", OwnerID: "actor"}) != "invalid_actor" {
