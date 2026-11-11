@@ -10,6 +10,7 @@ import (
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/auth"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/identifier"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/onboarding"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/policy"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -37,19 +38,6 @@ func rollbackOnboarding(tx pgx.Tx) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = tx.Rollback(ctx)
-}
-
-func planVisible(actor planActor, internID string, buddyID *string) bool {
-	switch actor.role {
-	case "intern":
-		return internID == actor.id
-	case "buddy":
-		return buddyID != nil && *buddyID == actor.id
-	case "lead":
-		return true // Команда уже ограничена SQL-запросом.
-	default:
-		return false
-	}
 }
 
 const taskColumns = `t.id::text,t.plan_id::text,t.assignee_id::text,t.stage,t.title,t.description,t.position,t.due_date::text,t.status,t.version,t.updated_at`
@@ -88,13 +76,13 @@ func (s *Onboarding) GetPlan(ctx context.Context, actorID, internID string) (onb
 		WHERE p.intern_id=$1 AND p.team_id=$2 AND p.status='active' AND i.active AND i.role='intern'`, internID, actor.teamID).
 		Scan(&plan.ID, &plan.InternID, &plan.Title, &plan.StartDate, &plan.CurrentStage, &plan.Status, &buddyID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return plan, onboarding.ErrNotFound
+		return onboarding.Plan{}, denyPolicy(ctx, s.pool, tx, actor, policy.GetPlan, "resource_unavailable", onboarding.ErrNotFound)
 	}
 	if err != nil {
 		return plan, err
 	}
-	if !planVisible(actor, plan.InternID, buddyID) {
-		return onboarding.Plan{}, onboarding.ErrNotFound
+	if reason := policy.Check(actor.policyActor(), policy.GetPlan, planResource(actor, plan.InternID, buddyID, "")); reason != "" {
+		return onboarding.Plan{}, denyPolicy(ctx, s.pool, tx, actor, policy.GetPlan, reason, onboarding.ErrNotFound)
 	}
 	rows, err := tx.Query(ctx, `SELECT `+taskColumns+` FROM tasks t WHERE t.plan_id=$1 AND t.team_id=$2
 		ORDER BY CASE t.stage WHEN 'week_1' THEN 1 WHEN 'week_2' THEN 2 ELSE 3 END,t.position,t.id`, plan.ID, actor.teamID)
@@ -130,23 +118,37 @@ func (s *Onboarding) UpdateStatus(ctx context.Context, actorID, taskID string, c
 	if err != nil {
 		return task, err
 	}
+	task, err = s.updateStatus(ctx, tx, actor, taskID, change)
+	if err != nil {
+		return onboarding.Task{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return onboarding.Task{}, err
+	}
+	return task, nil
+}
+
+// updateStatus сохраняет задачу, историю и событие в транзакции вызывающего кода.
+func (s *Onboarding) updateStatus(ctx context.Context, tx pgx.Tx, actor planActor, taskID string, change onboarding.StatusChange) (onboarding.Task, error) {
+	var task onboarding.Task
 	var internID, planStatus string
 	var buddyID *string
-	err = scanTask(tx.QueryRow(ctx, `SELECT `+taskColumns+`,p.intern_id::text,i.buddy_id::text,p.status
+	err := scanTask(tx.QueryRow(ctx, `SELECT `+taskColumns+`,p.intern_id::text,i.buddy_id::text,p.status
 		FROM tasks t JOIN onboarding_plans p ON p.id=t.plan_id AND p.team_id=t.team_id
 		JOIN users i ON i.id=p.intern_id AND i.team_id=p.team_id
 		WHERE t.id=$1 AND t.team_id=$2 AND i.active AND i.role='intern' FOR UPDATE OF t FOR SHARE OF p,i`, taskID, actor.teamID), &task, &internID, &buddyID, &planStatus)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return task, onboarding.ErrNotFound
+		return onboarding.Task{}, denyPolicy(ctx, s.pool, tx, actor, policy.UpdateStatus, "resource_unavailable", onboarding.ErrNotFound)
 	}
 	if err != nil {
 		return task, err
 	}
-	if !planVisible(actor, internID, buddyID) {
-		return onboarding.Task{}, onboarding.ErrNotFound
-	}
-	if task.AssigneeID != actor.id {
-		return onboarding.Task{}, onboarding.ErrForbidden
+	if reason := policy.Check(actor.policyActor(), policy.UpdateStatus, planResource(actor, internID, buddyID, task.AssigneeID)); reason != "" {
+		denied := onboarding.ErrNotFound
+		if reason == "assignee_denied" {
+			denied = onboarding.ErrForbidden
+		}
+		return onboarding.Task{}, denyPolicy(ctx, s.pool, tx, actor, policy.UpdateStatus, reason, denied)
 	}
 	if planStatus != "active" {
 		return onboarding.Task{}, onboarding.ErrPlanInactive
@@ -155,7 +157,7 @@ func (s *Onboarding) UpdateStatus(ctx context.Context, actorID, taskID string, c
 		return onboarding.Task{}, onboarding.ErrVersionConflict
 	}
 	if task.Status == change.Status {
-		return task, tx.Commit(ctx)
+		return task, nil
 	}
 	previous := task.Status
 	err = tx.QueryRow(ctx, `UPDATE tasks SET status=$2,version=version+1,updated_at=now() WHERE id=$1 RETURNING status,version,updated_at`, task.ID, change.Status).
@@ -175,9 +177,6 @@ func (s *Onboarding) UpdateStatus(ctx context.Context, actorID, taskID string, c
 	key := fmt.Sprintf("task:%s:version:%d:status_changed", task.ID, task.Version)
 	if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,task_id,event_type,dedup_key,payload)
 		VALUES ($1,$2,$3,'task_status_changed',$4,$5)`, actor.teamID, actor.id, task.ID, key, payload); err != nil {
-		return onboarding.Task{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
 		return onboarding.Task{}, err
 	}
 	return task, nil

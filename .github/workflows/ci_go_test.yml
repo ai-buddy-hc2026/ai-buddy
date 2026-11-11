@@ -119,7 +119,15 @@ jobs:
           print('health/login/me/plan/patch=200, no-token=401, forbidden=403, stale-version=409')
           PY
           test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM task_status_history')" = 31
-          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM events')" = 1
+          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc "SELECT count(*) FROM events WHERE event_type='task_status_changed'")" = 1
+          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc "SELECT count(*) FROM events WHERE event_type='policy_denied'")" = 1
+
+      - name: Chat SSE through Python and Redis
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker compose -f docker-compose.yml -f compose.test.yml config --quiet
+          docker compose -f docker-compose.yml -f compose.test.yml up --build -d --wait backend ai-service mock-llm
+          python3 tests/chat_sse_smoke.py --base-url http://127.0.0.1:18080
 
       - name: Chat SSE through Python and Redis
         working-directory: ${{ github.workspace }}

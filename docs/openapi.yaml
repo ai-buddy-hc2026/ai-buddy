@@ -209,7 +209,7 @@ paths:
       operationId: getChatMessages
       summary: Восстановить историю своей беседы после перезагрузки
       x-draft-proposal: true
-      x-implementation: '#24: история и пагинация реализованы, actions пока пуст'
+      x-implementation: 'feat/mcp-contract-alignment: история, пагинация и сохраненные карточки действий'
       description: |
         Без conversation_id выбирает единственную активную беседу пользователя;
         если её ещё нет, возвращает conversation_id = null и пустые массивы.
@@ -247,7 +247,7 @@ paths:
       tags: [chat]
       operationId: sendChatMessage
       summary: Сохранить сообщение и начать одну генерацию ответа
-      x-implementation: '#24: token/done/error, без MCP, действий и RAG-источников'
+      x-implementation: 'feat/mcp-contract-alignment: token/tool_call/action_proposal/done/error, без RAG-источников'
       description: |
         conversation_id можно не передавать: Go атомарно выбирает или создаёт единственную
         активную беседу пользователя. Существующая беседа должна принадлежать ему.
@@ -355,6 +355,7 @@ paths:
         '503': {$ref: '#/components/responses/Unavailable'}
   /actions:
     get:
+      x-implementation: 'feat/escalations-actions-api: собственные действия, фильтры и подписанный курсор'
       tags: [actions]
       operationId: listActions
       summary: Получить свои предложения действий и результаты
@@ -391,6 +392,7 @@ paths:
     post:
       tags: [actions]
       operationId: confirmAction
+      x-implementation: 'feat/mcp-contract-alignment: внутреннее выполнение Go с повторной проверкой прав'
       summary: Явно подтвердить сохранённое действие или повторить неудачную попытку
       description: |
         Вызывается только после нажатия подтверждения в UI. Тело и новый ключ от клиента
@@ -428,6 +430,7 @@ paths:
         '503': {$ref: '#/components/responses/Unavailable'}
   /buddy/interns:
     get:
+      x-implementation: 'feat/escalations-actions-api: активные назначенные стажеры текущего buddy'
       tags: [buddy]
       operationId: listBuddyInterns
       summary: Получить стажёров, явно назначенных текущему наставнику
@@ -826,7 +829,7 @@ components:
           items: {$ref: '#/components/schemas/Action'}
     ActionType:
       type: string
-      enum: [absences.create_request, escalation.create]
+      enum: [absences.create_request, escalation.create, checklist.update_status]
     ActionStatus:
       type: string
       enum: [proposed, confirmed, executing, succeeded, failed, cancelled]
@@ -871,15 +874,16 @@ components:
         action_id: {$ref: '#/components/schemas/UUID'}
         intern_id: {$ref: '#/components/schemas/UUID'}
         buddy_id: {$ref: '#/components/schemas/UUID'}
-        question: {type: string, minLength: 1}
+        question: {type: string, minLength: 1, maxLength: 4000}
         context_snapshot:
           type: array
           maxItems: 10
           description: Только разрешённые сообщения и источники, явно переданные при подтверждении.
           items:
             type: object
-            required: [role, content, sources]
+            required: [message_id, role, content, sources]
             properties:
+              message_id: {$ref: '#/components/schemas/UUID'}
               role: {type: string, enum: [user, assistant]}
               content: {type: string, maxLength: 20000}
               sources:

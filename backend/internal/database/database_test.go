@@ -61,7 +61,7 @@ func TestPrepareRepeatAndConstraints(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	for table, want := range map[string]int{"teams": 2, "users": 6, "schema_migrations": 4, "onboarding_plans": 2, "tasks": 30, "task_status_history": 30} {
+	for table, want := range map[string]int{"teams": 2, "users": 6, "schema_migrations": 7, "onboarding_plans": 2, "tasks": 30, "task_status_history": 30, "actions_log": 0, "absence_requests": 0, "escalations": 0} {
 		var got int
 		if err := pool.QueryRow(ctx, "SELECT count(*) FROM "+table).Scan(&got); err != nil || got != want {
 			t.Fatalf("%s count=%d, want=%d, err=%v", table, got, want, err)

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import date, timedelta
@@ -13,7 +14,7 @@ import uvicorn
 from api.v1.chat import get_ai_service
 from main import app
 
-BACKEND_URL = "http://backend:8080"
+BACKEND_URL = os.getenv("TEST_BACKEND_URL", "http://backend:8080")
 EXPECTED_INTERN_TOOLS = {
     "absences.create_request",
     "absences.get_policy",
@@ -21,7 +22,7 @@ EXPECTED_INTERN_TOOLS = {
     "checklist.update_status",
     "employees.get_manager",
 }
-EXPECTED_LEAD_TOOLS = EXPECTED_INTERN_TOOLS | {"absences.list_for_employee"}
+EXPECTED_BUDDY_TOOLS = EXPECTED_INTERN_TOOLS | {"absences.list_for_employee"}
 
 
 class ScriptedAIService:
@@ -84,7 +85,7 @@ class ScriptedAIService:
     ) -> AsyncIterator[dict]:
         if len(self.calls) == 1:
             tool_names = {tool["name"] for tool in tools}
-            assert tool_names == EXPECTED_LEAD_TOOLS
+            assert tool_names == EXPECTED_BUDDY_TOOLS
             yield {
                 "type": "tool_call_delta",
                 "tool_call": SimpleNamespace(
@@ -164,8 +165,8 @@ async def ai_service_server() -> AsyncIterator[ScriptedAIService]:
     app.dependency_overrides[get_ai_service] = lambda: scripted_ai
     config = uvicorn.Config(
         app,
-        host="0.0.0.0",
-        port=8000,
+        host=os.getenv("TEST_AI_BIND_HOST", "0.0.0.0"),
+        port=int(os.getenv("TEST_AI_PORT", "8000")),
         log_level="warning",
         lifespan="on",
     )
@@ -251,7 +252,7 @@ async def test_absence_proposal_requires_confirmation_and_persists_result(
 ) -> None:
     ai_service_server.scenario = "absence"
     async with httpx.AsyncClient(base_url=BACKEND_URL, timeout=30) as client:
-        login = await client.post("/auth/mock-login", json={"login": "lead_maria"})
+        login = await client.post("/auth/mock-login", json={"login": "buddy_ilya"})
         assert login.status_code == 200, login.text
         token = login.json()["access_token"]
 

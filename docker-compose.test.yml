@@ -32,6 +32,9 @@ services:
     restart: "no"
     environment:
       DATABASE_URL: postgres://ai_buddy:ai_buddy_test@postgres:5432/ai_buddy?sslmode=disable
+      CHECKLIST_SEED_PATH: /app/seed/checklist.json
+    volumes:
+      - ./seed:/app/seed:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,11 +46,12 @@ services:
       HOST: 0.0.0.0
       PORT: "8080"
       LOG_LEVEL: INFO
+      JWT_SIGNING_KEY: synthetic-test-jwt-signing-key-32-bytes
       DATABASE_URL: postgres://ai_buddy:ai_buddy_test@postgres:5432/ai_buddy?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       AI_SERVICE_URL: http://ai-service:8000
       AI_SERVICE_TOKEN: test-ai-service-token
-      MCP_SERVICE_TOKEN: test-mcp-service-token
+      MCP_SERVICE_TOKEN: synthetic-test-mcp-service-token-32-bytes
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health"]
       interval: 5s
@@ -91,7 +95,7 @@ services:
     environment:
       TEST_INFRA_FROM_COMPOSE: "1"
       AI_SERVICE_TOKEN: test-ai-service-token
-      MCP_SERVICE_TOKEN: test-mcp-service-token
+      MCP_SERVICE_TOKEN: synthetic-test-mcp-service-token-32-bytes
       MCP_SERVER_URL: http://backend:8080/mcp
       REDIS_HOST: redis
       REDIS_PORT: "6379"
