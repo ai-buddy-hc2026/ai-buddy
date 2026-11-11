@@ -28,12 +28,15 @@ def test_proposal_for_intern_trims_history():
     p = escalation_proposal("Какой бюджет?", INTERN, hist)
     assert p["action"] == "escalation.create" and p["type"] == "action_proposal"
     assert (
-        len(p["payload"]["context"]) == 6 and p["payload"]["question"] == "Какой бюджет?"
+        len(p["payload"]["context"]) == 6
+        and p["payload"]["question"] == "Какой бюджет?"
     )
 
 
 def test_no_proposal_for_non_intern():
     assert (
-        escalation_proposal("q", UserContext(user_id="b", role="buddy", team_id="t"), [])
+        escalation_proposal(
+            "q", UserContext(user_id="b", role="buddy", team_id="t"), []
+        )
         is None
     )

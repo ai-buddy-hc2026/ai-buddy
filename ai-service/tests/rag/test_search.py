@@ -65,7 +65,11 @@ def test_team_filter(embedder):
     v = embedder.embed_passages(["секретный ответ наставника про бюджет"])[0]
     store.add(
         "mentor_answer",
-        [ChunkRow("Ответ наставника", "Бюджет", "секретный ответ", v, team_id="team-a")],
+        [
+            ChunkRow(
+                "Ответ наставника", "Бюджет", "секретный ответ", v, team_id="team-a"
+            )
+        ],
     )
     q = "бюджет"
     own = search(q, "team-a", embedder=embedder, store=store, min_score=0.0)
