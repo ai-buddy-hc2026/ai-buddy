@@ -96,7 +96,7 @@ func TestBuddyInternsHTTPAndPagination(t *testing.T) {
 			t.Fatalf("%s %s: %d %s", tc.login, tc.path, w.Code, w.Body.String())
 		}
 	}
-	if _, err := s.pool.Exec(ctx, `UPDATE users SET buddy_id=NULL WHERE login='intern_test_1'; UPDATE users SET active=false WHERE login='intern_test_2'`); err != nil {
+	if _, err := s.pool.Exec(ctx, `UPDATE users SET buddy_id=NULL WHERE login IN ('intern_test_1','intern_anya'); UPDATE users SET active=false WHERE login='intern_test_2'`); err != nil {
 		t.Fatal(err)
 	}
 	w := onboardingRequest(handler, "GET", "/buddy/interns?cursor="+cursor, tokens["buddy_ilya"], "")
