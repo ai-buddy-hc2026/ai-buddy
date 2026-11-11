@@ -41,6 +41,9 @@ services:
     restart: "no"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-ai_buddy}:${POSTGRES_PASSWORD:-ai_buddy_dev}@postgres:5432/${POSTGRES_DB:-ai_buddy}?sslmode=disable}
+      CHECKLIST_SEED_PATH: /app/seed/checklist.json
+    volumes:
+      - ./seed:/app/seed:ro
     depends_on:
       postgres:
         condition: service_healthy

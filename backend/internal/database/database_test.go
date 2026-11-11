@@ -54,13 +54,13 @@ func TestPrepareRepeatAndConstraints(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 2 {
 		wg.Go(func() {
-			if err := Prepare(ctx, pool); err != nil {
+			if err := Prepare(ctx, pool, "../../../seed/checklist.json"); err != nil {
 				t.Error(err)
 			}
 		})
 	}
 	wg.Wait()
-	for table, want := range map[string]int{"teams": 2, "users": 6, "schema_migrations": 1} {
+	for table, want := range map[string]int{"teams": 2, "users": 6, "schema_migrations": 2, "onboarding_plans": 2, "tasks": 30, "task_status_history": 30} {
 		var got int
 		if err := pool.QueryRow(ctx, "SELECT count(*) FROM "+table).Scan(&got); err != nil || got != want {
 			t.Fatalf("%s count=%d, want=%d, err=%v", table, got, want, err)
@@ -69,7 +69,7 @@ func TestPrepareRepeatAndConstraints(t *testing.T) {
 	if _, err := pool.Exec(ctx, "UPDATE users SET active=false, display_name='Изменено', updated_at='2026-11-11T00:00:00Z' WHERE login='intern_anya'"); err != nil {
 		t.Fatal(err)
 	}
-	if err := Prepare(ctx, pool); err != nil {
+	if err := Prepare(ctx, pool, "../../../seed/checklist.json"); err != nil {
 		t.Fatal(err)
 	}
 	var preserved bool
@@ -107,7 +107,7 @@ func TestPrepareRollbackAndChecksum(t *testing.T) {
 	}
 	seed := files["seeds/users.sql"]
 	files["seeds/users.sql"] = &fstest.MapFile{Data: []byte("SELECT missing_column FROM users;")}
-	if err := prepare(ctx, pool, files); err == nil {
+	if err := prepare(ctx, pool, files, checklistFixture(t)); err == nil {
 		t.Fatal("expected seed failure")
 	}
 	var absent bool
@@ -115,11 +115,11 @@ func TestPrepareRollbackAndChecksum(t *testing.T) {
 		t.Fatalf("failed preparation was not rolled back: %v, %v", absent, err)
 	}
 	files["seeds/users.sql"] = seed
-	if err := prepare(ctx, pool, files); err != nil {
+	if err := prepare(ctx, pool, files, checklistFixture(t)); err != nil {
 		t.Fatal(err)
 	}
 	files["migrations/0001_users.sql"].Data = append(files["migrations/0001_users.sql"].Data, []byte("\n-- changed\n")...)
-	if err := prepare(ctx, pool, files); err == nil || !strings.Contains(err.Error(), "changed after application") {
+	if err := prepare(ctx, pool, files, checklistFixture(t)); err == nil || !strings.Contains(err.Error(), "changed after application") {
 		t.Fatalf("expected checksum error, got %v", err)
 	}
 }

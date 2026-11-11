@@ -18,7 +18,7 @@ import (
 func TestPostgresLoginAndRevocation(t *testing.T) {
 	pool := testPool(t)
 	ctx := context.Background()
-	if err := Prepare(ctx, pool); err != nil {
+	if err := Prepare(ctx, pool, "../../../seed/checklist.json"); err != nil {
 		t.Fatal(err)
 	}
 	store := NewUsers(pool)
