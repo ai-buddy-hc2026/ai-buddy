@@ -31,7 +31,6 @@ jobs:
       POSTGRES_PORT: '55432'
       REDIS_PORT: '56379'
       BACKEND_PORT: '18080'
-      POSTGRES_PORT: '55432'
     defaults:
       run:
         working-directory: backend
