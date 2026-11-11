@@ -63,6 +63,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8000}
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?Set AI_SERVICE_TOKEN in .env}
+      MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-}
+      ABSENCES_FAIL_RATE: ${ABSENCES_FAIL_RATE:-0}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     depends_on:

@@ -118,9 +118,22 @@ func (s *Onboarding) UpdateStatus(ctx context.Context, actorID, taskID string, c
 	if err != nil {
 		return task, err
 	}
+	task, err = s.updateStatus(ctx, tx, actor, taskID, change)
+	if err != nil {
+		return onboarding.Task{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return onboarding.Task{}, err
+	}
+	return task, nil
+}
+
+// updateStatus сохраняет задачу, историю и событие в транзакции вызывающего кода.
+func (s *Onboarding) updateStatus(ctx context.Context, tx pgx.Tx, actor planActor, taskID string, change onboarding.StatusChange) (onboarding.Task, error) {
+	var task onboarding.Task
 	var internID, planStatus string
 	var buddyID *string
-	err = scanTask(tx.QueryRow(ctx, `SELECT `+taskColumns+`,p.intern_id::text,i.buddy_id::text,p.status
+	err := scanTask(tx.QueryRow(ctx, `SELECT `+taskColumns+`,p.intern_id::text,i.buddy_id::text,p.status
 		FROM tasks t JOIN onboarding_plans p ON p.id=t.plan_id AND p.team_id=t.team_id
 		JOIN users i ON i.id=p.intern_id AND i.team_id=p.team_id
 		WHERE t.id=$1 AND t.team_id=$2 AND i.active AND i.role='intern' FOR UPDATE OF t FOR SHARE OF p,i`, taskID, actor.teamID), &task, &internID, &buddyID, &planStatus)
@@ -144,7 +157,7 @@ func (s *Onboarding) UpdateStatus(ctx context.Context, actorID, taskID string, c
 		return onboarding.Task{}, onboarding.ErrVersionConflict
 	}
 	if task.Status == change.Status {
-		return task, tx.Commit(ctx)
+		return task, nil
 	}
 	previous := task.Status
 	err = tx.QueryRow(ctx, `UPDATE tasks SET status=$2,version=version+1,updated_at=now() WHERE id=$1 RETURNING status,version,updated_at`, task.ID, change.Status).
@@ -164,9 +177,6 @@ func (s *Onboarding) UpdateStatus(ctx context.Context, actorID, taskID string, c
 	key := fmt.Sprintf("task:%s:version:%d:status_changed", task.ID, task.Version)
 	if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,task_id,event_type,dedup_key,payload)
 		VALUES ($1,$2,$3,'task_status_changed',$4,$5)`, actor.teamID, actor.id, task.ID, key, payload); err != nil {
-		return onboarding.Task{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
 		return onboarding.Task{}, err
 	}
 	return task, nil

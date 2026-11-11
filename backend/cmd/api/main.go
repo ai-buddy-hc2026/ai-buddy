@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,6 +16,7 @@ import (
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/config"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/database"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/httpapi"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/mcpserver"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/server"
 	"github.com/redis/go-redis/v9"
 )
@@ -76,5 +78,24 @@ func run() error {
 		}
 		defer streams.Close()
 	}
-	return server.Serve(ctx, listener, httpapi.NewHandler(logger, service, database.NewOnboarding(pool), streams), logger)
+	mcpCfg, err := config.LoadMCP()
+	if err != nil {
+		return err
+	}
+	handler := httpapi.NewHandler(logger, service, database.NewOnboarding(pool), streams)
+	if mcpCfg.Token != "" {
+		store, err := database.NewTools(pool, mcpCfg.AbsencesFailRate)
+		if err != nil {
+			return err
+		}
+		toolsHandler, err := mcpserver.New(store, mcpCfg.Token)
+		if err != nil {
+			return err
+		}
+		mux := http.NewServeMux()
+		mux.Handle("/internal/mcp", toolsHandler)
+		mux.Handle("/", handler)
+		handler = mux
+	}
+	return server.Serve(ctx, listener, handler, logger)
 }

@@ -4,10 +4,14 @@ package policy
 type Operation string
 
 const (
-	GetPlan      Operation = "checklist.get_plan"
-	UpdateStatus Operation = "checklist.update_status"
-	CreateChat   Operation = "chat.create"
-	ReadChat     Operation = "chat.read"
+	GetPlan          Operation = "checklist.get_plan"
+	UpdateStatus     Operation = "checklist.update_status"
+	CreateChat       Operation = "chat.create"
+	ReadChat         Operation = "chat.read"
+	GetManager       Operation = "employees.get_manager"
+	GetAbsencePolicy Operation = "absences.get_policy"
+	ListAbsences     Operation = "absences.list_for_employee"
+	CreateAbsence    Operation = "absences.create_request"
 )
 
 type Actor struct{ ID, TeamID, Role string }
@@ -34,10 +38,11 @@ func Check(actor Actor, operation Operation, resource Resource) string {
 		if operation == UpdateStatus && resource.AssigneeID != actor.ID {
 			return "assignee_denied"
 		}
-	case CreateChat, ReadChat:
+	case CreateChat, ReadChat, GetManager, ListAbsences, CreateAbsence:
 		if resource.OwnerID != actor.ID {
 			return "owner_denied"
 		}
+	case GetAbsencePolicy:
 	default:
 		return "operation_denied"
 	}
