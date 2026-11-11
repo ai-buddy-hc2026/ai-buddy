@@ -1,0 +1,117 @@
+name: ai-buddy-test
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ai_buddy
+      POSTGRES_USER: ai_buddy
+      POSTGRES_PASSWORD: ai_buddy_test
+    volumes:
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  db-init:
+    build:
+      context: ./backend
+    entrypoint: ["/app/db-init"]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://ai_buddy:ai_buddy_test@postgres:5432/ai_buddy?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8080"
+      LOG_LEVEL: INFO
+      DATABASE_URL: postgres://ai_buddy:ai_buddy_test@postgres:5432/ai_buddy?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_TOKEN: test-ai-service-token
+      MCP_SERVICE_TOKEN: test-mcp-service-token
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_test_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  ollama-init:
+    image: ollama/ollama:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["until ollama list >/dev/null 2>&1; do sleep 2; done; ollama pull \"$${LLM_MODEL}\""]
+    environment:
+      OLLAMA_HOST: ollama:11434
+      LLM_MODEL: llama3.2:1b
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile.test
+    command: ["python", "-c", "import time; exec('while True: time.sleep(3600)')"]
+    environment:
+      TEST_INFRA_FROM_COMPOSE: "1"
+      AI_SERVICE_TOKEN: test-ai-service-token
+      MCP_SERVICE_TOKEN: test-mcp-service-token
+      MCP_SERVER_URL: http://backend:8080/mcp
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      POSTGRES_URL: postgresql+asyncpg://ai_buddy:ai_buddy_test@postgres:5432/ai_buddy
+      LLM_PROVIDER: ollama
+      LLM_BASE_URL: http://ollama:11434/v1
+      LLM_MODEL: llama3.2:1b
+      LLM_API_KEY: ollama
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
+
+volumes:
+  ollama_test_data:

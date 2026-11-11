@@ -1,29 +1,14 @@
 import asyncio
 import json
-from collections.abc import AsyncIterator
 from uuid import uuid4
 
 import pytest
-import pytest_asyncio
 import redis.asyncio as aioredis
 from httpx import AsyncClient
 
 from core import security
 from core.dependencies import get_redis
 from main import app
-
-
-@pytest_asyncio.fixture
-async def redis_client(infra_containers) -> AsyncIterator[aioredis.Redis]:
-    container = infra_containers["redis"]
-    client = aioredis.Redis(
-        host=container.get_container_host_ip(),
-        port=int(container.get_exposed_port(6379)),
-        decode_responses=True,
-    )
-    await client.ping()
-    yield client
-    await client.aclose()
 
 
 @pytest.mark.asyncio

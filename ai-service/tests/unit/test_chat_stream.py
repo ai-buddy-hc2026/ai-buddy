@@ -1,12 +1,9 @@
 import asyncio
 import json
-from collections.abc import AsyncIterator, Iterator
 from uuid import UUID
 
 import pytest
-import pytest_asyncio
 import redis.asyncio as aioredis
-from testcontainers.community.redis import RedisContainer
 
 from api.v1.chat import pubsub_publish
 from config import get_settings
@@ -15,24 +12,6 @@ from schemas import chat as chat_schema
 from schemas.chat import ChatRequest
 
 REQUEST_ID = UUID("20000000-0000-0000-0000-000000000001")
-
-
-@pytest.fixture
-def redis_container() -> Iterator[RedisContainer]:
-    with RedisContainer("redis:7-alpine") as container:
-        yield container
-
-
-@pytest_asyncio.fixture
-async def redis_client(redis_container: RedisContainer) -> AsyncIterator[aioredis.Redis]:
-    client = aioredis.Redis(
-        host=redis_container.get_container_host_ip(),
-        port=int(redis_container.get_exposed_port(6379)),
-        decode_responses=True,
-    )
-    await client.ping()
-    yield client
-    await client.aclose()
 
 
 @pytest.fixture
