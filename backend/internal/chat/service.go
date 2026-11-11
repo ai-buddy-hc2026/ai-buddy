@@ -23,6 +23,7 @@ type Store interface {
 type Options struct {
 	Timeout, Retention, RecoveryInterval time.Duration
 	BufferLimit                          int
+	ProcessEvent                         func(context.Context, string, Event) (Event, error)
 }
 
 type Service struct {
@@ -322,6 +323,26 @@ func (s *Service) run(feed *Feed, payload Payload) {
 			}
 			seen[event.Seq] = hash
 			size += len(canonical)
+			if event.Type == "tool_call" || event.Type == "action_proposal" {
+				if s.options.ProcessEvent == nil {
+					fail("INVALID_AI_EVENT")
+					return
+				}
+				processed, err := s.options.ProcessEvent(ctx, payload.RequestID, event)
+				if err != nil {
+					fail("INVALID_AI_EVENT")
+					return
+				}
+				encoded, _ := json.Marshal(processed)
+				if size+len(encoded)-len(canonical) > s.options.BufferLimit {
+					fail("BUFFER_LIMIT")
+					return
+				}
+				size += len(encoded) - len(canonical)
+				last = event.Seq
+				feed.append(processed, false, false)
+				continue
+			}
 			if event.Type != "token" {
 				s.finish(feed, event)
 				return

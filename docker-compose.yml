@@ -63,6 +63,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8000}
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?Set AI_SERVICE_TOKEN in .env}
+      MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-}
+      ABSENCES_FAIL_RATE: ${ABSENCES_FAIL_RATE:-0}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     depends_on:
@@ -93,6 +95,12 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   ollama-init:
     profiles: [ollama]
@@ -128,18 +136,25 @@ services:
       - LLM_MODEL=${LLM_MODEL:-llama3:8b}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - REDIS_HOST=redis
+      - MCP_SERVER_URL=${MCP_SERVER_URL:-http://backend:8080/mcp}
+      - MCP_SERVICE_TOKEN=${MCP_SERVICE_TOKEN:?Set MCP_SERVICE_TOKEN in .env}
+      - AI_SERVICE_LOG_LEVEL=${AI_SERVICE_LOG_LEVEL:-INFO}
+      - AI_SERVICE_LOG_DIR=/app/logs
       - REDIS_PORT=6379
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; exit(0) if urllib.request.urlopen('http://localhost:8000/health').getcode() == 200 else exit(1)"]
+      test: ["CMD", "python", "-c", "import urllib.request; exit(0) if urllib.request.urlopen('http://127.0.0.1:8000/health').getcode() == 200 else exit(1)"]
       interval: 10s
       timeout: 5s
       retries: 20
       start_period: 5s
     ports:
       - "127.0.0.1:${AI_SERVICE_PORT:-8000}:8000"
+    volumes:
+      - ./logs/ai-service:/app/logs
+      - ./ai-service:/app
 volumes:
   postgres_data:
   redis_data:

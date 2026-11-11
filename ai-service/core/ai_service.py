@@ -1,11 +1,20 @@
 from collections.abc import AsyncIterator, Sequence
 
-from openai import AsyncOpenAI
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    AsyncOpenAI,
+)
 
 from config import get_settings
 
 
 class LLMUnavailableError(Exception):
+    pass
+
+
+class LLMTimeoutError(Exception):
     pass
 
 
@@ -24,27 +33,50 @@ class AIService:
             else None
         )
 
-    async def get_ai_stream(
+    async def stream_step(
         self,
-        prompt: str,
-        history: Sequence[dict[str, str]] = (),
-    ) -> AsyncIterator[str]:
+        messages: list[dict],
+        tools: Sequence[dict] | None = None,
+    ) -> AsyncIterator[dict]:
         if self.llm_client is None:
             raise LLMUnavailableError("LLM_API_KEY is not configured")
 
-        messages = [*history, {"role": "user", "content": prompt}]
-        response = await self.llm_client.chat.completions.create(
-            model=self.settings.LLM_MODEL,
-            messages=messages,
-            stream=True,
-        )
+        kwargs: dict = {}
+        if tools:
+            kwargs["tools"] = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": t["name"],
+                        "description": t.get("description", ""),
+                        "parameters": t["inputSchema"],
+                    },
+                }
+                for t in tools
+            ]
+            kwargs["tool_choice"] = "auto"
+
         try:
-            async for chunk in response:
-                token = chunk.choices[0].delta.content
-                if token:
-                    yield token
-        finally:
-            await response.close()
+            response = await self.llm_client.chat.completions.create(
+                model=self.settings.LLM_MODEL,
+                messages=messages,
+                stream=True,
+                **kwargs,
+            )
+            try:
+                async for chunk in response:
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        yield {"type": "token", "text": delta.content}
+                    if delta.tool_calls:
+                        for tc in delta.tool_calls:
+                            yield {"type": "tool_call_delta", "tool_call": tc}
+            finally:
+                await response.close()
+        except APITimeoutError as e:
+            raise LLMTimeoutError("LLM timeout") from e
+        except (APIConnectionError, APIStatusError) as e:
+            raise LLMUnavailableError("LLM unavailable") from e
 
 
 def get_ai_service() -> AIService:
