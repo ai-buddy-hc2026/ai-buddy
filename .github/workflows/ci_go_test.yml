@@ -129,13 +129,6 @@ jobs:
           docker compose -f docker-compose.yml -f compose.test.yml up --build -d --wait backend ai-service mock-llm
           python3 tests/chat_sse_smoke.py --base-url http://127.0.0.1:18080
 
-      - name: Chat SSE through Python and Redis
-        working-directory: ${{ github.workspace }}
-        run: |
-          docker compose -f docker-compose.yml -f compose.test.yml config --quiet
-          docker compose -f docker-compose.yml -f compose.test.yml up --build -d --wait backend ai-service mock-llm
-          python3 tests/chat_sse_smoke.py --base-url http://127.0.0.1:18080
-
       - name: Compose logs on failure
         if: failure()
         working-directory: ${{ github.workspace }}
