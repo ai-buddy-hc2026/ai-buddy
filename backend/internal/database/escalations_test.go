@@ -40,6 +40,7 @@ func TestAnswerEscalationPublishesAndReplays(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := escalation.AnswerRequest{AnswerText: "Проверьте порядок релиза в тестовой инструкции.", AddToKB: true, Version: escalationVersion(version)}
+	staleVersion := request.Version
 	result, err := store.Answer(context.Background(), params.BuddyID, escalationID, request)
 	if err != nil {
 		t.Fatal(err)
@@ -69,6 +70,7 @@ func TestAnswerEscalationPublishesAndReplays(t *testing.T) {
 		t.Fatalf("replay created a different result: %+v %v", replay, err)
 	}
 	request.AnswerText = "измененный ответ"
+	request.Version = staleVersion
 	if _, err := store.Answer(context.Background(), params.BuddyID, escalationID, request); !errors.Is(err, escalation.ErrConflict) {
 		t.Fatalf("stale version accepted: %v", err)
 	}
