@@ -47,9 +47,11 @@ AI-buddy помогает стажёру в первые недели: слев�
 
 Эмбеддинги: `intfloat/multilingual-e5-base`, 768 измерений. При развёртывании на своём сервере LLM вызывается через OpenAI API; её выбор не меняет размерность эмбеддингов. Конкретная LLM и ключ задаются конфигурацией AI-service, секреты не сохраняются в прикладных таблицах и Git. Профиль индексации и правила поиска описаны в [схеме БД](db.md).
 
-Контракт `docs/ai-contract.md` находится в [PR Макса #60](https://github.com/ai-buddy-hc2026/ai-buddy/pull/60/files). После его слияния используйте файл в репозитории и обновите ссылку. Схема БД уже добавлена в main: [docs/db.md](db.md). Принятые UUID и revision должны быть одинаково отражены в контракте и его потребителях. Не создавайте вторые копии контрактов.
+Контракт Go/Python добавлен в main через PR #60: [docs/ai-contract.md](ai-contract.md), статус 1.2-draft. Схема БД также находится в main: [docs/db.md](db.md). Принятые UUID и revision должны быть одинаково отражены в контракте и его потребителях; наличие кода в main не подтверждает эту совместимость. Не создавайте вторые копии контрактов.
 
 HTTP-схемы Go и схемы MCP согласуются отдельно. Ниже указан целевой состав, а не реализованные endpoint.
+
+Черновик внешнего Go API: [docs/openapi.yaml](openapi.yaml), задача [#6](https://github.com/ai-buddy-hc2026/ai-buddy/issues/6). Содержит схемы запросов/ответов, ошибки, JWT и SSE. Детали требуют ревью frontend и AI-service; финальная версия относится к задаче #22. Контракт не означает реализацию endpoint и не заменяет контракт Go/Python или спецификации MCP.
 
 ## Целевые операции
 
@@ -57,10 +59,12 @@ HTTP-схемы Go и схемы MCP согласуются отдельно. Н
 
 - `POST /auth/mock-login`, `GET /me`.
 - `GET /onboarding/plan`, `PATCH /tasks/{id}`.
-- `POST /chat/messages`, `GET /chat/stream/{id}`.
+- `POST /chat/messages`, `GET /chat/stream/{id}`; здесь `id` - UUID генерации `request_id`.
 - `POST /actions/{id}/confirm`, `GET /actions`.
 - `GET /buddy/interns`, `POST /buddy/escalations/{id}/answer`.
 - `GET /metrics/summary`.
+
+Для покрытия истории после перезагрузки и работы наставника в черновик добавлены предложения `GET /chat/messages` и `GET /buddy/escalations`. Также описаны выбор разрешённого `intern_id` при чтении плана и явный `publish_to_kb` при ответе наставника. Точная форма этих операций и область видимости метрик помечены как предложения для ревью, а не как готовая реализация или окончательно согласованные схемы.
 
 MCP-набор: `checklist.get_plan`, `checklist.update_status`, `knowledge.search`, `employees.get_manager`, `absences.get_policy`, `absences.create_request`, `absences.list_for_employee`, `escalation.create`.
 
