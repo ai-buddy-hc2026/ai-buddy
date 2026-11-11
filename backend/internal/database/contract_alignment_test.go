@@ -57,7 +57,7 @@ func TestOriginalMCPProfile(t *testing.T) {
 		actor, request string
 		count          int
 	}{
-		{chatAnya, id, 5}, {"10000000-0000-0000-0000-000000000002", "", 6}, {"10000000-0000-0000-0000-000000000003", "", 6},
+		{chatAnya, id, 5}, {"4a59a828-3b1a-55e4-bf9b-81db5ad6183a", "", 6}, {"10000000-0000-0000-0000-000000000003", "", 6},
 	} {
 		requestID := tc.request
 		if requestID == "" {
@@ -218,7 +218,7 @@ async def main():
      result=await session.call_tool(name,args)
      body=result.structured_content
      assert json.loads(result.content[0].text)==body
-     if name=="employees.get_manager": assert body["data"]["manager"]["id"]=="10000000-0000-0000-0000-000000000002"
+     if name=="employees.get_manager": assert body["data"]["manager"]["id"]=="4a59a828-3b1a-55e4-bf9b-81db5ad6183a"
      if name=="checklist.get_plan": assert len(body["data"]["tasks"])==15
      if name=="absences.get_policy": assert body["data"]["notice_period_days"]==3
      if name=="absences.create_request": assert result.is_error and body["error"]["code"]=="CONFIRMATION_REQUIRED"
@@ -345,7 +345,7 @@ func TestAbsenceListScopeAndCursor(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	buddy := toolRequest(t, s, "10000000-0000-0000-0000-000000000002")
+	buddy := toolRequest(t, s, "4a59a828-3b1a-55e4-bf9b-81db5ad6183a")
 	lead := toolRequest(t, s, "10000000-0000-0000-0000-000000000003")
 	value, err := s.Call(ctx, buddy, policy.ListAbsences, json.RawMessage(`{"limit":1}`))
 	if err != nil {
@@ -427,7 +427,7 @@ async def main():
  async with module.GenerationMCPClient(request_id=%q,deadline_monotonic=time.monotonic()+45,publish_action_proposal=publish) as client:
   assert len(client.get_tools_for_llm())==5
   manager=await client.call_tool("employees.get_manager",{})
-  assert manager["manager"]["id"]=="10000000-0000-0000-0000-000000000002"
+  assert manager["manager"]["id"]=="4a59a828-3b1a-55e4-bf9b-81db5ad6183a"
   plan=await client.call_tool("checklist.get_plan",{})
   assert len(plan["tasks"])==15
   policy=await client.call_tool("absences.get_policy",{})

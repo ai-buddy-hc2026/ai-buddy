@@ -17,7 +17,7 @@ func escalationParams(t *testing.T, s *Tools, requestID string) tools.Escalation
 	if err := s.pool.QueryRow(context.Background(), `SELECT id::text,role,content FROM chat_messages WHERE request_id=$1 AND role='user'`, requestID).Scan(&message.MessageID, &message.Role, &message.Content); err != nil {
 		t.Fatal(err)
 	}
-	return tools.EscalationParameters{BuddyID: "10000000-0000-0000-0000-000000000002", Question: "Нужна помощь с задачей", ContextSnapshot: []tools.ContextMessage{message}}
+	return tools.EscalationParameters{BuddyID: "4a59a828-3b1a-55e4-bf9b-81db5ad6183a", Question: "Нужна помощь с задачей", ContextSnapshot: []tools.ContextMessage{message}}
 }
 
 func TestEscalationConcurrentReplay(t *testing.T) {
@@ -91,7 +91,7 @@ func TestEscalationConfirmationAndScope(t *testing.T) {
 	if _, err := callAction(s, requestID, policy.CreateEscalation, unconfirmed); !errors.Is(err, tools.ErrConfirmation) {
 		t.Fatal(err)
 	}
-	foreignRequest := toolRequest(t, s, "10000000-0000-0000-0000-000000000004")
+	foreignRequest := toolRequest(t, s, "2db7cc77-4114-52d8-a833-f670ab60e4e0")
 	foreign := escalationParams(t, s, foreignRequest)
 	for _, tc := range []struct {
 		name   string
@@ -102,7 +102,7 @@ func TestEscalationConfirmationAndScope(t *testing.T) {
 			p.ContextSnapshot[0].Content = "Подмененный текст"
 		}, tools.ErrDenied},
 		{"foreign message", func(p *tools.EscalationParameters) { p.ContextSnapshot = foreign.ContextSnapshot }, tools.ErrDenied},
-		{"foreign buddy", func(p *tools.EscalationParameters) { p.BuddyID = "10000000-0000-0000-0000-000000000005" }, tools.ErrDenied},
+		{"foreign buddy", func(p *tools.EscalationParameters) { p.BuddyID = "0f8153be-1c96-5e0f-aa4c-55b7ed7bf47a" }, tools.ErrDenied},
 		{"too many messages", func(p *tools.EscalationParameters) { p.ContextSnapshot = make([]tools.ContextMessage, 11) }, tools.ErrInvalid},
 		{"duplicate message", func(p *tools.EscalationParameters) {
 			p.ContextSnapshot = append(p.ContextSnapshot, p.ContextSnapshot[0])

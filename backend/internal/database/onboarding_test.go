@@ -54,8 +54,8 @@ func onboardingRequest(handler http.Handler, method, path, token, body string) *
 func TestOnboardingHTTPAccessAndPersistence(t *testing.T) {
 	store, handler, tokens := onboardingHandler(t)
 	ctx := context.Background()
-	anya := "10000000-0000-0000-0000-000000000001"
-	petr := "10000000-0000-0000-0000-000000000004"
+	anya := "a24a3478-cf42-51b1-b05b-9833260247a5"
+	petr := "2db7cc77-4114-52d8-a833-f670ab60e4e0"
 	for _, tc := range []struct {
 		login, path string
 		want        int
@@ -166,7 +166,7 @@ func TestOnboardingHTTPAccessAndPersistence(t *testing.T) {
 func TestTaskConcurrentUpdateAndAtomicEvent(t *testing.T) {
 	store, handler, tokens := onboardingHandler(t)
 	ctx := context.Background()
-	plan, err := store.GetPlan(ctx, "10000000-0000-0000-0000-000000000001", "")
+	plan, err := store.GetPlan(ctx, "a24a3478-cf42-51b1-b05b-9833260247a5", "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -73,7 +73,7 @@ func callAction(s *Tools, requestID string, operation policy.Operation, actionID
 }
 
 func absenceParams() tools.AbsenceParameters {
-	return tools.AbsenceParameters{Date: time.Now().AddDate(0, 0, 30).Format(time.DateOnly), Type: "day_off", Approver: "10000000-0000-0000-0000-000000000002"}
+	return tools.AbsenceParameters{Date: time.Now().AddDate(0, 0, 30).Format(time.DateOnly), Type: "day_off", Approver: "4a59a828-3b1a-55e4-bf9b-81db5ad6183a"}
 }
 
 func canonicalToolResult(result any) (string, error) {
@@ -98,7 +98,7 @@ func TestToolReadContextAndScope(t *testing.T) {
 		}
 	}
 	for _, op := range []policy.Operation{policy.GetManager, policy.ListAbsences} {
-		for _, employee := range []string{"10000000-0000-0000-0000-000000000002", "10000000-0000-0000-0000-000000000004"} {
+		for _, employee := range []string{"4a59a828-3b1a-55e4-bf9b-81db5ad6183a", "2db7cc77-4114-52d8-a833-f670ab60e4e0"} {
 			raw := json.RawMessage(fmt.Sprintf(`{"employee_id":%q}`, employee))
 			if _, err := s.Call(ctx, requestID, op, raw); !errors.Is(err, tools.ErrInvalid) {
 				t.Fatalf("foreign employee allowed: %v", err)
@@ -109,7 +109,7 @@ func TestToolReadContextAndScope(t *testing.T) {
 	if _, err := s.Call(ctx, leadRequest, policy.ListAbsences, json.RawMessage(`{}`)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Call(ctx, leadRequest, policy.ListAbsences, json.RawMessage(`{"employee_id":"10000000-0000-0000-0000-000000000001"}`)); !errors.Is(err, tools.ErrInvalid) {
+	if _, err := s.Call(ctx, leadRequest, policy.ListAbsences, json.RawMessage(`{"employee_id":"a24a3478-cf42-51b1-b05b-9833260247a5"}`)); !errors.Is(err, tools.ErrInvalid) {
 		t.Fatal("lead saw foreign absences", err)
 	}
 	for _, raw := range []string{`{"role":"lead"}`, `{"team_id":"other"}`, `{"request_id":"other"}`} {
@@ -235,7 +235,7 @@ func TestAbsenceConfirmationFailureAndRetry(t *testing.T) {
 	if _, err := s.Call(ctx, requestID, policy.CreateAbsence, json.RawMessage(fmt.Sprintf(`{"action_id":%q,"confirmed":true}`, actionID))); !errors.Is(err, tools.ErrInvalid) {
 		t.Fatal("agent confirmed action", err)
 	}
-	otherRequest := toolRequest(t, s, "10000000-0000-0000-0000-000000000004")
+	otherRequest := toolRequest(t, s, "2db7cc77-4114-52d8-a833-f670ab60e4e0")
 	if _, err := callAction(s, otherRequest, policy.CreateAbsence, actionID); !errors.Is(err, tools.ErrNotFound) {
 		t.Fatal("foreign action accepted", err)
 	}

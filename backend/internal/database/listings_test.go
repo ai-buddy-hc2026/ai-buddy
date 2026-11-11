@@ -45,8 +45,8 @@ func TestBuddyInternsHTTPAndPagination(t *testing.T) {
 	s, _, handler, tokens := listingFixture(t)
 	ctx := context.Background()
 	if _, err := s.pool.Exec(ctx, `INSERT INTO users(id,team_id,login,display_name,role,buddy_id,manager_id) VALUES
- ('10000000-0000-0000-0000-000000000010','00000000-0000-0000-0000-000000000001','intern_test_1','Test 1','intern','10000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000003'),
- ('10000000-0000-0000-0000-000000000011','00000000-0000-0000-0000-000000000001','intern_test_2','Test 2','intern','10000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000003')`); err != nil {
+ ('10000000-0000-0000-0000-000000000010','4496e76d-35da-5cf7-a3d5-c9a89d88c5a2','intern_test_1','Test 1','intern','4a59a828-3b1a-55e4-bf9b-81db5ad6183a','10000000-0000-0000-0000-000000000003'),
+ ('10000000-0000-0000-0000-000000000011','4496e76d-35da-5cf7-a3d5-c9a89d88c5a2','intern_test_2','Test 2','intern','4a59a828-3b1a-55e4-bf9b-81db5ad6183a','10000000-0000-0000-0000-000000000003')`); err != nil {
 		t.Fatal(err)
 	}
 	cursor := ""
@@ -61,7 +61,7 @@ func TestBuddyInternsHTTPAndPagination(t *testing.T) {
 		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &page) != nil || len(page.Items) != 1 {
 			t.Fatalf("%d %s", w.Code, w.Body.String())
 		}
-		if page.Items[0].Team.ID != "00000000-0000-0000-0000-000000000001" || seen[page.Items[0].ID] {
+		if page.Items[0].Team.ID != "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2" || seen[page.Items[0].ID] {
 			t.Fatal("wrong intern page")
 		}
 		seen[page.Items[0].ID] = true

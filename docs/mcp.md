@@ -828,8 +828,8 @@ Cursor непрозрачен для Python, защищен от подмены 
 {
   "GetPlanInput": {},
   "GetPlanData": {
-    "employee_id": "10000000-0000-0000-0000-000000000001",
-    "team_id": "00000000-0000-0000-0000-000000000001",
+    "employee_id": "a24a3478-cf42-51b1-b05b-9833260247a5",
+    "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
     "stage": "week_1",
     "progress": {"done": 0, "total": 1},
     "tasks": [{
@@ -837,7 +837,7 @@ Cursor непрозрачен для Python, защищен от подмены 
       "stage": "week_1", "position": 0,
       "title": "Настроить окружение", "description": "Подготовить локальную среду",
       "status": "todo", "due_date": "2026-11-20",
-      "assignee_id": "10000000-0000-0000-0000-000000000001", "version": 1
+      "assignee_id": "a24a3478-cf42-51b1-b05b-9833260247a5", "version": 1
     }],
     "next_step": {
       "task_id": "40000000-0000-0000-0000-000000000001",
@@ -855,7 +855,7 @@ Cursor непрозрачен для Python, защищен от подмены 
   },
   "EmptyInput": {},
   "GetManagerData": {
-    "manager": {"id": "10000000-0000-0000-0000-000000000002", "name": "Илья", "role": "buddy"}
+    "manager": {"id": "4a59a828-3b1a-55e4-bf9b-81db5ad6183a", "name": "Илья", "role": "buddy"}
   },
   "GetPolicyData": {
     "notice_period_days": 3, "requires_approval": true,
@@ -865,14 +865,14 @@ Cursor непрозрачен для Python, защищен от подмены 
   "CreateAbsenceData": {
     "action_id": "50000000-0000-0000-0000-000000000001",
     "external_id": "ABS-1042", "status": "pending_approval",
-    "approver": "10000000-0000-0000-0000-000000000002"
+    "approver": "4a59a828-3b1a-55e4-bf9b-81db5ad6183a"
   },
   "ListAbsencesInput": {"limit": 50},
   "ListAbsencesData": {
     "items": [{
-      "external_id": "ABS-1042", "employee_id": "10000000-0000-0000-0000-000000000001",
+      "external_id": "ABS-1042", "employee_id": "a24a3478-cf42-51b1-b05b-9833260247a5",
       "date": "2026-11-20", "type": "day_off", "status": "pending_approval",
-      "approver": "10000000-0000-0000-0000-000000000002"
+      "approver": "4a59a828-3b1a-55e4-bf9b-81db5ad6183a"
     }],
     "next_cursor": null
   }
