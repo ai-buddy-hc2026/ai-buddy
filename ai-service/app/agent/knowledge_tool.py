@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import re
 
+from app.agent.context import UserContext
+from app.agent.unknown import can_escalate, who_to_ask
 from app.rag.embeddings import Embedder
 from app.rag.search import search
 from app.rag.store import Store
-
-from app.agent.context import UserContext
-from app.agent.unknown import can_escalate, who_to_ask
 
 MCP_NAME = "knowledge.search"  # имя в контракте MCP
 OPENAI_NAME = "knowledge_search"  # в function calling точки не допускаются
