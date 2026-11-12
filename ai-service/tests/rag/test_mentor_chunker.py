@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from app.rag.mentor_chunker import chunk_mentor_response
 
@@ -12,7 +11,10 @@ class MockEmbedder:
 
 
 def test_chunking_basic():
-    text = "Первое предложение здесь достаточно длинное. Второе предложение тоже очень длинное."
+    text = (
+        "Первое предложение здесь достаточно длинное. "
+        "Второе предложение тоже очень длинное."
+    )
     embedder = MockEmbedder()
 
     result = chunk_mentor_response(text, embedder)

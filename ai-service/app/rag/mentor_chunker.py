@@ -46,7 +46,7 @@ def chunk_mentor_response(text: str, embedder_obj) -> List[Dict]:
                         "text": batch_texts[j],
                         "embedding": vec.tolist(),
                         "source_type": "mentor_answer",
-                    }
+                    },
                 )
 
             batch_texts.clear()
