@@ -16,7 +16,7 @@ exclude =
     __init__.py
     alembic
 
-ignore = N805, B008, F821, E701, W503
+ignore = N805, B008, F821, E701, W503, B042
 max-line-length = 90
 import-order-style = google
 application-import-names = api, config, schemas, core

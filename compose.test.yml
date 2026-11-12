@@ -1,0 +1,15 @@
+services:
+  ai-service:
+    environment:
+      LLM_PROVIDER: mock
+      LLM_BASE_URL: http://mock-llm:8090/v1
+      LLM_MODEL: synthetic-model
+      LLM_API_KEY: synthetic-llm-key
+    depends_on:
+      mock-llm:
+        condition: service_started
+  mock-llm:
+    image: python:3.13-slim
+    command: [python, /app/mock_llm.py]
+    volumes:
+      - ./tests/fixtures/mock_llm.py:/app/mock_llm.py:ro
