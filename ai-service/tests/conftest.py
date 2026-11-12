@@ -35,8 +35,7 @@ def infra_containers():
         redis_host = redis.get_container_host_ip()
         redis_port = redis.get_exposed_port(6379)
         ollama_url = (
-            f"http://{ollama.get_container_host_ip()}:"
-            f"{ollama.get_exposed_port(11434)}"
+            f"http://{ollama.get_container_host_ip()}:{ollama.get_exposed_port(11434)}"
         )
 
         test_model = "DeepSeek-R1:1.5b"
