@@ -1,0 +1,238 @@
+/* ---------- Раскладка ---------- */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: var(--theme-gap-16);
+  align-items: start;
+}
+
+.sceneCard {
+  display: grid;
+  gap: var(--theme-gap-16);
+}
+
+.sceneHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--theme-gap-12) var(--theme-gap-24);
+}
+
+.title {
+  font-size: var(--theme-font-fontSize-xxxl);
+  line-height: var(--theme-font-lineHeight-xxxl);
+  letter-spacing: -0.03em;
+}
+
+.scene {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--theme-gap-6) var(--theme-gap-16);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+  font-weight: 700;
+  color: var(--text-2);
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-6);
+}
+.legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--theme-borderRadius-2);
+}
+
+.routeSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-8);
+  font-weight: 700;
+}
+
+.similar {
+  display: grid;
+  gap: var(--theme-gap-8);
+}
+
+.inlineLink {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: var(--theme-gap-2);
+}
+
+.aside {
+  position: sticky;
+  top: 0;
+  max-height: var(--content-h);
+  display: flex;
+  flex-direction: column;
+}
+.aside > div {
+  flex: 1;
+  min-height: 0;
+  /* место под кольцо фокуса */
+  padding: var(--theme-gap-4);
+  margin: calc(var(--theme-gap-4) * -1);
+}
+
+/* ---------- Справочник ---------- */
+.directory {
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+.asideTitle,
+.panelTitle {
+  font-size: var(--theme-font-fontSize-xl);
+  line-height: var(--theme-font-lineHeight-xl);
+}
+
+.list {
+  display: grid;
+  gap: var(--theme-gap-2);
+}
+
+.placeRow {
+  min-height: 44px;
+  transition: var(--theme-animation-transition-control-hover);
+}
+.placeRow:hover {
+  background: var(--hover);
+}
+.placeRow:active {
+  transform: scale(0.98);
+}
+.placeRowActive {
+  background: var(--surface-sunken);
+}
+
+.typeIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--theme-borderRadius-m);
+  color: var(--theme-palette-gray92);
+}
+
+/* ---------- Панель места ---------- */
+.panel {
+  display: grid;
+  gap: var(--theme-gap-16);
+}
+
+.back {
+  justify-self: start;
+}
+
+.panelHead {
+  display: grid;
+  gap: var(--theme-gap-6);
+  justify-items: start;
+}
+
+.owner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--theme-gap-12);
+  padding: var(--theme-gap-12);
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+}
+
+.ownerText {
+  flex: 1;
+  min-width: 160px;
+  display: grid;
+  gap: var(--theme-gap-2);
+}
+
+.routeBlock {
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+.steps {
+  display: grid;
+  gap: var(--theme-gap-10);
+}
+.steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--theme-gap-10);
+}
+
+.stepNum {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--tint-blue);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s2);
+  font-weight: 800;
+}
+
+.panelFoot {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-8);
+}
+
+/* Ссылка в виде кнопки secondary */
+.linkBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--theme-gap-6);
+  min-height: var(--theme-size-m-height);
+  padding: 0 var(--theme-gap-16);
+  border-radius: var(--theme-size-m-borderRadius);
+  background: var(--theme-semantics-components-button-bg-secondary);
+  color: var(--theme-semantics-components-button-text-secondary);
+  font-size: var(--theme-size-m-fontSize);
+  line-height: var(--theme-size-m-lineHeight);
+  font-weight: 700;
+  white-space: nowrap;
+  transition: var(--theme-animation-transition-control-hover);
+}
+.linkBtn:hover {
+  background: var(--theme-semantics-components-button-bg-secondaryHover);
+}
+.linkBtn:active {
+  transform: scale(0.97);
+}
+.panelFoot .linkBtn {
+  flex: 1;
+}
+
+/* ---------- Адаптив ---------- */
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .aside {
+    position: static;
+    max-height: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .title {
+    font-size: var(--theme-font-fontSize-xxl);
+    line-height: var(--theme-font-lineHeight-xxl);
+  }
+}

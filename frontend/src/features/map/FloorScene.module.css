@@ -1,0 +1,104 @@
+.scene {
+  max-height: calc(var(--content-h) - 180px);
+}
+
+.corridor {
+  fill: var(--iso-plot);
+}
+
+/* ---------- Места ---------- */
+.place {
+  cursor: pointer;
+  transition: opacity 0.2s ease-out;
+}
+.place:hover polygon {
+  filter: brightness(1.08);
+}
+.place:focus-visible {
+  box-shadow: none;
+}
+.place:focus-visible polygon {
+  stroke: var(--theme-semantics-border-focused);
+  stroke-width: 3;
+}
+.dimmed {
+  opacity: 0.3;
+}
+.ring {
+  fill: var(--theme-semantics-border-focused);
+  stroke: none !important;
+}
+
+/* ---------- Маршрут ---------- */
+@keyframes route-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.route {
+  animation: route-in 0.5s var(--ease-out) both;
+  pointer-events: none;
+}
+.routeCasing,
+.routeLine {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.routeCasing {
+  stroke: var(--surface-card);
+  stroke-width: 10;
+}
+.routeLine {
+  stroke: var(--brand-blue);
+  stroke-width: 5;
+  stroke-dasharray: 1 10;
+}
+
+/* ---------- Метки ---------- */
+@keyframes pin-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.pin {
+  pointer-events: none;
+}
+.pinHead {
+  animation: pin-drop 0.4s var(--ease-out) both;
+}
+.pinStem {
+  stroke: var(--iso-ink);
+  stroke-width: 2;
+}
+.pinDot {
+  fill: var(--iso-ink);
+}
+.pinPill {
+  fill: var(--surface-inverse);
+}
+.pinText {
+  fill: var(--text-inverse);
+  font-size: var(--theme-font-fontSize-xs);
+  font-weight: 700;
+}
+.pin-me .pinPill {
+  fill: var(--brand-green);
+}
+.pin-me .pinText {
+  fill: var(--theme-palette-gray92);
+}
+.pin-target .pinPill {
+  fill: var(--brand-blue);
+}
+.pin-target .pinText {
+  fill: var(--theme-palette-white);
+}

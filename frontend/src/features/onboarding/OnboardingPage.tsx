@@ -1,8 +1,11 @@
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { IsoArt, type IsoArtName } from '@/shared/iso'
 import { useT } from '@/shared/lib/i18n'
-import { Card, EmptyState, Page, PageHeader, Tabs, type TabItem } from '@/shared/ui'
+import { Page, PageHeader, Tabs, type TabItem } from '@/shared/ui'
+import { AccessTab } from './access/AccessTab'
+import { CoursesTab } from './courses/CoursesTab'
 import { PlanTab } from './plan/PlanTab'
+import { TracksTab } from './tracks/TracksTab'
+import s from './OnboardingPage.module.css'
 
 const TAB_IDS = ['plan', 'tracks', 'courses', 'access'] as const
 type TabId = (typeof TAB_IDS)[number]
@@ -11,29 +14,7 @@ function toTab(value: string | undefined): TabId {
   return TAB_IDS.find((id) => id === value) ?? 'plan'
 }
 
-const SOON_ART: Record<Exclude<TabId, 'plan'>, IsoArtName> = {
-  tracks: 'trophy',
-  courses: 'books',
-  access: 'access',
-}
-
-function SoonTab({ tab }: { tab: Exclude<TabId, 'plan'> }) {
-  const t = useT()
-  return (
-    <Card index={0}>
-      <EmptyState
-        art={<IsoArt name={SOON_ART[tab]} isFloating />}
-        title={t('Скоро', 'Coming soon')}
-        text={t(
-          'Раздел появится после MVP. Пока весь план во вкладке «План»',
-          'Coming after the MVP. For now everything is in the Plan tab',
-        )}
-      />
-    </Card>
-  )
-}
-
-/** Онбординг (S-1): вкладки в ?tab=. Для MVP полноценная только «План». */
+/** Онбординг (S-1): вкладки в ?tab=: план, треки, курсы, доступы. */
 export function OnboardingPage() {
   const t = useT()
   const search = useSearch({ strict: false })
@@ -62,7 +43,16 @@ export function OnboardingPage() {
         label={t('Разделы онбординга', 'Onboarding sections')}
         onChange={(id) => void navigate({ to: '/onboarding', search: { tab: id } })}
       />
-      <div role="tabpanel">{tab === 'plan' ? <PlanTab /> : <SoonTab tab={tab} />}</div>
+      <div
+        role="tabpanel"
+        className={s.panel}
+        aria-label={items.find((item) => item.id === tab)?.label}
+      >
+        {tab === 'plan' && <PlanTab />}
+        {tab === 'tracks' && <TracksTab />}
+        {tab === 'courses' && <CoursesTab />}
+        {tab === 'access' && <AccessTab />}
+      </div>
     </Page>
   )
 }
