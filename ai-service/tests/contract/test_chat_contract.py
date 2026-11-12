@@ -44,12 +44,22 @@ class FakeRedis:
 class FakeAI:
     llm_client = object()
 
-    def __init__(self, parts=("Привет ", "мир"), error=None, delay=0):
+    def __init__(
+        self,
+        parts=("\u041f\u0440\u0438\u0432\u0435\u0442 ", "\u043c\u0438\u0440"),
+        error=None,
+        delay=0,
+        category="other",
+    ):
         self.parts = parts
         self.error = error
         self.delay = delay
         self.calls = 0
         self.closed = False
+        self.category = category
+
+    async def classify_question(self, _question):
+        return self.category
 
     async def stream_step(self, _messages, _tools):
         self.calls += 1
@@ -127,7 +137,12 @@ async def test_http_acceptance_idempotency_and_errors(configured_dependencies):
         assert ai.calls == 1 and ai.closed
         assert [event["event"] for event in redis.events] == ["token", "token", "done"]
         assert [event["seq"] for event in redis.events] == [1, 2, 3]
-        assert redis.events[-1]["data"] == {"full_text": "Привет мир", "sources": []}
+        assert redis.events[-1]["data"] == {
+            "full_text": "Привет мир",
+            "sources": [],
+            "answer_status": "answered",
+            "question_category": "other",
+        }
         assert redis.expirations[f"chat:{data['request_id']}"] == 600
         redis.fail_registry = True
         unavailable = await client.post("/chat", json=payload(), headers=headers)
@@ -183,3 +198,94 @@ async def test_redis_loss_does_not_publish_conflicting_sequence(caplog):
     assert ai.closed
     assert "private-publication-details" not in caplog.text
     assert json.loads(redis.values[f"chat:{data.request_id}"])["state"] == "failed"
+
+
+class SearchAI(FakeAI):
+    def __init__(self, category="process"):
+        super().__init__(parts=(), category=category)
+
+    async def stream_step(self, _messages, _tools):
+        self.calls += 1
+        try:
+            if self.calls == 1:
+                yield {
+                    "type": "tool_call_delta",
+                    "tool_call": {
+                        "index": 0,
+                        "id": "search-1",
+                        "function": {
+                            "name": "knowledge.search",
+                            "arguments": "{}",
+                        },
+                    },
+                }
+            else:
+                yield {"type": "token", "text": "Grounded answer"}
+        finally:
+            self.closed = True
+
+
+class SearchMCP:
+    def __init__(self, items):
+        self.items = items
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args):
+        return None
+
+    def get_tools_for_llm(self):
+        return [{"name": "knowledge.search", "inputSchema": {"type": "object"}}]
+
+    async def call_tool(self, _name, _arguments):
+        return {"items": self.items}
+
+
+@pytest.mark.parametrize(
+    ("items", "expected_status", "expected_sources"),
+    [
+        ([], "unknown", []),
+        (
+            [
+                {
+                    "source": {
+                        "document_id": "40000000-0000-0000-0000-000000000001",
+                        "revision": 3,
+                        "title": "Synthetic guide",
+                        "section": "Setup",
+                        "url": "/knowledge/synthetic-guide",
+                    },
+                    "content": "Synthetic content",
+                },
+            ],
+            "answered",
+            [
+                {
+                    "document_id": "40000000-0000-0000-0000-000000000001",
+                    "revision": 3,
+                    "title": "Synthetic guide",
+                    "section": "Setup",
+                    "url": "/knowledge/synthetic-guide",
+                },
+            ],
+        ),
+    ],
+)
+async def test_search_result_sets_answer_status_sources_and_category(
+    items,
+    expected_status,
+    expected_sources,
+    monkeypatch,
+):
+    redis = FakeRedis()
+    ai = SearchAI()
+    monkeypatch.setattr(chat, "GenerationMCPClient", lambda **kwargs: SearchMCP(items))
+
+    await chat.pubsub_publish(ChatRequest.model_validate(payload()), ai, redis)
+
+    done = redis.events[-1]
+    assert done["event"] == "done"
+    assert done["data"]["answer_status"] == expected_status
+    assert done["data"]["question_category"] == "process"
+    assert done["data"]["sources"] == expected_sources

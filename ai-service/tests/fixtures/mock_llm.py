@@ -9,11 +9,30 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, _format, *_args):
         pass
 
-    def do_POST(self):
+    def do_POST(self):  # noqa: N802 - имя метода требует BaseHTTPRequestHandler
         if self.path != "/v1/chat/completions":
             self.send_error(404)
             return
-        self.rfile.read(int(self.headers.get("Content-Length", "0")))
+        body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
+        if not body.get("stream", False):
+            response = {
+                "id": "synthetic-classification",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "synthetic-model",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"content": '{"category":"other"}'},
+                        "finish_reason": "stop",
+                    },
+                ],
+            }
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode())
+            return
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
@@ -23,7 +42,13 @@ class Handler(BaseHTTPRequestHandler):
                 "object": "chat.completion.chunk",
                 "created": 0,
                 "model": "synthetic-model",
-                "choices": [{"index": 0, "delta": {"content": part}, "finish_reason": None}],
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {"content": part},
+                        "finish_reason": None,
+                    },
+                ],
             }
             self.wfile.write(("data: " + json.dumps(chunk) + "\n\n").encode())
             self.wfile.flush()

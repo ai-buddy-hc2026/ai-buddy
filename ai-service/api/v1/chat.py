@@ -112,6 +112,9 @@ async def pubsub_publish(
     proposal_count = 0
     state, error_code = "failed", "INTERNAL_ERROR"
     full_text = ""
+    answer_status = "answered"
+    question_category = "other"
+    sources: dict[str, dict[str, Any]] = {}
     deadline = time.monotonic() + GENERATION_TIMEOUT_SECONDS
     messages = [item.model_dump() for item in chat_data.history]
     messages.append({"role": "user", "content": chat_data.message})
@@ -148,7 +151,7 @@ async def pubsub_publish(
         await publish_event(event_error)
 
     async def generate() -> None:
-        nonlocal seq, full_text
+        nonlocal seq, full_text, answer_status
         if ai_service.llm_client is None:
             raise LLMUnavailableError("LLM_API_KEY is not configured")
 
@@ -254,6 +257,14 @@ async def pubsub_publish(
                     else:
                         try:
                             result = await mcp.call_tool(call["name"], arguments)
+                            if call["name"] == "knowledge.search":
+                                items = result.get("items", [])
+                                if not items:
+                                    answer_status = "unknown"
+                                for item in items:
+                                    source = item.get("source", {})
+                                    if source:
+                                        sources[source["document_id"]] = source
                         except MCPContractError as error:
                             if error.code not in EXPECTED_TOOL_ERRORS:
                                 raise
@@ -291,13 +302,21 @@ async def pubsub_publish(
             await generate()
             if not full_text and not proposal_count:
                 raise ValueError("Пустой ответ без предложения действия")
+            classify_question = getattr(ai_service, "classify_question", None)
+            if classify_question is not None:
+                question_category = await classify_question(chat_data.message)
             seq += 1
             await publish_event(
                 DoneEvent(
                     event="done",
                     request_id=chat_data.request_id,
                     seq=seq,
-                    data=DoneData(full_text=full_text, sources=[]),
+                    data=DoneData(
+                        full_text=full_text,
+                        sources=list(sources.values()),
+                        answer_status=answer_status,
+                        question_category=question_category,
+                    ),
                 ),
             )
             state = "completed"

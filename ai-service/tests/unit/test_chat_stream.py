@@ -75,7 +75,12 @@ async def test_pubsub_publish_streams_tokens_and_done(
     assert [event["seq"] for event in events] == list(range(1, len(events) + 1))
     assert events[-1]["event"] == "done"
     token_text = "".join(event["data"]["text"] for event in token_events)
-    assert events[-1]["data"] == {"full_text": token_text, "sources": []}
+    assert events[-1]["data"] == {
+        "full_text": token_text,
+        "sources": [],
+        "answer_status": "answered",
+        "question_category": "other",
+    }
     assert all(event["request_id"] == str(REQUEST_ID) for event in events)
     state = await redis_client.get(f"chat:{REQUEST_ID}")
     assert state is not None

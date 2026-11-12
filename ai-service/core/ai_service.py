@@ -1,3 +1,4 @@
+import json
 from collections.abc import AsyncIterator, Sequence
 
 from openai import (
@@ -27,11 +28,42 @@ class AIService:
                 base_url=settings.LLM_BASE_URL,
                 api_key=settings.LLM_API_KEY,
                 timeout=60,
-                max_retries=0,
+                max_retries=1,
             )
             if settings.LLM_API_KEY
             else None
         )
+
+    async def classify_question(self, question: str) -> str:
+        if self.llm_client is None:
+            raise LLMUnavailableError("LLM_API_KEY is not configured")
+        try:
+            response = await self.llm_client.chat.completions.create(
+                model=self.settings.LLM_MODEL,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Classify the user's question. Return JSON with exactly one "
+                            "field, category. Allowed values: task, process, access, "
+                            "technical, other. Use other if unclear."
+                        ),
+                    },
+                    {"role": "user", "content": question},
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=40,
+            )
+            content = response.choices[0].message.content or "{}"
+            category = json.loads(content).get("category")
+            allowed = {"task", "process", "access", "technical", "other"}
+            return category if category in allowed else "other"
+        except APITimeoutError as e:
+            raise LLMTimeoutError("LLM timeout") from e
+        except (APIConnectionError, APIStatusError) as e:
+            raise LLMUnavailableError("LLM unavailable") from e
+        except (json.JSONDecodeError, AttributeError, IndexError, TypeError):
+            return "other"
 
     async def stream_step(
         self,

@@ -1,6 +1,11 @@
 services:
   ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile.test
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
     environment:
+      RUN_CHAT_SSE_SMOKE: "1"
       LLM_PROVIDER: mock
       LLM_BASE_URL: http://mock-llm:8090/v1
       LLM_MODEL: synthetic-model
@@ -12,4 +17,4 @@ services:
     image: python:3.13-slim
     command: [python, /app/mock_llm.py]
     volumes:
-      - ./tests/fixtures/mock_llm.py:/app/mock_llm.py:ro
+      - ./ai-service/tests/fixtures/mock_llm.py:/app/mock_llm.py:ro
