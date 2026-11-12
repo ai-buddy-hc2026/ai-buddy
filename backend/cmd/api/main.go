@@ -92,6 +92,12 @@ func run() error {
 		return err
 	}
 	handler = httpapi.WithListings(handler, service, listings)
+	escalations, err := database.NewEscalations(pool, authCfg.SigningKey)
+	if err != nil {
+		return err
+	}
+	handler = httpapi.WithEscalations(handler, service, escalations)
+	handler = httpapi.WithKnowledge(handler, service, database.NewKnowledge(pool))
 	handler = httpapi.WithConfirmation(handler, service, toolStore)
 	if mcpCfg.Token != "" {
 		toolsHandler, err := mcpserver.New(toolStore, mcpCfg.Token)
