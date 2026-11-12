@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .context import UserContext, clean
+from app.agent.context import UserContext, clean
 
 CONTACTS_BY_ROLE = {
     "intern": ["наставник", "руководитель", "HR BP"],
@@ -23,16 +23,24 @@ def can_escalate(role: str) -> bool:
 def unknown_answer_text(role: str) -> str:
     """Запасной текст, если LLM недоступна или нужен детерминированный ответ."""
     contacts = ", ".join(who_to_ask(role))
-    text = f"В базе знаний ответа на этот вопрос нет, поэтому гадать не буду. Лучше спросить: {contacts}."
+    text = (
+        "В базе знаний ответа на этот вопрос нет, поэтому гадать не буду. "
+        f"Лучше спросить: {contacts}."
+    )
     if can_escalate(role):
-        text += " Могу передать вопрос наставнику вместе с контекстом: нажми «Передать наставнику»."
+        text += (
+            " Могу передать вопрос наставнику вместе с контекстом: "
+            "нажми «Передать наставнику»."
+        )
     return text
 
 
 def escalation_proposal(
-    question: str, ctx: UserContext, history: list[dict] | None = None
+    question: str,
+    ctx: UserContext,
+    history: list[dict] | None = None,
 ) -> dict | None:
-    """Предложение действия escalation.create. Выполняется только после подтверждения пользователя.
+    """Предложение действия escalation.create (после подтверждения пользователя).
     Формат события согласовать с docs/ai-contract.md (Макс)."""
     if not can_escalate(ctx.role):
         return None

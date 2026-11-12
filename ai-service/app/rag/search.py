@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .embeddings import Embedder
-from .settings import get_settings
-from .store import Store
+from app.rag.embeddings import Embedder
+from app.rag.settings import get_settings
+from app.rag.store import Store
 
 
 @dataclass(frozen=True)

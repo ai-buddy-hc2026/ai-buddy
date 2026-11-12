@@ -8,8 +8,8 @@ from app.rag.embeddings import Embedder
 from app.rag.search import search
 from app.rag.store import Store
 
-from .context import UserContext
-from .unknown import can_escalate, who_to_ask
+from app.agent.context import UserContext
+from app.agent.unknown import can_escalate, who_to_ask
 
 MCP_NAME = "knowledge.search"  # имя в контракте MCP
 OPENAI_NAME = "knowledge_search"  # в function calling точки не допускаются
@@ -19,7 +19,8 @@ TOOL_DEFINITION = {
     "function": {
         "name": OPENAI_NAME,
         "description": (
-            "Поиск по базе знаний команды (тестовые инструкции). Используй для любого вопроса про команду, "
+            "Поиск по базе знаний команды (тестовые инструкции). "
+            "Используй для любого вопроса про команду, "
             "процессы и правила. Возвращает фрагменты с источниками или status no_answer."
         ),
         "parameters": {
@@ -28,7 +29,7 @@ TOOL_DEFINITION = {
                 "query": {
                     "type": "string",
                     "description": "Вопрос пользователя своими словами",
-                }
+                },
             },
             "required": ["query"],
             "additionalProperties": False,
@@ -36,9 +37,13 @@ TOOL_DEFINITION = {
     },
 }
 
-FOUND_INSTRUCTION = "Отвечай только по этим фрагментам. В конце ответа укажи номера использованных фрагментов: [источники: 1, 2]."
+FOUND_INSTRUCTION = (
+    "Отвечай только по этим фрагментам. "
+    "В конце ответа укажи номера использованных фрагментов: [источники: 1, 2]."
+)
 NO_ANSWER_INSTRUCTION = (
-    "В базе нет ответа. Скажи об этом честно, не придумывай. Назови, к кому обратиться (who_to_ask). "
+    "В базе нет ответа. Скажи об этом честно, не придумывай. "
+    "Назови, к кому обратиться (who_to_ask). "
     "Если suggest_escalation равно true, предложи передать вопрос наставнику."
 )
 
@@ -92,7 +97,7 @@ _CITATION = re.compile(r"\[\s*источник(?:и|а)?\s*:\s*([\d,\s]+)\]", re
 
 
 def extract_citations(text: str, tool_result: dict) -> tuple[str, list[dict]]:
-    """Убирает строку [источники: 1, 2] и возвращает (чистый текст, источники для интерфейса).
+    """Убирает строку [источники: 1, 2], возвращает (чистый текст, источники).
     Если модель не указала номера, берётся первый (лучший) фрагмент."""
     if tool_result.get("status") != "found":
         return _CITATION.sub("", text).strip(), []
@@ -111,6 +116,6 @@ def extract_citations(text: str, tool_result: dict) -> tuple[str, list[dict]]:
                 "section": r["section"],
                 "source": r["source"],
                 "label": f"{r['doc_title']} / {r['section']}",
-            }
+            },
         )
     return clean_text, sources

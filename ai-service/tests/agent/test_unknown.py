@@ -1,9 +1,5 @@
 from app.agent.context import UserContext
-from app.agent.unknown import (
-    escalation_proposal,
-    unknown_answer_text,
-    who_to_ask,
-)
+from app.agent.unknown import escalation_proposal, unknown_answer_text, who_to_ask
 
 INTERN = UserContext(user_id="u1", role="intern", team_id="t1")
 

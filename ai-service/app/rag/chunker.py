@@ -63,7 +63,8 @@ def split_with_overlap(text: str, max_chars: int, overlap: int) -> list[str]:
         if end < len(text):
             window_start = start + max_chars // 2
             cut = max(
-                text.rfind("\n", window_start, end), text.rfind(". ", window_start, end)
+                text.rfind("\n", window_start, end),
+                text.rfind(". ", window_start, end),
             )
             if cut == -1:
                 cut = text.rfind(" ", window_start, end)
@@ -83,7 +84,10 @@ def split_with_overlap(text: str, max_chars: int, overlap: int) -> list[str]:
 
 
 def chunk_document(
-    markdown: str, fallback_title: str, max_chars: int, overlap: int
+    markdown: str,
+    fallback_title: str,
+    max_chars: int,
+    overlap: int,
 ) -> list[Chunk]:
     title, sections = parse_document(markdown, fallback_title)
     chunks: list[Chunk] = []

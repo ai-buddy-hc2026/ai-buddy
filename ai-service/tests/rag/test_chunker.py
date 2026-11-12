@@ -50,12 +50,11 @@ def test_split_rejects_bad_overlap():
 
 def test_seed_docs(kb_dir):
     files = sorted(kb_dir.glob("*.md"))
-    assert len(files) >= 1
+    assert len(files) >= 8
     for f in files:
         text = f.read_text(encoding="utf-8")
-        assert text.splitlines()[0].startswith(
-            "> **Тестовая инструкция, не регламент Авито"
-        ), f.name
+        banner = "> **Тестовая инструкция, не регламент Авито"
+        assert text.splitlines()[0].startswith(banner), f.name
         assert "\u2014" not in text, f"длинное тире в {f.name}"
     chunks = build_chunks(kb_dir, 800, 80)
     assert chunks and all(c.text.strip() and len(c.text) <= 800 for c in chunks)

@@ -26,13 +26,14 @@ class Hit:
 
 
 class Store(Protocol):
-    def replace_source(self, source: str, rows: list[ChunkRow]) -> None: ...
+    def replace_source(self, source: str, rows: list[ChunkRow]) -> None:
+        """Заменить все чанки источника."""
 
-    def add(self, source: str, rows: list[ChunkRow]) -> None: ...
+    def add(self, source: str, rows: list[ChunkRow]) -> None:
+        """Добавить чанки."""
 
-    def query(
-        self, embedding: list[float], team_id: str | None, limit: int
-    ) -> list[Hit]: ...
+    def query(self, embedding: list[float], team_id: str | None, limit: int) -> list[Hit]:
+        """Ближайшие чанки, видимые команде."""
 
 
 def _visible(row_team: str | None, team_id: str | None) -> bool:
@@ -78,7 +79,8 @@ class PgStore:
 
     def _insert(self, cur, source: str, rows: list[ChunkRow]) -> None:
         cur.executemany(
-            "INSERT INTO kb_chunks (team_id, doc_title, section, content, source, embedding) "
+            "INSERT INTO kb_chunks "
+            "(team_id, doc_title, section, content, source, embedding) "
             "VALUES (%s, %s, %s, %s, %s, %s::vector)",
             [
                 (
@@ -107,17 +109,15 @@ class PgStore:
         if team_id is None:
             where, params = "team_id IS NULL", (vec, vec, limit)
         else:
-            where, params = (
-                "(team_id IS NULL OR team_id::text = %s)",
-                (
-                    vec,
-                    str(team_id),
-                    vec,
-                    limit,
-                ),
+            where, params = "(team_id IS NULL OR team_id::text = %s)", (
+                vec,
+                str(team_id),
+                vec,
+                limit,
             )
         sql = (
-            "SELECT doc_title, section, content, team_id, source, 1 - (embedding <=> %s::vector) AS score "
+            "SELECT doc_title, section, content, team_id, source, "
+            "1 - (embedding <=> %s::vector) AS score "
             f"FROM kb_chunks WHERE {where} ORDER BY embedding <=> %s::vector LIMIT %s"
         )
         with self._connect() as conn, conn.cursor() as cur:

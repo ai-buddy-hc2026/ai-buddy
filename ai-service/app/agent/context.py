@@ -1,4 +1,4 @@
-"""Контекст пользователя для системного промпта. Данные приходят от backend (Go), не из текста сообщения."""
+"""Контекст пользователя для системного промпта (данные от backend)."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ class UserContext:
 
     @classmethod
     def from_payload(cls, p: dict) -> "UserContext":
-        """Поля name, team_name, progress, next_step нужно добавить в docs/ai-contract.md."""
+        """Поля name, team_name, progress, next_step добавить в docs/ai-contract.md."""
         ns = p.get("next_step") or None
         progress = p.get("progress") or {}
         return cls(

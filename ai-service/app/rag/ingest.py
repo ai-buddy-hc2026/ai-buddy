@@ -11,16 +11,20 @@ import sys
 import time
 from pathlib import Path
 
-from .chunker import build_chunks
-from .embeddings import E5Embedder, Embedder
-from .settings import get_settings
-from .store import ChunkRow, PgStore, Store
+from app.rag.chunker import build_chunks
+from app.rag.embeddings import E5Embedder, Embedder
+from app.rag.settings import get_settings
+from app.rag.store import ChunkRow, PgStore, Store
 
 SEED_SOURCE = "seed"
 
 
 def ingest(
-    kb_dir: Path, embedder: Embedder, store: Store, max_chars: int, overlap: int
+    kb_dir: Path,
+    embedder: Embedder,
+    store: Store,
+    max_chars: int,
+    overlap: int,
 ) -> int:
     chunks = build_chunks(kb_dir, max_chars, overlap)
     if not chunks:

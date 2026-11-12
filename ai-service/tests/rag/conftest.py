@@ -1,41 +1,31 @@
-import hashlib
+import math
+import zlib
 from pathlib import Path
 
-import numpy as np
 import pytest
 
-# Путь к базе знаний (поднимаемся на уровень выше tests/rag/)
-# Структура: ai-service -> tests -> rag -> conftest.py
-# seed/kb лежит в корне проекта (на 3 уровня вверх от conftest.py)
-KB_DIR = Path(__file__).parent.parent.parent / "seed" / "kb"
+KB_DIR = Path(__file__).resolve().parents[3] / "seed" / "kb"
 
 
 class HashEmbedder:
-    """Фейковый эмбеддер для unit-тестов без сети."""
+    """Лёгкий фейк: хеш символьных триграмм. Модель не нужна, сети нет."""
 
-    def encode(self, texts, normalize_embeddings=True, **kwargs):
-        if isinstance(texts, str):
-            texts = [texts]
+    dim = 512
 
-        vectors = []
-        for text in texts:
-            # Детерминированный вектор на основе SHA256 хеша текста
-            h = hashlib.sha256(text.encode("utf-8")).digest()
-            # Разворачиваем байты в числа и повторяем до длины 768
-            vec_bytes = list(h) * (768 // len(h) + 1)
-            vec = np.array(vec_bytes[:768], dtype=np.float32)
+    def _vec(self, text: str) -> list[float]:
+        t = " " + text.lower() + " "
+        v = [0.0] * self.dim
+        for i in range(len(t) - 2):
+            end = i + 3
+            v[zlib.crc32(t[i:end].encode()) % self.dim] += 1.0
+        norm = math.sqrt(sum(x * x for x in v)) or 1.0
+        return [x / norm for x in v]
 
-            # Нормализуем (для cosine similarity)
-            norm = np.linalg.norm(vec)
-            if norm > 0 and normalize_embeddings:
-                vec /= norm
+    def embed_passages(self, texts):
+        return [self._vec(t) for t in texts]
 
-            vectors.append(vec)
-
-        return np.array(vectors)
-
-
-FAKE_MIN = 0.35  # порог для фейкового эмбеддера
+    def embed_query(self, text):
+        return self._vec(text)
 
 
 @pytest.fixture(scope="session")

@@ -26,7 +26,7 @@ def test_otgul_question_finds_otgul_doc(kb_dir, embedder):
         store=store,
         min_score=FAKE_MIN,
     )
-    assert res is not None
+    assert res and "отгул" in res[0].doc_title.lower()
     assert res[0].source_label.startswith(res[0].doc_title)
 
 
