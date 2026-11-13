@@ -1,7 +1,8 @@
-import { STAGES, countDone, isStuck, type Task, type TaskStatus } from '@/entities/plan'
+import { STAGES, countDone, type Task, type TaskStatus } from '@/entities/plan'
 import { DEMO_TODAY } from '@/shared/lib/date'
 import type { Translate } from '@/shared/lib/i18n'
 import type { BadgeTone } from '@/shared/ui'
+import { isStuckWorkdays } from './snooze'
 
 /** Чистая логика вкладки «План» (S-1). Покрыта тестами в plan.test.ts. */
 export const STATUS_ORDER: readonly TaskStatus[] = ['todo', 'in_progress', 'blocked', 'done']
@@ -72,12 +73,21 @@ export interface AttentionItem {
   reason: AttentionReason
 }
 
-/** Что требует внимания: заблокированные задачи и «зависшие» в работе 3+ дня (идея 25). */
-export function attentionList(tasks: readonly Task[], today = DEMO_TODAY): AttentionItem[] {
+/**
+ * Что требует внимания: заблокированные задачи и «зависшие» в работе 3+ рабочих дня (идея 25).
+ * `hiddenStuck` - зависшие, про которые уже спросили мягкой карточкой или которые отложены.
+ */
+export function attentionList(
+  tasks: readonly Task[],
+  today = DEMO_TODAY,
+  hiddenStuck: ReadonlySet<string> = new Set(),
+): AttentionItem[] {
   return tasks.flatMap((task): AttentionItem[] => {
     if (task.owner !== 'intern') return []
     if (task.status === 'blocked') return [{ task, reason: 'blocked' }]
-    if (isStuck(task, today)) return [{ task, reason: 'stuck' }]
+    if (isStuckWorkdays(task, today) && !hiddenStuck.has(task.id)) {
+      return [{ task, reason: 'stuck' }]
+    }
     return []
   })
 }

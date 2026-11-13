@@ -103,6 +103,8 @@ const routeTree = rootRoute.addChildren([
     page('/mentor', () => import('@/features/mentor/MentorPage'), 'MentorPage'),
     page('/analytics', () => import('@/features/analytics/AnalyticsPage'), 'AnalyticsPage'),
     page('/settings', () => import('@/features/settings/SettingsPage'), 'SettingsPage'),
+    page('/glossary', () => import('@/features/glossary/GlossaryPage'), 'GlossaryPage'),
+    page('/channels', () => import('@/features/channels/ChannelsPage'), 'ChannelsPage'),
   ]),
 ])
 

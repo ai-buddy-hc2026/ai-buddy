@@ -20,6 +20,7 @@ import {
   Tag,
   toast,
   Avatar,
+  Badge,
 } from '@/shared/ui'
 import {
   addPoint,
@@ -37,7 +38,11 @@ import {
 } from './agendaLogic'
 import { useAgendas, useFeedbackRequests, useSaveAgenda } from './data'
 import type { FeedbackRequest } from './feedbackLogic'
+import { MeetingNotesDialog } from './MeetingNotesDialog'
+import { useMeetingNotes } from './meetingNotesData'
+import type { MeetingRecord } from './meetingNotesLogic'
 import s from './growth.module.css'
+import n from './meetingNotes.module.css'
 
 function sourceLabel(source: AgendaSource, t: Translate): string {
   const labels: Record<AgendaSource, string> = {
@@ -55,10 +60,27 @@ type EditorProps = {
   saved: AgendaPoint[] | undefined
   tasks: readonly Task[]
   requests: readonly FeedbackRequest[]
+  notes: MeetingRecord | undefined
+  onWriteNotes: () => void
+}
+
+function SavedNotes({ record }: { record: MeetingRecord }) {
+  const t = useT()
+  return (
+    <div className={n.summaryBox}>
+      <Badge tone="success" icon="check">
+        {t(
+          `Итоги записаны · задач в чек-листе: ${record.taskCount}`,
+          `Summary saved · tasks added: ${record.taskCount}`,
+        )}
+      </Badge>
+      <p className={n.summaryText}>{record.summary}</p>
+    </div>
+  )
 }
 
 /** Подготовка повестки: подсказки из плана и отзывов, свои пункты, черновик в чат наставнику. */
-function AgendaEditor({ slot, saved, tasks, requests }: EditorProps) {
+function AgendaEditor({ slot, saved, tasks, requests, notes, onWriteNotes }: EditorProps) {
   const t = useT()
   const lang = useSettings((state) => state.lang)
   const navigate = useNavigate()
@@ -98,7 +120,11 @@ function AgendaEditor({ slot, saved, tasks, requests }: EditorProps) {
             1:1 · {host?.name ?? slot.employeeId} · {label}
           </p>
         </div>
+        <Button size="s" icon="edit" onClick={onWriteNotes}>
+          {notes ? t('Поправить итоги', 'Edit summary') : t('Записать итоги', 'Write a summary')}
+        </Button>
       </div>
+      {notes && <SavedNotes record={notes} />}
       {shown.length === 0 ? (
         <p className="t-s t-muted">
           {t(
@@ -200,8 +226,10 @@ export function MeetingsTab() {
   const plan = usePlan()
   const requests = useFeedbackRequests()
   const agendas = useAgendas()
+  const meetingNotes = useMeetingNotes()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const queries = [bookings, plan, requests, agendas]
+  const [notesSlot, setNotesSlot] = useState<Slot | null>(null)
+  const queries = [bookings, plan, requests, agendas, meetingNotes]
 
   if (queries.some((q) => q.isError)) {
     const retry = () => queries.forEach((q) => void q.refetch())
@@ -246,6 +274,8 @@ export function MeetingsTab() {
         saved={agendas.data?.[selected.id]}
         tasks={plan.data?.tasks ?? []}
         requests={requests.data ?? []}
+        notes={meetingNotes.data?.[selected.id]}
+        onWriteNotes={() => setNotesSlot(selected)}
       />
       <Card className={s.side} index={2}>
         <h2 className={s.cardTitle}>{t('Ближайшие', 'Upcoming')}</h2>
@@ -269,19 +299,26 @@ export function MeetingsTab() {
               {past.map((slot) => (
                 <li key={slot.id} className={s.pastRow}>
                   <span className="t-s">{formatSlot(slot.start, lang)}</span>
-                  <Link
-                    to="/chats"
-                    search={{ c: 'buddy', q: t('Итоги встречи 1:1: ', 'Summary of the 1:1: ') }}
-                    className={s.link}
-                  >
-                    {t('Записать итоги', 'Write a summary')}
-                  </Link>
+                  <Button size="s" variant="ghost" onClick={() => setNotesSlot(slot)}>
+                    {meetingNotes.data?.[slot.id]
+                      ? t('Итоги', 'Summary')
+                      : t('Записать итоги', 'Write a summary')}
+                  </Button>
                 </li>
               ))}
             </ul>
           </>
         )}
       </Card>
+      {notesSlot && (
+        <MeetingNotesDialog
+          key={notesSlot.id}
+          meetingId={notesSlot.id}
+          label={`1:1 · ${getEmployee(notesSlot.employeeId)?.short ?? notesSlot.employeeId} · ${formatSlot(notesSlot.start, lang)}`}
+          saved={meetingNotes.data?.[notesSlot.id]}
+          onClose={() => setNotesSlot(null)}
+        />
+      )}
     </div>
   )
 }
