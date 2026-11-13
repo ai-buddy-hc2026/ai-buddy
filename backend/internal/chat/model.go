@@ -54,11 +54,13 @@ type Request struct {
 }
 type Record struct {
 	Request
-	ConversationID string
-	UserID         string
-	TeamID         string
-	LastSeq        int
-	FullText       string
+	ConversationID   string
+	UserID           string
+	TeamID           string
+	LastSeq          int
+	FullText         string
+	AnswerStatus     string
+	QuestionCategory string
 }
 type Accepted struct {
 	RequestID      string `json:"request_id"`
@@ -94,8 +96,20 @@ type Token struct {
 	Text *string `json:"text"`
 }
 type Done struct {
-	FullText *string           `json:"full_text"`
-	Sources  []json.RawMessage `json:"sources"`
+	FullText         *string           `json:"full_text"`
+	Sources          []json.RawMessage `json:"sources"`
+	AnswerStatus     string            `json:"answer_status,omitempty"`
+	QuestionCategory string            `json:"question_category,omitempty"`
+}
+
+// ValidMetadata допускает старый протокол без обеих меток на время обновления Python.
+func (done Done) ValidMetadata() bool {
+	if done.AnswerStatus == "" && done.QuestionCategory == "" {
+		return true
+	}
+	validStatus := done.AnswerStatus == "answered" || done.AnswerStatus == "unknown"
+	validCategory := done.QuestionCategory == "task" || done.QuestionCategory == "process" || done.QuestionCategory == "access" || done.QuestionCategory == "technical" || done.QuestionCategory == "other"
+	return validStatus && validCategory
 }
 
 func StreamURL(id string) string { return "/chat/stream/" + id }
@@ -145,7 +159,8 @@ func ParseEvent(raw []byte, id string) (Event, error) {
 		event.Data, _ = json.Marshal(token)
 	case "done":
 		var done Done
-		if json.Unmarshal(event.Data, &done) != nil || done.FullText == nil || utf8.RuneCountInString(*done.FullText) > 20000 || done.Sources == nil || len(done.Sources) != 0 {
+		if json.Unmarshal(event.Data, &done) != nil || done.FullText == nil || utf8.RuneCountInString(*done.FullText) > 20000 || done.Sources == nil || len(done.Sources) != 0 ||
+			!done.ValidMetadata() {
 			return event, ErrInvalid
 		}
 		event.Data, _ = json.Marshal(done)

@@ -49,8 +49,9 @@ func TestPythonClientContract(t *testing.T) {
 func TestProfileEventValidation(t *testing.T) {
 	id, _ := identifier.NewUUID()
 	for _, raw := range []string{
-		`{"event":"token","request_id":"` + id + `","seq":1,"data":{"text":" "}}`,
 		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[]}}`,
+		`{"event":"token","request_id":"` + id + `","seq":1,"data":{"text":" "}}`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[],"answer_status":"answered","question_category":"other"}}`,
 		`{"event":"error","request_id":"` + id + `","seq":1,"data":{"code":"LLM_UNAVAILABLE","message":"private-token"}}`,
 	} {
 		event, err := ParseEvent([]byte(raw), id)
@@ -63,10 +64,13 @@ func TestProfileEventValidation(t *testing.T) {
 	}
 	for _, raw := range []string{
 		`null`, `{`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[],"answer_status":"answered"}}`,
 		`{"event":"token","request_id":"` + id + `","seq":0,"data":{"text":"x"}}`,
 		`{"event":"token","request_id":"` + id + `","seq":1,"data":{"text":null}}`,
-		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":null}}`,
-		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[{"document_id":"foreign"}]}}`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":null,"answer_status":"answered","question_category":"other"}}`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[{"document_id":"foreign"}],"answer_status":"answered","question_category":"other"}}`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[],"answer_status":"unknown","question_category":"invalid"}}`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[],"answer_status":"invalid","question_category":"other"}}`,
 		`{"event":"error","request_id":"` + id + `","seq":1,"data":{"code":"invented","message":"x"}}`,
 	} {
 		if _, err := ParseEvent([]byte(raw), id); err == nil {

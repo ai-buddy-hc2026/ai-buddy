@@ -38,7 +38,7 @@ func createChat(t *testing.T, store *Chat, input chat.Input) (chat.Record, chat.
 }
 func finishChat(t *testing.T, store *Chat, id, text string) {
 	t.Helper()
-	event := chat.NewEvent(id, 3, "done", chat.Done{FullText: &text, Sources: []json.RawMessage{}})
+	event := chat.NewEvent(id, 3, "done", chat.Done{FullText: &text, Sources: []json.RawMessage{}, AnswerStatus: "answered", QuestionCategory: "other"})
 	if err := store.Finish(context.Background(), id, event); err != nil {
 		t.Fatal(err)
 	}
@@ -54,6 +54,10 @@ func TestChatStorageHistoryAndPermissions(t *testing.T) {
 	record, payload := createChat(t, store, chat.Input{Message: " Вопрос "})
 	if payload.UserID != chatAnya || payload.Role != "intern" || payload.Stage != "week_1" || payload.Timezone != "Europe/Moscow" || payload.Message != "Вопрос" || payload.History == nil {
 		t.Fatal("untrusted context or message", payload)
+	}
+	var questionPayload map[string]string
+	if err := store.pool.QueryRow(ctx, "SELECT payload FROM events WHERE request_id=$1 AND event_type='chat_question'", record.RequestID).Scan(&questionPayload); err != nil || questionPayload["conversation_id"] != record.ConversationID {
+		t.Fatal("chat_question payload mismatch", err, questionPayload)
 	}
 	id, _ := identifier.NewUUID()
 	if _, _, err := store.Create(ctx, chatAnya, id, chat.Input{Message: "Еще"}); !errors.Is(err, chat.ErrRunning) {
@@ -78,6 +82,10 @@ func TestChatStorageHistoryAndPermissions(t *testing.T) {
 	}
 	finishChat(t, store, record.RequestID, "Первый ответ")
 	finishChat(t, store, record.RequestID, "Первый ответ")
+	var answerPayload map[string]string
+	if err := store.pool.QueryRow(ctx, "SELECT payload FROM events WHERE request_id=$1 AND event_type='answer_completed'", record.RequestID).Scan(&answerPayload); err != nil || answerPayload["answer_status"] != "answered" || answerPayload["question_category"] != "other" {
+		t.Fatal("answer_completed payload mismatch", err, answerPayload)
+	}
 	saved, err := store.Get(ctx, chatAnya, record.RequestID)
 	if err != nil || saved.Status != "done" || saved.FullText != "Первый ответ" || saved.LastSeq != 3 {
 		t.Fatal("final state mismatch", err)
@@ -154,7 +162,7 @@ func TestChatConcurrentCreateAndAtomicFinish(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := "Ответ"
-	if err := store.Finish(ctx, id, chat.NewEvent(id, 2, "done", chat.Done{FullText: &text, Sources: []json.RawMessage{}})); err == nil {
+	if err := store.Finish(ctx, id, chat.NewEvent(id, 2, "done", chat.Done{FullText: &text, Sources: []json.RawMessage{}, AnswerStatus: "answered", QuestionCategory: "other"})); err == nil {
 		t.Fatal("expected persistence failure")
 	}
 	record, err := store.Get(ctx, chatAnya, id)
@@ -184,5 +192,37 @@ func TestLLMHistoryKeepsWholePairs(t *testing.T) {
 	_, payload = createChat(t, store, chat.Input{Message: "После длинного ответа"})
 	if len(payload.History) != 0 {
 		t.Fatal("oversized newest pair should yield empty history")
+	}
+}
+
+func TestChatCompletionMetadataAndReplay(t *testing.T) {
+	store := chatStore(t)
+	ctx := context.Background()
+	text := "Ответ"
+	for _, classified := range []bool{false, true} {
+		record, _ := createChat(t, store, chat.Input{Message: "Вопрос"})
+		done := chat.Done{FullText: &text, Sources: []json.RawMessage{}}
+		if classified {
+			done.AnswerStatus, done.QuestionCategory = "unknown", "technical"
+		}
+		event := chat.NewEvent(record.RequestID, 1, "done", done)
+		if err := store.Finish(ctx, record.RequestID, event); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.Finish(ctx, record.RequestID, event); err != nil {
+			t.Fatal("identical replay rejected", err)
+		}
+		saved, err := store.Get(ctx, chatAnya, record.RequestID)
+		if err != nil || saved.AnswerStatus != done.AnswerStatus || saved.QuestionCategory != done.QuestionCategory {
+			t.Fatal("completion metadata changed", saved, err)
+		}
+		done.AnswerStatus, done.QuestionCategory = "answered", "other"
+		if err := store.Finish(ctx, record.RequestID, chat.NewEvent(record.RequestID, 1, "done", done)); !errors.Is(err, chat.ErrInvalid) {
+			t.Fatal("conflicting replay accepted", err)
+		}
+		var count int
+		if err := store.pool.QueryRow(ctx, "SELECT count(*) FROM events WHERE request_id=$1 AND event_type='answer_completed'", record.RequestID).Scan(&count); err != nil || count != 1 {
+			t.Fatal("completion duplicated", count, err)
+		}
 	}
 }

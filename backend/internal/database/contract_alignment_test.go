@@ -139,7 +139,7 @@ func TestProposalConfirmationAndHistory(t *testing.T) {
 		t.Fatal("proposal executed", err)
 	}
 	empty := ""
-	if err := NewChat(s.pool).Finish(ctx, id, chat.NewEvent(id, 2, "done", chat.Done{FullText: &empty, Sources: []json.RawMessage{}})); err != nil {
+	if err := NewChat(s.pool).Finish(ctx, id, chat.NewEvent(id, 2, "done", chat.Done{FullText: &empty, Sources: []json.RawMessage{}, AnswerStatus: "answered", QuestionCategory: "other"})); err != nil {
 		t.Fatal(err)
 	}
 	authService, err := auth.New(NewUsers(s.pool), []byte("synthetic-test-key-of-at-least-32-bytes"), time.Hour)

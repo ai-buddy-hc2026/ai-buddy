@@ -128,7 +128,8 @@ func (s *Chat) Create(ctx context.Context, actorID, id string, input chat.Input)
 	if _, err := tx.Exec(ctx, "UPDATE conversations SET updated_at=now() WHERE id=$1", payload.ConversationID); err != nil {
 		return record, payload, err
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,request_id,event_type,dedup_key) VALUES ($1,$2,$3,'chat_question',$4)`, payload.TeamID, actorID, id, "request:"+id+":chat_question"); err != nil {
+	questionPayload, _ := json.Marshal(map[string]string{"conversation_id": payload.ConversationID})
+	if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,request_id,event_type,dedup_key,payload) VALUES ($1,$2,$3,'chat_question',$4,$5)`, payload.TeamID, actorID, id, "request:"+id+":chat_question", questionPayload); err != nil {
 		return record, payload, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -146,11 +147,13 @@ func (s *Chat) Dispatch(ctx context.Context, payload chat.Payload, deadline time
 	return err
 }
 
-const requestColumns = `r.id::text,r.status,r.created_at,r.finished_at,r.error_code,r.error_message,r.conversation_id::text,r.user_id::text,r.team_id::text,r.last_seq`
+const requestColumns = `r.id::text,r.status,r.created_at,r.finished_at,r.error_code,r.error_message,r.conversation_id::text,r.user_id::text,r.team_id::text,r.last_seq,
+	COALESCE((SELECT e.payload->>'answer_status' FROM events e WHERE e.request_id=r.id AND e.event_type='answer_completed'),''),
+	COALESCE((SELECT e.payload->>'question_category' FROM events e WHERE e.request_id=r.id AND e.event_type='answer_completed'),'')`
 
 func scanRequest(row pgx.Row, record *chat.Record) error {
 	var code, message *string
-	err := row.Scan(&record.RequestID, &record.Status, &record.CreatedAt, &record.FinishedAt, &code, &message, &record.ConversationID, &record.UserID, &record.TeamID, &record.LastSeq)
+	err := row.Scan(&record.RequestID, &record.Status, &record.CreatedAt, &record.FinishedAt, &code, &message, &record.ConversationID, &record.UserID, &record.TeamID, &record.LastSeq, &record.AnswerStatus, &record.QuestionCategory)
 	if code != nil && message != nil {
 		record.Error = &chat.Error{Code: *code, Message: *message}
 	}
@@ -207,10 +210,11 @@ func (s *Chat) Finish(ctx context.Context, id string, event chat.Event) error {
 	}
 	var failure *chat.Error
 	var text string
+	var done chat.Done
 	switch event.Type {
 	case "done":
-		var done chat.Done
-		if err := json.Unmarshal(event.Data, &done); err != nil || done.FullText == nil || done.Sources == nil || len(done.Sources) != 0 {
+		if err := json.Unmarshal(event.Data, &done); err != nil || done.FullText == nil || done.Sources == nil || len(done.Sources) != 0 ||
+			!done.ValidMetadata() {
 			return chat.ErrInvalid
 		}
 		text = *done.FullText
@@ -234,7 +238,7 @@ func (s *Chat) Finish(ctx context.Context, id string, event chat.Event) error {
 			if err := tx.QueryRow(ctx, "SELECT content FROM chat_messages WHERE request_id=$1 AND role='assistant'", id).Scan(&saved); err != nil {
 				return err
 			}
-			if saved == text {
+			if saved == text && record.AnswerStatus == done.AnswerStatus && record.QuestionCategory == done.QuestionCategory {
 				return nil
 			}
 		}
@@ -259,7 +263,13 @@ func (s *Chat) Finish(ctx context.Context, id string, event chat.Event) error {
 		if _, err := tx.Exec(ctx, "UPDATE chat_requests SET status='done',last_seq=$2,terminal_seq=$2,finished_at=now(),updated_at=now() WHERE id=$1", id, event.Seq); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,request_id,event_type,dedup_key) VALUES ($1,$2,$3,'answer_completed',$4)`, record.TeamID, record.UserID, id, "request:"+id+":answer_completed"); err != nil {
+		metadata := map[string]string{}
+		if done.AnswerStatus != "" {
+			metadata["answer_status"] = done.AnswerStatus
+			metadata["question_category"] = done.QuestionCategory
+		}
+		answerPayload, _ := json.Marshal(metadata)
+		if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,request_id,event_type,dedup_key,payload) VALUES ($1,$2,$3,'answer_completed',$4,$5)`, record.TeamID, record.UserID, id, "request:"+id+":answer_completed", answerPayload); err != nil {
 			return err
 		}
 	} else {

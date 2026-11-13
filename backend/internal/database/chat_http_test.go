@@ -61,7 +61,7 @@ func TestChatHTTPRedisStreamingAndReconnect(t *testing.T) {
 		if err := emit(chat.NewEvent(p.RequestID, 2, "token", chat.Token{Text: &second})); err != nil {
 			return err
 		}
-		return emit(chat.NewEvent(p.RequestID, 3, "done", chat.Done{FullText: &full, Sources: []json.RawMessage{}}))
+		return emit(chat.NewEvent(p.RequestID, 3, "done", chat.Done{FullText: &full, Sources: []json.RawMessage{}, AnswerStatus: "answered", QuestionCategory: "other"}))
 	})
 	streams, err := chat.NewService(ctx, store, chat.RedisBroker{Client: client}, sender, chat.Options{Timeout: 30 * time.Second})
 	if err != nil {

@@ -33,19 +33,40 @@
 
 | Событие               | Связанные поля                                                             | Когда записывается                                                                                                                            | Минимальный `payload`                                                      |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `chat_question`       | `team_id`, `actor_id`, `request_id`                                        | Одновременно с созданием `chat_requests` и пользовательского сообщения, после проверки доступа.                                                   | `conversation_id`, безопасная классификация вопроса.                       |
-| `answer_with_source`  | `team_id`, `actor_id`, `request_id`                                        | При сохранении успешного ответа, если ответ содержит хотя бы один подтверждённый источник.                                                    | Идентификаторы документов и их `revision`, количество источников.          |
-| `answer_unknown`      | `team_id`, `actor_id`, `request_id`                                        | При явном результате «ответ не найден». Пустой массив источников сам по себе не является основанием.                                          | Причина отсутствия ответа, без выдуманного источника.                      |
-| `action_proposed`     | `team_id`, `actor_id`, `request_id`, `action_id`                           | После сохранения предложения действия со статусом `proposed` и до показа карточки в UI.                                                       | `action_type`, `proposal_seq`, безопасное описание параметров.             |
-| `action_confirmed`    | `team_id`, `actor_id`, `request_id`, `action_id`                           | После повторной проверки пользователя и параметров, при атомарной фиксации подтверждения и резервировании выполнения.                         | Тип действия и подтверждённый переход состояния.                           |
-| `action_failed`       | `team_id`, `actor_id`, `request_id`, `action_id`                           | После неуспешного выполнения или после фиксации ошибки выполнения действия.                                                                   | Код ошибки, безопасное сообщение и состояние действия.                     |
+| `chat_question`       | `team_id`, `actor_id`, `request_id`                                        | Одновременно с созданием `chat_requests` и пользовательского сообщения, после проверки доступа.                                                   | `conversation_id`. Категория здесь не задаётся: её определяет AI-service после генерации. |
+| `answer_completed`   | `team_id`, `actor_id`, `request_id`                                        | При атомарном сохранении успешного ответа. Записывается и для результата `unknown`.                                                            | `answer_status`: `answered` или `unknown`; `question_category`: `task`, `process`, `access`, `technical` или `other`. |
+| `answer_with_source`  | `team_id`, `actor_id`, `request_id`                                        | Дополнительное событие успешного ответа, если Go проверил и сохранил один или несколько подтверждённых источников.                              | Идентификаторы документов и их `revision`, количество источников.          |
+| `action_proposed`     | `team_id`, `actor_id`, `request_id`, `action_id`                           | После сохранения предложения действия со статусом `proposed` и до показа карточки в UI.                                                       | `action_type`, `proposal_seq`.                                              |
+| `action_confirmed`    | `team_id`, `actor_id`, `request_id`, `action_id`                           | После повторной проверки пользователя и параметров, при атомарной фиксации подтверждения и резервировании выполнения.                         | `action_type`, `status=confirmed`.                                          |
+| `action_failed`       | `team_id`, `actor_id`, `request_id`, `action_id`                           | После неуспешного выполнения или после фиксации ошибки выполнения действия.                                                                   | `attempt`, код ошибки, безопасное сообщение и `status=failed`.                    |
 | `escalation_created`  | `team_id`, `actor_id`, `request_id`, `action_id`                           | После создания эскалации наставнику. Для действия передачи вопроса запись выполняется в одной транзакции с результатом действия и эскалацией. | `escalation_id`, идентификатор назначенного наставника, безопасный статус. |
-| `policy_denied`       | `team_id`, `actor_id`, при наличии `request_id`, `action_id` или `task_id` | Сразу после отказа по роли, владельцу, назначению или принадлежности к команде.                                                               | `policy_id` и тип запрошенного ресурса, без чужих данных.                  |
+| `policy_denied`       | `team_id`, `actor_id`, при наличии `request_id`, `action_id` или `task_id` | Сразу после отказа по роли, владельцу, назначению или принадлежности к команде.                                                               | `operation` и `reason` из перечислений ниже, без чужих данных.              |
 | `task_status_changed` | `team_id`, `actor_id`, `task_id`                                           | В одной транзакции с условным изменением задачи и добавлением строки в `task_status_history`.                                                 | Предыдущий и новый статус, версия задачи, причина перехода.                |
 
-Успешное завершение генерации и наличие источников могут быть зафиксированы одним `answer_with_source`.
-Отдельное событие завершения генерации в этот каталог не входит.
-Если ответ явно признан неизвестным, записывается `answer_unknown`, а не событие с источником.
+`answer_completed` фиксирует финальный исход каждой успешной генерации. AI-service
+определяет `answer_status` и `question_category`; Go проверяет их по допустимым
+значениям и сохраняет вместе с ответом. `unknown` ставится только при явном
+ответе «не знаю»/«не могу ответить», а не из-за пустого списка источников.
+`answer_with_source` остаётся дополнительным событием для подтверждённых
+источников. Текущий профиль Go пока принимает только пустой `sources`, поэтому
+это событие появится вместе с поддержкой проверенных RAG-источников.
+
+На время обновления Python ответы без обеих меток сохраняются с пустым
+payload `answer_completed`, как и раньше. Они не учитываются как `answered`,
+`unknown` или `other` в классификации. Частично переданная или неверная пара
+отклоняется. Это правило также сохраняет возможность чтения старой истории.
+
+Допустимые `operation`: `checklist.get_plan`, `checklist.update_status`,
+`chat.create`, `chat.read`, `employees.get_manager`, `absences.get_policy`,
+`absences.list_for_employee`, `absences.create_request`, `escalation.create`,
+`escalation.answer`, `knowledge.search`, `buddy.list_interns`, `actions.list`.
+Допустимые `reason`: `invalid_actor`, `role_denied`, `team_denied`,
+`owner_or_assignment_denied`, `assignee_denied`, `owner_denied`,
+`assignment_denied`, `operation_denied`, `resource_unavailable`,
+`action_unavailable`, `confirmation_required`, `buddy_unavailable`,
+`source_unavailable`, `context_unavailable`, `assignment_changed`,
+`conversation_unavailable`.
+Go проверяет `operation` и `reason` по этим спискам перед записью события.
 
 ## Транзакции и повторы
 
@@ -61,7 +82,9 @@
   и версия не изменились.
 - Для повторяемых операций используется `dedup_key`, например
   `request:<uuid>:chat_question`,
+  `request:<uuid>:answer_completed`,
   `request:<uuid>:action_proposed` или
+  `action:<uuid>:attempt:<n>:failed`,
   `task:<uuid>:version:<n>:status_changed`.
 - Закрытие SSE не является моментом записи события. Источник истины для
   истории - PostgreSQL.

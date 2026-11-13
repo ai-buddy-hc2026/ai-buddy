@@ -48,7 +48,8 @@ func (s *Tools) executeAction(ctx context.Context, actorID, actionID string, con
 		if _, err := tx.Exec(ctx, `UPDATE actions_log SET status='confirmed',confirmed_by=actor_id,confirmed_at=now(),updated_at=now() WHERE id=$1`, actionID); err != nil {
 			return nil, err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO events(team_id,actor_id,request_id,action_id,event_type,dedup_key) VALUES($1,$2,$3,$4,'action_confirmed',$5)`, actor.teamID, actor.id, requestID, actionID, "action:"+actionID+":confirmed"); err != nil {
+		payload, _ := json.Marshal(map[string]string{"action_type": kind, "status": "confirmed"})
+		if _, err := tx.Exec(ctx, `INSERT INTO events(team_id,actor_id,request_id,action_id,event_type,dedup_key,payload) VALUES($1,$2,$3,$4,'action_confirmed',$5,$6)`, actor.teamID, actor.id, requestID, actionID, "action:"+actionID+":confirmed", payload); err != nil {
 			return nil, err
 		}
 	}
@@ -160,7 +161,8 @@ func (s *Tools) ProcessEvent(ctx context.Context, requestID string, event chat.E
 			return event, chat.ErrInvalid
 		}
 	} else if err == nil {
-		_, err = tx.Exec(ctx, `INSERT INTO events(team_id,actor_id,request_id,action_id,event_type,dedup_key) VALUES($1,$2,$3,$4,'action_proposed',$5)`, actor.teamID, actor.id, requestID, actionID, "action:"+actionID+":proposed")
+		payload, _ := json.Marshal(map[string]any{"action_type": input.ActionType, "proposal_seq": event.Seq})
+		_, err = tx.Exec(ctx, `INSERT INTO events(team_id,actor_id,request_id,action_id,event_type,dedup_key,payload) VALUES($1,$2,$3,$4,'action_proposed',$5,$6)`, actor.teamID, actor.id, requestID, actionID, "action:"+actionID+":proposed", payload)
 	}
 	if err != nil {
 		return event, err

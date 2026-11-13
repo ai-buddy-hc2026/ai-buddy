@@ -162,7 +162,7 @@ func (s *Service) Open(ctx context.Context, actorID, id string, after int) (*Fee
 	var event Event
 	if record.Status == "done" {
 		text := record.FullText
-		event = NewEvent(id, record.LastSeq, "done", Done{FullText: &text, Sources: []json.RawMessage{}})
+		event = NewEvent(id, record.LastSeq, "done", Done{FullText: &text, Sources: []json.RawMessage{}, AnswerStatus: record.AnswerStatus, QuestionCategory: record.QuestionCategory})
 	} else {
 		event = NewEvent(id, record.LastSeq, "error", record.Error)
 	}

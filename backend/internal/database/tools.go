@@ -99,7 +99,8 @@ func (s *Tools) execute(ctx context.Context, tx pgx.Tx, actor planActor, request
 	if action.status == "succeeded" {
 		return action.result, tx.Commit(ctx)
 	}
-	if _, err := tx.Exec(ctx, `UPDATE actions_log SET status='executing',started_at=now(),finished_at=NULL,attempt_count=attempt_count+1,last_error=NULL,updated_at=now() WHERE id=$1`, actionID); err != nil {
+	var attempt int
+	if err := tx.QueryRow(ctx, `UPDATE actions_log SET status='executing',started_at=now(),finished_at=NULL,attempt_count=attempt_count+1,last_error=NULL,updated_at=now() WHERE id=$1 RETURNING attempt_count`, actionID).Scan(&attempt); err != nil {
 		return nil, err
 	}
 	var result any
@@ -126,7 +127,15 @@ func (s *Tools) execute(ctx context.Context, tx pgx.Tx, actor planActor, request
 			}
 			return nil, saveErr
 		}
-		if _, saveErr := tx.Exec(ctx, `INSERT INTO events(team_id,actor_id,request_id,action_id,event_type) VALUES($1,$2,$3,$4,'action_failed')`, actor.teamID, actor.id, requestID, actionID); saveErr != nil {
+		failure := actionFailure(err)
+		payload, _ := json.Marshal(map[string]any{
+			"attempt": attempt,
+			"code":    failure.Code,
+			"message": failure.Message,
+			"status":  "failed",
+		})
+		dedupKey := fmt.Sprintf("action:%s:attempt:%d:failed", actionID, attempt)
+		if _, saveErr := tx.Exec(ctx, `INSERT INTO events(team_id,actor_id,request_id,action_id,event_type,dedup_key,payload) VALUES($1,$2,$3,$4,'action_failed',$5,$6)`, actor.teamID, actor.id, requestID, actionID, dedupKey, payload); saveErr != nil {
 			return nil, saveErr
 		}
 		if saveErr := tx.Commit(ctx); saveErr != nil {
