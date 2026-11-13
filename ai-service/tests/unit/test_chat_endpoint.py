@@ -7,6 +7,7 @@ import redis.asyncio as aioredis
 from httpx import AsyncClient
 
 from core import security
+from core.ai_service import get_ai_service
 from core.dependencies import get_redis
 from main import app
 
@@ -17,11 +18,22 @@ async def test_post_chat_accepts_request_and_publishes_stream_events(
     redis_client: aioredis.Redis,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    class DeterministicAI:
+        llm_client = object()
+
+        async def classify_question(self, _question: str) -> str:
+            return "other"
+
+        async def stream_step(self, _messages, _tools):
+            yield {"type": "token", "text": "Deterministic "}
+            yield {"type": "token", "text": "answer."}
+
     monkeypatch.setitem(
         app.dependency_overrides,
         get_redis,
         lambda: redis_client,
     )
+    monkeypatch.setitem(app.dependency_overrides, get_ai_service, DeterministicAI)
     request_id = str(uuid4())
     channel = f"chat:{request_id}"
     monkeypatch.setattr(security.settings, "AI_SERVICE_TOKEN", "test-token")

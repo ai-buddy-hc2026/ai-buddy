@@ -68,7 +68,12 @@ async def test_chat_sse_replay_history_and_owner_access():
         received = await _read_events(client, stream_url, headers)
         assert [event["seq"] for _, event in received] == [1, 2, 3, 4]
         assert [event["event"] for _, event in received] == ["token"] * 3 + ["done"]
-        assert received[-1][1]["data"] == {"full_text": EXPECTED_TEXT, "sources": []}
+        assert received[-1][1]["data"] == {
+            "full_text": EXPECTED_TEXT,
+            "sources": [],
+            "answer_status": "answered",
+            "question_category": "other",
+        }
         assert all(event["request_id"] == request_id for _, event in received)
         assert all(
             frame["id"] == f"{request_id}:{event['seq']}"
