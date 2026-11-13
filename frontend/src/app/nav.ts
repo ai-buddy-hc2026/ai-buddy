@@ -44,6 +44,12 @@ const HR_NAV: NavItem[] = [
   { to: '/events', icon: 'events', label: { ru: 'События', en: 'Events' }, isPrimary: true },
 ]
 
+/** Вторичные разделы для всех ролей: только в меню профиля («Ещё»), не в шапке и не в нижней панели. */
+export const SECONDARY_NAV: NavItem[] = [
+  { to: '/glossary', icon: 'book', label: { ru: 'Словарь', en: 'Glossary' }, isPrimary: false },
+  { to: '/channels', icon: 'telegram', label: { ru: 'Каналы', en: 'Channels' }, isPrimary: false },
+]
+
 const NAV: Record<Role, NavItem[]> = {
   intern: INTERN_NAV,
   buddy: MENTOR_NAV,

@@ -22,6 +22,8 @@ export function TaskRow({ task, color, isNext = false, isStuck = false, onStatus
   const lang = useSettings((state) => state.lang)
   const isDone = task.status === 'done'
   const isBlocked = task.status === 'blocked'
+  const isMentor = task.owner === 'mentor'
+  const isFromMeeting = task.source.startsWith('meeting:')
   const meta = [task.due && formatDue(task.due, lang), task.note].filter(Boolean).join(' · ')
 
   return (
@@ -34,9 +36,19 @@ export function TaskRow({ task, color, isNext = false, isStuck = false, onStatus
       />
       <div className={s.taskBody}>
         <span className={s.taskTitle}>{task.title}</span>
-        {(meta || isNext || isStuck || isBlocked) && (
+        {(meta || isNext || isStuck || isBlocked || isMentor || isFromMeeting) && (
           <span className={s.taskMeta}>
             {isNext && <Badge tone="accent">{t('Следующий шаг', 'Next step')}</Badge>}
+            {isMentor && (
+              <Badge tone="neutral" icon="user">
+                {t('Делает наставник', 'Mentor does it')}
+              </Badge>
+            )}
+            {isFromMeeting && (
+              <Badge tone="neutral" icon="calendar">
+                {t('Со встречи', 'From a meeting')}
+              </Badge>
+            )}
             {isStuck && (
               <Badge tone="warning" icon="clock">
                 {t('Давно без движения', 'Stalled')}

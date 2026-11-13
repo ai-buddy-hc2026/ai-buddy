@@ -7,7 +7,7 @@ import { cn } from '@/shared/lib/cn'
 import { useT } from '@/shared/lib/i18n'
 import { useResolvedTheme } from '@/shared/lib/theme'
 import { Avatar, BrandMark, Button, Dialog, Icon, Note, Row, toast } from '@/shared/ui'
-import { navFor, type NavItem } from './nav'
+import { navFor, SECONDARY_NAV, type NavItem } from './nav'
 import s from './AppShell.module.css'
 
 function isActive(pathname: string, to: string): boolean {
@@ -130,6 +130,15 @@ function ProfileDialog({
             onClick={() => go(item.to)}
           />
         ))}
+        {SECONDARY_NAV.map((item) => (
+          <Row
+            key={item.to}
+            leading={<Icon name={item.icon} />}
+            title={item.label[lang]}
+            trailing={<Icon name="chevronRight" size={18} />}
+            onClick={() => go(item.to)}
+          />
+        ))}
         {user.role === 'intern' && (
           <Row
             leading={<Icon name="history" />}
@@ -181,7 +190,8 @@ export function AppShell() {
   const primary = nav.filter((item) => item.isPrimary)
   const extra = nav.filter((item) => !item.isPrimary)
   const isExtraActive =
-    extra.some((item) => isActive(pathname, item.to)) || pathname === '/settings'
+    [...extra, ...SECONDARY_NAV].some((item) => isActive(pathname, item.to)) ||
+    pathname === '/settings'
 
   return (
     <div className={s.shell}>

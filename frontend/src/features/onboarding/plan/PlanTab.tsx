@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   STAGES,
@@ -8,12 +9,21 @@ import {
   type Task,
   type TaskStatus,
 } from '@/entities/plan'
-import { useSettings } from '@/entities/settings'
+import { canNotifyNow, useSettings } from '@/entities/settings'
 import { IsoArt } from '@/shared/iso'
 import { formatDue } from '@/shared/lib/date'
 import { useT } from '@/shared/lib/i18n'
 import { Button, Card, ErrorState, Eyebrow, Icon, Meter, Row, Skeleton, toast } from '@/shared/ui'
+import { StuckCard } from './StuckCard'
 import { TaskRow } from './TaskRow'
+import {
+  isSnoozed,
+  isStuckWorkdays,
+  readSnoozes,
+  snoozeTask,
+  stuckPrompts,
+  writeSnoozes,
+} from './snooze'
 import {
   attentionList,
   currentStageIndex,
@@ -125,6 +135,12 @@ export function PlanTab() {
   const lang = useSettings((state) => state.lang)
   const plan = usePlan()
   const onStatus = useChangeStatus()
+  const isNotifyAllowed = useSettings(canNotifyNow)
+  const [snoozes, setSnoozes] = useState(readSnoozes)
+  const snooze = (taskId: string) => {
+    setSnoozes(writeSnoozes(snoozeTask(snoozes, taskId)))
+    toast(t('Ок, спрошу через 3 дня', 'Ok, I will ask again in 3 days'))
+  }
 
   if (plan.isPending) return <PlanSkeleton />
   if (plan.isError) {
@@ -141,10 +157,14 @@ export function PlanTab() {
   const next = pickNextStep(tasks)
   const stages = summarizeStages(tasks)
   const current = currentStageIndex(stages)
-  const attention = attentionList(tasks)
-  const stuckIds = new Set(
-    attention.filter((item) => item.reason === 'stuck').map((item) => item.task.id),
-  )
+  // Проактивный вопрос молчит в «Не мой день» и вне рабочих часов (canNotifyNow)
+  const prompts = isNotifyAllowed ? stuckPrompts(tasks, snoozes) : []
+  const hiddenStuck = new Set([
+    ...prompts.map((prompt) => prompt.task.id),
+    ...Object.keys(snoozes).filter((id) => isSnoozed(snoozes, id)),
+  ])
+  const attention = attentionList(tasks, undefined, hiddenStuck)
+  const stuckIds = new Set(tasks.filter((task) => isStuckWorkdays(task)).map((task) => task.id))
 
   return (
     <div className={s.grid}>
@@ -176,6 +196,7 @@ export function PlanTab() {
       </Card>
 
       <NextStepCard task={next} onStatus={onStatus} />
+      <StuckCard prompts={prompts} onSnooze={snooze} />
       <AttentionCard items={attention} />
 
       {stages.map((stage, i) => {
