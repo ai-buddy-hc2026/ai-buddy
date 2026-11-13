@@ -218,7 +218,10 @@ async def test_classification_failure_keeps_answer_and_uses_other(monkeypatch):
     assert [event["event"] for event in redis.events] == ["token", "done"]
     assert redis.events[-1]["data"]["full_text"] == "Synthetic answer"
     assert redis.events[-1]["data"]["question_category"] == "other"
-    assert json.loads(redis.values[f"chat:{redis.events[-1]['request_id']}"])["state"] == "completed"
+    assert (
+        json.loads(redis.values[f"chat:{redis.events[-1]['request_id']}"])["state"]
+        == "completed"
+    )
 
 
 class SearchAI(FakeAI):
@@ -322,7 +325,7 @@ async def test_search_result_sets_answer_status_sources_and_category(
                     "section": source["section"],
                     "text": items[0]["content"],
                     "source": source,
-                }
+                },
             ],
         }
 

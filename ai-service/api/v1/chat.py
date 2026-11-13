@@ -11,18 +11,17 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from openai import APITimeoutError, OpenAIError
 from redis.exceptions import RedisError
 
-from config import RouteTags
 from app.agent.context import UserContext
+from app.agent.knowledge_tool import MCP_NAME as KNOWLEDGE_MCP_NAME
+from app.agent.knowledge_tool import OPENAI_NAME as KNOWLEDGE_TOOL_NAME
 from app.agent.knowledge_tool import (
-    MCP_NAME as KNOWLEDGE_MCP_NAME,
-    OPENAI_NAME as KNOWLEDGE_TOOL_NAME,
     TOOL_DEFINITION as KNOWLEDGE_TOOL_DEFINITION,
-    extract_citations,
-    run_knowledge_search,
 )
+from app.agent.knowledge_tool import extract_citations, run_knowledge_search
 from app.agent.prompts import build_system_prompt
 from app.agent.unknown import unknown_answer_text
 from app.rag.runtime import ensure_kb_indexed, get_rag_resources
+from config import RouteTags
 from core.ai_service import (
     AIService,
     LLMTimeoutError,
@@ -79,7 +78,10 @@ async def _search_knowledge(arguments: dict[str, Any], context: UserContext) -> 
             store=store,
         )
     except Exception as exc:
-        logger.error("KB-поиск недоступен; details hidden error_type=%s", type(exc).__name__)
+        logger.error(
+            "KB-поиск недоступен; details hidden error_type=%s",
+            type(exc).__name__,
+        )
         raise MCPContractError(
             "DEPENDENCY_UNAVAILABLE",
             "Не удалось выполнить поиск по базе знаний",
@@ -378,7 +380,13 @@ async def pubsub_publish(
             try:
                 async with asyncio.timeout(3.0):
                     question_category = await classify_question(chat_data.message)
-                if question_category not in {"task", "process", "access", "technical", "other"}:
+                if question_category not in {
+                    "task",
+                    "process",
+                    "access",
+                    "technical",
+                    "other",
+                }:
                     question_category = "other"
             except Exception as error:
                 logger.warning(

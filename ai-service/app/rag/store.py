@@ -72,7 +72,7 @@ class MemoryStore:
                     source,
                     r.document_id,
                     r.revision,
-                )
+                ),
             )
         hits.sort(key=lambda h: h.score, reverse=True)
         return hits[:limit]
@@ -116,7 +116,8 @@ class PgStore:
                     content = EXCLUDED.content,
                     revision = kb_documents.revision +
                         CASE WHEN kb_documents.title IS DISTINCT FROM EXCLUDED.title
-                                  OR kb_documents.content IS DISTINCT FROM EXCLUDED.content
+                                  OR kb_documents.content IS DISTINCT
+                                     FROM EXCLUDED.content
                              THEN 1 ELSE 0 END,
                     status = 'published',
                     index_status = 'pending',
@@ -141,7 +142,8 @@ class PgStore:
     ) -> None:
         cur.executemany(
             "INSERT INTO kb_chunks "
-            "(document_id, revision, team_id, doc_title, section, content, source, embedding) "
+            "(document_id, revision, team_id, doc_title, section, content, source, "
+            "embedding) "
             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s::vector)",
             [
                 (
@@ -171,9 +173,7 @@ class PgStore:
                 "DELETE FROM kb_chunks WHERE document_id = %s AND team_id = %s",
                 (document_id, team_id),
             )
-            self._insert_document_chunks(
-                cur, document_id, team_id, revision, slug, rows
-            )
+            self._insert_document_chunks(cur, document_id, team_id, revision, slug, rows)
             cur.execute(
                 """
                 UPDATE kb_documents

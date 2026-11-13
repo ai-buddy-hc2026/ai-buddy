@@ -20,9 +20,7 @@ def get_rag_resources() -> tuple[E5Embedder, PgStore]:
     database_url = settings.database_url or get_app_settings().POSTGRES_URL
     if not database_url:
         raise RuntimeError("POSTGRES_URL is required for knowledge search")
-    return get_embedder(), PgStore(
-        database_url
-    )
+    return get_embedder(), PgStore(database_url)
 
 
 def start_kb_indexing() -> asyncio.Task[int]:

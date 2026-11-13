@@ -1,7 +1,6 @@
 import pytest
 
-from app.rag.ingest import ingest
-from app.rag.ingest import ingest_seed_documents
+from app.rag.ingest import ingest, ingest_seed_documents
 from app.rag.search import search
 from app.rag.store import MemoryStore
 from tests.rag.conftest import HashEmbedder
@@ -55,4 +54,8 @@ def test_seed_ingest_indexes_team_scoped_document_revisions(kb_dir, embedder):
     assert len(store.documents) == len(list(kb_dir.glob("*.md"))) * 2
     assert len(store.indexes) == len(store.documents)
     assert all(index[1] in store.teams and index[2] == 2 for index in store.indexes)
-    assert all(row.document_id == index[0] and row.revision == 2 for index in store.indexes for row in index[4])
+    assert all(
+        row.document_id == index[0] and row.revision == 2
+        for index in store.indexes
+        for row in index[4]
+    )
