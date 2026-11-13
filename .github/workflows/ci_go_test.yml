@@ -2,6 +2,9 @@ name: go test
 on:
   push:
     branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service-*'
       - ai-service
       - main
       - master
@@ -10,6 +13,7 @@ on:
       - 'codex/**'
       - 'feat/**'
       - ai-service
+      - 'ai-service-*'
       - main
       - master
 jobs:
@@ -53,7 +57,7 @@ jobs:
       - name: Download dependencies
         run: go mod download
       - name: Test
-        run: go test -v -race -coverprofile=coverage.txt ./...
+        run: go test -v -race -coverpkg=./... -coverprofile=coverage.txt ./...
 
       - name: Vet
         run: go vet ./...
@@ -127,7 +131,13 @@ jobs:
         run: |
           docker compose -f docker-compose.yml -f compose.test.yml config --quiet
           docker compose -f docker-compose.yml -f compose.test.yml up --build -d --wait backend ai-service mock-llm
-          python3 tests/chat_sse_smoke.py --base-url http://127.0.0.1:18080
+          docker compose -f docker-compose.yml -f compose.test.yml exec --no-TTY ai-service pytest tests/integration/test_chat_sse_smoke.py -q
+
+      - name: MCP authorization and confirmed action E2E
+        working-directory: ${{ github.workspace }}
+        run: |
+          AI_SERVICE_URL=http://ai-service:8001 docker compose -f docker-compose.yml -f compose.test.yml up -d --wait backend ai-service mock-llm
+          docker compose -f docker-compose.yml -f compose.test.yml exec --no-TTY -e TEST_AI_PORT=8001 ai-service pytest tests/integration/test_mcp_e2e.py -q
 
       - name: Compose logs on failure
         if: failure()

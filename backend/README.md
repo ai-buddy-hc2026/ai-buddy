@@ -355,7 +355,7 @@ MVP рассчитан на один процесс Go. После потери 
 
 ```bash
 docker compose -f docker-compose.yml -f compose.test.yml up --build -d --wait backend ai-service mock-llm
-python tests/chat_sse_smoke.py
+docker compose -f docker-compose.yml -f compose.test.yml exec --no-TTY ai-service pytest tests/integration/test_chat_sse_smoke.py -q
 docker compose -f docker-compose.yml -f compose.test.yml down
 ```
 

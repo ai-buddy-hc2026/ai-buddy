@@ -14,3 +14,16 @@ func TestUUIDContract(t *testing.T) {
 		}
 	}
 }
+
+func TestNewUUID(t *testing.T) {
+	value, err := NewUUID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ValidUUID(value) {
+		t.Fatalf("NewUUID returned invalid UUID %q", value)
+	}
+	if value[14] != '4' {
+		t.Fatalf("UUID version = %q, want 4", value[14])
+	}
+}

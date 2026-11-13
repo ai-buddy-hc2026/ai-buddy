@@ -8,7 +8,7 @@ WORKDIR /app
 RUN apt-get update && apt-get upgrade -y && apt-get install -y bash
 
 COPY requirements/ ./requirements/
-RUN pip install --no-cache-dir -r requirements/prod.txt
+RUN pip install --no-cache-dir -r requirements/prod.txt -r requirements/rag.txt
 COPY . .
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -119,6 +119,77 @@ func TestChatStorageHistoryAndPermissions(t *testing.T) {
 	}
 }
 
+func TestChatFinishPersistsOnlyTeamSourcesAndPreservesMetadata(t *testing.T) {
+	store := chatStore(t)
+	ctx := context.Background()
+	record, _ := createChat(t, store, chat.Input{Message: "Ответь с источником"})
+	var sourceID string
+	if err := store.pool.QueryRow(ctx, `INSERT INTO kb_documents
+		(team_id,slug,title,content,source_type,status,index_status,indexed_revision)
+		VALUES ($1,'synthetic-guide','Synthetic guide','Synthetic content','seed','published','ready',1)
+		RETURNING id::text`, record.TeamID).Scan(&sourceID); err != nil {
+		t.Fatal(err)
+	}
+	fullText, answerStatus, category := "Grounded answer", "answered", "process"
+	source, err := json.Marshal(map[string]any{
+		"document_id": sourceID,
+		"revision":    1,
+		"title":       "Synthetic guide",
+		"section":     "Setup",
+		"url":         "kb/synthetic-guide",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	event := chat.NewEvent(record.RequestID, 1, "done", chat.Done{
+		FullText:         &fullText,
+		Sources:          []json.RawMessage{source},
+		AnswerStatus:     &answerStatus,
+		QuestionCategory: &category,
+	})
+	if err := store.Finish(ctx, record.RequestID, event); err != nil {
+		t.Fatal(err)
+	}
+
+	saved, err := store.Get(ctx, chatAnya, record.RequestID)
+	if err != nil || saved.FullText != fullText || len(saved.Sources) != 1 || saved.AnswerStatus == nil || *saved.AnswerStatus != answerStatus || saved.QuestionCategory == nil || *saved.QuestionCategory != category {
+		t.Fatal("answer metadata was not persisted", err)
+	}
+	history, err := store.History(ctx, chatAnya, record.ConversationID, "", 50)
+	if err != nil || len(history.Items) != 1 || len(history.Items[0].Messages) != 2 || len(history.Items[0].Messages[1].Sources) != 1 {
+		t.Fatal("source snapshot was not restored from history", err)
+	}
+	if history.Items[0].Messages[1].AnswerStatus == nil || *history.Items[0].Messages[1].AnswerStatus != answerStatus || history.Items[0].Messages[1].QuestionCategory == nil || *history.Items[0].Messages[1].QuestionCategory != category {
+		t.Fatal("answer metadata was not restored from history")
+	}
+
+	foreign, _ := createChat(t, store, chat.Input{Message: "Не показывай чужие источники"})
+	var foreignTeam string
+	if err := store.pool.QueryRow(ctx, "SELECT team_id::text FROM users WHERE login='intern_petr'").Scan(&foreignTeam); err != nil {
+		t.Fatal(err)
+	}
+	var foreignSourceID string
+	if err := store.pool.QueryRow(ctx, `INSERT INTO kb_documents
+		(team_id,slug,title,content,source_type,status,index_status,indexed_revision)
+		VALUES ($1,'foreign-guide','Foreign guide','Foreign content','seed','published','ready',1)
+		RETURNING id::text`, foreignTeam).Scan(&foreignSourceID); err != nil {
+		t.Fatal(err)
+	}
+	foreignSource, _ := json.Marshal(map[string]any{
+		"document_id": foreignSourceID,
+		"revision":    1,
+		"title":       "Foreign guide",
+		"section":     "Private",
+		"url":         "kb/foreign-guide",
+	})
+	if err := store.Finish(ctx, foreign.RequestID, chat.NewEvent(foreign.RequestID, 1, "done", chat.Done{
+		FullText: &fullText,
+		Sources:  []json.RawMessage{foreignSource},
+	})); !errors.Is(err, chat.ErrInvalid) {
+		t.Fatal("foreign source accepted", err)
+	}
+}
+
 func TestChatConcurrentCreateAndAtomicFinish(t *testing.T) {
 	store := chatStore(t)
 	ctx := context.Background()
