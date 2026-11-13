@@ -4,6 +4,7 @@ import { ACTIONS_KEY } from '@/entities/actions'
 import { escalationsApi } from '@/entities/escalations'
 import { planApi } from '@/entities/plan'
 import { useUser } from '@/entities/session'
+import { IS_MOCK } from '@/shared/api/http'
 import { DEMO_TODAY, formatShort } from '@/shared/lib/date'
 import { newId } from '@/shared/lib/storage'
 import { absenceTypeLabel, answer } from './bot'
@@ -16,6 +17,7 @@ import {
   type Message,
 } from './model'
 import { BUDDY_ID } from './threads'
+import { useRemoteBuddy } from './useRemoteBuddy'
 
 export type BuddyApi = {
   messages: Message[]
@@ -24,14 +26,18 @@ export type BuddyApi = {
   refetch: () => void
   /** id ответа, который сейчас «печатается» */
   streamingId: string | null
+  /** id ответа, который ещё приходит по SSE (реальный режим) */
+  pendingId: string | null
   finishStream: () => void
   ask: (text: string) => void
+  /** Повторить вопрос после ошибки ассистента */
+  retry: (messageId: string, question: string) => void
   chooseAbsence: (ask: Message, date: string, type: AbsenceType) => void
   patch: (messageId: string, meta: BotMeta) => void
 }
 
 /** Чат с ботом: вопрос -> ответ мок-движка -> запись в ленту, отказы -> журнал policy_denied. */
-export function useBuddy(): BuddyApi {
+function useMockBuddy(): BuddyApi {
   const thread = useThread(BUDDY_ID)
   const user = useUser()
   const client = useQueryClient()
@@ -105,9 +111,14 @@ export function useBuddy(): BuddyApi {
     isError: thread.isError,
     refetch: thread.refetch,
     streamingId,
+    pendingId: null,
     finishStream: () => setStreamingId(null),
     ask,
+    retry: (_messageId, question) => ask(question),
     chooseAbsence,
     patch,
   }
 }
+
+/** Режим выбирается один раз при сборке (VITE_API_BASE_URL), порядок хуков не меняется. */
+export const useBuddy: () => BuddyApi = IS_MOCK ? useMockBuddy : useRemoteBuddy

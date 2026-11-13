@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
+import { ApiError, IS_MOCK } from '@/shared/api/http'
 import { createCollection, mockDelay, newId } from '@/shared/lib/storage'
+import { remoteEscalations } from './remote'
+import { currentRemoteUser } from './session'
 
 /**
  * Эскалации наставнику (S-5) и ответы в базу знаний (S-6).
@@ -109,11 +112,15 @@ export function findKbAnswer(list: readonly Escalation[], question: string): Esc
 }
 
 export const escalationsApi = {
+  /** GET /buddy/escalations доступен только наставнику; остальным ролям список пуст. */
   async list(): Promise<Escalation[]> {
+    if (!IS_MOCK) return currentRemoteUser()?.role === 'buddy' ? remoteEscalations.list() : []
     await mockDelay(150)
     return z.array(escalationSchema).parse(escalationsDb.read())
   },
+  /** В Go эскалация создаётся подтверждением предложения из чата, отдельного POST нет. */
   async create(input: NewEscalation): Promise<Escalation> {
+    if (!IS_MOCK) throw new ApiError(0, 'NOT_SUPPORTED', 'Вопрос наставнику создаётся из чата')
     await mockDelay(400)
     const next = escalationsDb.update((list) =>
       createEscalation(list, input, new Date().toISOString()),
@@ -121,6 +128,7 @@ export const escalationsApi = {
     return next[0]
   },
   async answer(id: string, answer: string, addToKb: boolean): Promise<void> {
+    if (!IS_MOCK) return remoteEscalations.answer(id, answer, addToKb)
     await mockDelay(300)
     escalationsDb.update((list) =>
       answerEscalation(list, id, answer, addToKb, new Date().toISOString()),

@@ -5,7 +5,7 @@ import { IsoArt } from '@/shared/iso'
 import { BuddyAvatar, Chip, ChipRow, ErrorState, IconButton, Skeleton, Switch } from '@/shared/ui'
 import { useT } from '@/shared/lib/i18n'
 import { BotExtras } from './BotExtras'
-import { Bubble, ChatHeader, Composer, StreamText, useAutoScroll } from './ChatParts'
+import { Bubble, ChatHeader, Composer, StreamText, TypingDots, useAutoScroll } from './ChatParts'
 import { useBuddy } from './useBuddy'
 import s from './Chat.module.css'
 
@@ -29,8 +29,12 @@ export function BuddyChat({ initialQuestion, onBack }: Props) {
   const buddy = useBuddy()
   const [draft, setDraft] = useState('')
   const handledRef = useRef<string | null>(null)
-  const { listRef, scrollDown } = useAutoScroll(`${buddy.messages.length}:${buddy.streamingId}`)
+  const lastText = buddy.messages.at(-1)?.text.length ?? 0
+  const { listRef, scrollDown } = useAutoScroll(
+    `${buddy.messages.length}:${buddy.streamingId}:${lastText}`,
+  )
   const { ask } = buddy
+  const isBusy = buddy.streamingId !== null || buddy.pendingId !== null
 
   // ?q=текст: сразу задаём вопрос один раз и убираем q из адреса
   useEffect(() => {
@@ -90,12 +94,16 @@ export function BuddyChat({ initialQuestion, onBack }: Props) {
                 avatar={<BuddyAvatar size={32} />}
                 at={m.at}
                 text={
-                  <StreamText
-                    text={m.text}
-                    isActive={isStreaming}
-                    onDone={buddy.finishStream}
-                    onProgress={scrollDown}
-                  />
+                  m.id === buddy.pendingId && m.text === '' ? (
+                    <TypingDots />
+                  ) : (
+                    <StreamText
+                      text={m.text}
+                      isActive={isStreaming}
+                      onDone={buddy.finishStream}
+                      onProgress={scrollDown}
+                    />
+                  )
                 }
               >
                 {m.from === 'bot' && !isStreaming && (
@@ -104,6 +112,8 @@ export function BuddyChat({ initialQuestion, onBack }: Props) {
                     messages={buddy.messages}
                     onPatch={(meta) => buddy.patch(m.id, meta)}
                     onChooseAbsence={(date, type) => buddy.chooseAbsence(m, date, type)}
+                    onRetry={(question) => buddy.retry(m.id, question)}
+                    isRetryDisabled={isBusy}
                   />
                 )}
               </Bubble>
@@ -115,7 +125,7 @@ export function BuddyChat({ initialQuestion, onBack }: Props) {
       <div className={s.footer}>
         <ChipRow className={s.suggest} aria-label={t('Примеры вопросов', 'Sample questions')}>
           {SUGGESTIONS.map((q) => (
-            <Chip key={q} onClick={() => ask(q)} disabled={buddy.streamingId !== null}>
+            <Chip key={q} onClick={() => ask(q)} disabled={isBusy}>
               {q}
             </Chip>
           ))}
@@ -125,7 +135,7 @@ export function BuddyChat({ initialQuestion, onBack }: Props) {
           onChange={setDraft}
           onSend={ask}
           placeholder={t('Спроси что угодно про онбординг', 'Ask anything about onboarding')}
-          isDisabled={buddy.streamingId !== null}
+          isDisabled={isBusy}
         />
       </div>
     </div>

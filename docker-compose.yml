@@ -79,7 +79,8 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+        # /api проксирует nginx фронта на backend:8080. Пустое значение (VITE_API_BASE_URL=) - моки
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL-/api}
     restart: unless-stopped
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"

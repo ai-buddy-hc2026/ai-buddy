@@ -25,6 +25,7 @@ const KIND_ICON: Record<ActionKind, IconName> = {
   access: 'key',
   feedback: 'star',
   message: 'chat',
+  task: 'plan',
 }
 
 type StatusView = { tone: BadgeTone; icon: IconName; label: string; code: string }
@@ -54,6 +55,12 @@ function statusView(action: Action, t: Translate): StatusView {
     sent: { tone: 'success', icon: 'checkDouble', label: t('Выполнено', 'Done') },
     scheduled: { tone: 'accent', icon: 'clock', label: t('Запланировано', 'Scheduled') },
     failed: { tone: 'error', icon: 'alert', label: t('Ошибка', 'Failed') },
+    draft: {
+      tone: 'accent',
+      icon: 'clock',
+      label: t('Ждёт подтверждения', 'Awaiting confirmation'),
+    },
+    cancelled: { tone: 'neutral', icon: 'close', label: t('Отменено', 'Cancelled') },
   }
   return { ...map[action.status], code: action.status }
 }

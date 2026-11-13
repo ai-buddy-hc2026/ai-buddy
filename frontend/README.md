@@ -14,7 +14,9 @@ npm ci
 npm run dev
 ```
 
-Откроется `http://localhost:5173`. Адрес API берётся из `VITE_API_BASE_URL` (по умолчанию `http://localhost:8080`).
+Откроется `http://localhost:3000`. Без `VITE_API_BASE_URL` фронт работает на моках.
+Для реального Go API задай `VITE_API_BASE_URL=/api` в `.env.local` (пример в `.env.example`):
+dev-сервер проксирует `/api` на `VITE_PROXY_TARGET` (по умолчанию `http://localhost:8080`).
 
 ## Команды
 

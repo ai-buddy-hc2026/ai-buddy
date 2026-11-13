@@ -1,9 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { z } from 'zod'
-import { IS_MOCK, request, tokenStore } from '@/shared/api/http'
+import { IS_MOCK, tokenStore } from '@/shared/api/http'
 import { mockDelay } from '@/shared/lib/storage'
+import type { RemoteUser } from './adapters'
 import { mustEmployee, type Employee } from './employees'
+import { remoteAuth } from './remote'
 
 export const roleSchema = z.enum(['intern', 'buddy', 'lead', 'hr'])
 export type Role = z.infer<typeof roleSchema>
@@ -44,10 +46,10 @@ export const TEST_USERS: readonly TestUser[] = [
   },
 ]
 
-const loginResponseSchema = z.object({ token: z.string() })
-
 interface SessionState {
   login: string | null
+  /** Профиль из GET /me в реальном режиме; в демо null */
+  remote: RemoteUser | null
   signIn: (login: string) => Promise<void>
   signOut: () => void
 }
@@ -56,22 +58,20 @@ export const useSession = create<SessionState>()(
   persist(
     (set) => ({
       login: null,
+      remote: null,
       signIn: async (login) => {
         if (!TEST_USERS.some((u) => u.login === login)) throw new Error('Нет такого пользователя')
         if (IS_MOCK) {
           await mockDelay(300)
-        } else {
-          const { token } = await request('/auth/mock-login', loginResponseSchema, {
-            method: 'POST',
-            body: { login },
-          })
-          tokenStore.set(token)
+          set({ login, remote: null })
+          return
         }
-        set({ login })
+        const remote = await remoteAuth.signIn(login)
+        set({ login, remote })
       },
       signOut: () => {
         tokenStore.clear()
-        set({ login: null })
+        set({ login: null, remote: null })
       },
     }),
     { name: 'buddy.session' },
@@ -97,6 +97,11 @@ export function useUser(): CurrentUser {
   const user = useCurrentUser()
   if (!user) throw new Error('Нужен вход')
   return user
+}
+
+/** Профиль Go API для адаптеров (роль, UUID). Вне React, без подписки. */
+export function currentRemoteUser(): RemoteUser | null {
+  return useSession.getState().remote
 }
 
 /** Стажёр, наставник и руководитель демо-команды. */

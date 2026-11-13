@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { createCollection, mockDelay, newId } from '@/shared/lib/storage'
 import { actionSchema, confirmAction, type Action, type ActionDraft } from '@/entities/actions'
+import { knowledgeSourceSchema } from '@/entities/knowledge'
 import { SEED_THREADS } from './threads'
 
 /* ---------- Схемы сообщений ---------- */
@@ -46,6 +47,14 @@ export const botMetaSchema = z.discriminatedUnion('kind', [
     actionStatus: z.string().nullable(),
   }),
   z.object({ kind: z.literal('denied') }),
+  /** Ответ Go API: источники с revision и предложенные действия (черновики до подтверждения) */
+  z.object({
+    kind: z.literal('remote'),
+    sources: z.array(knowledgeSourceSchema),
+    actions: z.array(actionSchema),
+  }),
+  /** Генерация завершилась ошибкой: показываем «Повторить», вопрос задаётся заново */
+  z.object({ kind: z.literal('error'), question: z.string(), message: z.string() }),
   z.object({
     kind: z.literal('notFound'),
     question: z.string(),

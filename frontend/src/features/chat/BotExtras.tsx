@@ -10,6 +10,7 @@ import { DEMO_TODAY, formatShort, formatTime, nextWorkday } from '@/shared/lib/d
 import { useT } from '@/shared/lib/i18n'
 import { AbsenceDraftCard } from './AbsenceDraftCard'
 import { ABSENCE_TYPES, buildEscalationContext } from './bot'
+import { RemoteExtras } from './RemoteExtras'
 import type { AbsenceType, BotMeta, Message, Source } from './model'
 import s from './Chat.module.css'
 
@@ -18,10 +19,19 @@ type Props = {
   messages: readonly Message[]
   onPatch: (meta: BotMeta) => void
   onChooseAbsence: (date: string, type: AbsenceType) => void
+  onRetry: (question: string) => void
+  isRetryDisabled: boolean
 }
 
 /** То, что бот прикладывает под ответом: источник, кнопки, карточки. */
-export function BotExtras({ message, messages, onPatch, onChooseAbsence }: Props) {
+export function BotExtras({
+  message,
+  messages,
+  onPatch,
+  onChooseAbsence,
+  onRetry,
+  isRetryDisabled,
+}: Props) {
   const t = useT()
   const meta = message.meta
   if (!meta) return null
@@ -63,6 +73,25 @@ export function BotExtras({ message, messages, onPatch, onChooseAbsence }: Props
           <Link to="/actions" className={s.inlineLink}>
             {t('История действий', 'Action history')}
           </Link>
+        </div>
+      )
+    case 'remote':
+      return <RemoteExtras meta={meta} onPatch={onPatch} />
+    case 'error':
+      return (
+        <div className={s.extras}>
+          <Note tone="error" title={t('Ассистент временно недоступен', 'Assistant is unavailable')}>
+            {meta.message}
+          </Note>
+          <Button
+            variant="primary"
+            size="s"
+            icon="refresh"
+            disabled={isRetryDisabled}
+            onClick={() => onRetry(meta.question)}
+          >
+            {t('Повторить', 'Retry')}
+          </Button>
         </div>
       )
     case 'notFound':

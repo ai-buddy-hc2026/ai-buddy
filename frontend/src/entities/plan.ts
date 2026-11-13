@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { IS_MOCK, request } from '@/shared/api/http'
+import { ApiError, IS_MOCK } from '@/shared/api/http'
 import { DEMO_TODAY, daysUntil, nextWorkday } from '@/shared/lib/date'
 import { createCollection, mockDelay, newId } from '@/shared/lib/storage'
+import { remotePlan } from './remote'
+import { currentRemoteUser } from './session'
 
 /** План онбординга (S-1): этапы, задачи, статусы, следующий шаг. */
 export const taskStatusSchema = z.enum(['todo', 'in_progress', 'blocked', 'done'])
@@ -183,25 +185,29 @@ export function postponeToday(plan: Plan, today = DEMO_TODAY): Plan {
 
 /* API: мок или Go (`GET /onboarding/plan`, `PATCH /tasks/{id}`) */
 
+/** Добавлять задачи и переносить сроки Go API не умеет: в реальном режиме честно отказываем. */
+function notSupported(): ApiError {
+  return new ApiError(0, 'NOT_SUPPORTED', 'Пока доступно только в демо-режиме')
+}
+
 export const planApi = {
   async get(): Promise<Plan> {
-    if (!IS_MOCK) return request('/onboarding/plan', planSchema)
+    if (!IS_MOCK) return remotePlan.get(currentRemoteUser())
     await mockDelay(200)
     return planSchema.parse(planDb.read())
   },
   async setStatus(taskId: string, status: TaskStatus): Promise<Plan> {
-    if (!IS_MOCK) {
-      await request(`/tasks/${taskId}`, taskSchema, { method: 'PATCH', body: { status } })
-      return request('/onboarding/plan', planSchema)
-    }
+    if (!IS_MOCK) return remotePlan.setStatus(currentRemoteUser(), taskId, status)
     await mockDelay(150)
     return planDb.update((plan) => setTaskStatus(plan, taskId, status))
   },
   async add(items: readonly NewTask[]): Promise<Plan> {
+    if (!IS_MOCK) throw notSupported()
     await mockDelay(150)
     return planDb.update((plan) => addTasks(plan, items))
   },
   async postponeToday(): Promise<Plan> {
+    if (!IS_MOCK) throw notSupported()
     await mockDelay(150)
     return planDb.update((plan) => postponeToday(plan))
   },

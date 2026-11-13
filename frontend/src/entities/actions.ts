@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { ApiError, IS_MOCK, request } from '@/shared/api/http'
+import { ApiError, IS_MOCK } from '@/shared/api/http'
 import { createCollection, mockDelay, newId } from '@/shared/lib/storage'
+import { remoteActions } from './remote'
 import { useSettings } from './settings'
 
 /**
@@ -15,6 +16,8 @@ export const actionKindSchema = z.enum([
   'access',
   'feedback',
   'message',
+  /** checklist.update_status из чата */
+  'task',
 ])
 export type ActionKind = z.infer<typeof actionKindSchema>
 
@@ -24,16 +27,28 @@ export const actionSchema = z.object({
   title: z.string(),
   /** Поля карточки: «Дата» -> «пт, 13.11» */
   details: z.array(z.object({ label: z.string(), value: z.string() })),
-  status: z.enum(['pending_approval', 'approved', 'sent', 'scheduled', 'failed']),
+  /** draft и cancelled приходят только из Go API: предложение без подтверждения и отмена */
+  status: z.enum([
+    'pending_approval',
+    'approved',
+    'sent',
+    'scheduled',
+    'failed',
+    'draft',
+    'cancelled',
+  ]),
   /** Номер во внешнем сервисе, например ABS-1042 */
   externalId: z.string().nullable(),
   idempotencyKey: z.string(),
   createdAt: z.string(),
+  /** UUID действия в Go API. Есть - подтверждение идёт в POST /actions/{id}/confirm */
+  serverId: z.string().optional(),
 })
 export type Action = z.infer<typeof actionSchema>
 
 export type ActionDraft = Pick<Action, 'kind' | 'title' | 'details' | 'idempotencyKey'> & {
   status?: Action['status']
+  serverId?: string
 }
 
 const EXTERNAL_PREFIX: Record<ActionKind, string> = {
@@ -43,6 +58,7 @@ const EXTERNAL_PREFIX: Record<ActionKind, string> = {
   access: 'ACC',
   feedback: 'FB',
   message: 'MSG',
+  task: 'TSK',
 }
 const FIRST_EXTERNAL_NUMBER = 1042
 
@@ -71,21 +87,30 @@ export function confirmAction(
   return { log: [action, ...log], action }
 }
 
+/** Свежие сверху: так история читается и в демо, и в реальном режиме. */
+export function mergeActions(remote: readonly Action[], local: readonly Action[]): Action[] {
+  return [...remote, ...local].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
+function readLocalActions(): Action[] {
+  const parsed = z.array(actionSchema).safeParse(actionsDb.read())
+  return parsed.success ? parsed.data : []
+}
+
 export const actionsApi = {
+  /**
+   * В реальном режиме история - GET /actions плюс локальные записи разделов без эндпоинтов
+   * (бронирования, доступы, отзывы): они остаются на моках.
+   */
   async list(): Promise<Action[]> {
-    if (!IS_MOCK) return request('/actions', z.array(actionSchema))
+    if (!IS_MOCK) return mergeActions(await remoteActions.list(), readLocalActions())
     await mockDelay(150)
     return z.array(actionSchema).parse(actionsDb.read())
   },
-  /** POST /actions/{id}/confirm. Вызывается только по кнопке «Отправить». */
+  /** Вызывается только по кнопке «Отправить». */
   async confirm(draft: ActionDraft): Promise<Action> {
-    if (!IS_MOCK) {
-      return request(`/actions/${draft.idempotencyKey}/confirm`, actionSchema, {
-        method: 'POST',
-        body: draft,
-        idempotencyKey: draft.idempotencyKey,
-      })
-    }
+    // Предложение из Go API: POST /actions/{id}/confirm, ключ идемпотентности хранит Go
+    if (!IS_MOCK && draft.serverId) return remoteActions.confirm(draft.serverId)
     await mockDelay(700)
     if (useSettings.getState().simulateFailure) {
       // Сбой демонстрируется один раз: следующий «Повторить» проходит

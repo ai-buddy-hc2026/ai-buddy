@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-router'
 import { z } from 'zod'
 import { resolveUser, useSession } from '@/entities/session'
+import { setUnauthorizedHandler } from '@/shared/api/http'
 import { useApplyTheme } from '@/shared/lib/theme'
 import { ErrorState, Toaster } from '@/shared/ui'
 import { AppShell } from './AppShell'
@@ -109,6 +110,12 @@ export const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
   scrollRestoration: true,
+})
+
+// 401 с отправленным токеном: сессия истекла, выходим на экран входа
+setUnauthorizedHandler(() => {
+  useSession.getState().signOut()
+  void router.navigate({ to: '/login' })
 })
 
 declare module '@tanstack/react-router' {
