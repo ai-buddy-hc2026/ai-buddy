@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import RequestResponseEndpoint
 
 from api.v1.core import core_router
+from app.rag.runtime import start_kb_indexing
 from config import get_settings
 
 
@@ -62,6 +63,8 @@ async def lifespan(app: FastAPI):
         settings.redis_url,
         decode_responses=True,
     )
+    if os.getenv("KB_INDEX_ON_STARTUP", "true").lower() not in {"0", "false", "no"}:
+        app.state.kb_indexing_task = start_kb_indexing()
     logger.info("ai-service запущен")
     try:
         yield

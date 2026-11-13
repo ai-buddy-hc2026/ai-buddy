@@ -7,9 +7,11 @@ import type { User } from '../api/schemas'
 type SessionState = {
   user: User | null
   token: string | null
+  setToken: (token: string | null) => void
 }
 
-export const useSession = create<SessionState>(() => ({
+export const useSession = create<SessionState>((set) => ({
   user: mockUser,
   token: null,
+  setToken: (token) => set({ token }),
 }))

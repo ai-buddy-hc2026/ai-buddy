@@ -21,7 +21,8 @@ type memoryStore struct {
 	dispatched []Payload
 }
 
-func newMemoryStore() *memoryStore { return &memoryStore{records: make(map[string]Record)} }
+func newMemoryStore() *memoryStore        { return &memoryStore{records: make(map[string]Record)} }
+func metadataString(value string) *string { return &value }
 func (m *memoryStore) Create(_ context.Context, actor, id string, in Input) (Record, Payload, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -170,7 +171,7 @@ func TestReceiveBeforeAcceptedAndReplay(t *testing.T) {
 		broker.emit(p.RequestID, NewEvent(p.RequestID, 1, "token", Token{Text: &first}))
 		broker.emit(p.RequestID, NewEvent(p.RequestID, 2, "token", Token{Text: &last}))
 		full := "Окончательный текст заменяет токены"
-		broker.emit(p.RequestID, NewEvent(p.RequestID, 3, "done", Done{FullText: &full, Sources: []json.RawMessage{}, AnswerStatus: "answered", QuestionCategory: "other"}))
+		broker.emit(p.RequestID, NewEvent(p.RequestID, 3, "done", Done{FullText: &full, Sources: []json.RawMessage{}, AnswerStatus: metadataString("answered"), QuestionCategory: metadataString("other")}))
 		<-ctx.Done()
 		return ctx.Err() // done поступает раньше ответа на HTTP POST.
 	}), Options{Retention: time.Hour, RecoveryInterval: 5 * time.Millisecond})
@@ -298,7 +299,7 @@ func TestPersistenceFailureAndRetrySamePayload(t *testing.T) {
 		store.failSave = true
 		store.mu.Unlock()
 		text := "Ответ"
-		broker.emit(p.RequestID, NewEvent(p.RequestID, 1, "done", Done{FullText: &text, Sources: []json.RawMessage{}, AnswerStatus: "answered", QuestionCategory: "other"}))
+		broker.emit(p.RequestID, NewEvent(p.RequestID, 1, "done", Done{FullText: &text, Sources: []json.RawMessage{}, AnswerStatus: metadataString("answered"), QuestionCategory: metadataString("other")}))
 		return nil
 	}), Options{RecoveryInterval: 5 * time.Millisecond})
 	if err != nil {
@@ -378,7 +379,7 @@ func TestProposalProcessedBeforeSSEAndReplay(t *testing.T) {
 		broker.emit(p.RequestID, proposal)
 		broker.emit(p.RequestID, proposal)
 		full := ""
-		broker.emit(p.RequestID, NewEvent(p.RequestID, 2, "done", Done{FullText: &full, Sources: []json.RawMessage{}, AnswerStatus: "answered", QuestionCategory: "other"}))
+		broker.emit(p.RequestID, NewEvent(p.RequestID, 2, "done", Done{FullText: &full, Sources: []json.RawMessage{}, AnswerStatus: metadataString("answered"), QuestionCategory: metadataString("other")}))
 		<-ctx.Done()
 		return ctx.Err()
 	}), Options{ProcessEvent: func(_ context.Context, id string, e Event) (Event, error) {

@@ -48,6 +48,27 @@ func (s *Tools) Context(ctx context.Context, requestID string) (tools.Context, e
 	return tools.Context{ActorID: actor.id, TeamID: actor.teamID, Role: actor.role}, err
 }
 
+// KnowledgeScope проверяет актуальные права перед каждым поиском Python.
+func (s *Tools) KnowledgeScope(ctx context.Context, requestID string) (tools.Context, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return tools.Context{}, err
+	}
+	defer rollbackOnboarding(tx)
+	actor, err := s.actor(ctx, tx, requestID, true)
+	if err != nil {
+		return tools.Context{}, err
+	}
+	var teamID string
+	if err := tx.QueryRow(ctx, "SELECT team_id::text FROM chat_requests WHERE id=$1", requestID).Scan(&teamID); err != nil {
+		return tools.Context{}, err
+	}
+	if reason := policy.Check(actor.policyActor(), policy.SearchKnowledge, policy.Resource{TeamID: teamID}); reason != "" {
+		return tools.Context{}, denyPolicy(ctx, s.pool, tx, actor, policy.SearchKnowledge, reason, tools.ErrDenied)
+	}
+	return tools.Context{ActorID: actor.id, TeamID: actor.teamID, Role: actor.role}, tx.Commit(ctx)
+}
+
 func (s *Tools) actor(ctx context.Context, tx pgx.Tx, requestID string, active bool) (planActor, error) {
 	if !identifier.ValidUUID(requestID) {
 		return planActor{}, tools.ErrContext

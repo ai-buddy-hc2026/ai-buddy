@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 	_ "time/tzdata"
 	"unicode/utf8"
@@ -147,13 +148,11 @@ func (s *Chat) Dispatch(ctx context.Context, payload chat.Payload, deadline time
 	return err
 }
 
-const requestColumns = `r.id::text,r.status,r.created_at,r.finished_at,r.error_code,r.error_message,r.conversation_id::text,r.user_id::text,r.team_id::text,r.last_seq,
-	COALESCE((SELECT e.payload->>'answer_status' FROM events e WHERE e.request_id=r.id AND e.event_type='answer_completed'),''),
-	COALESCE((SELECT e.payload->>'question_category' FROM events e WHERE e.request_id=r.id AND e.event_type='answer_completed'),'')`
+const requestColumns = `r.id::text,r.status,r.created_at,r.finished_at,r.error_code,r.error_message,r.conversation_id::text,r.user_id::text,r.team_id::text,r.last_seq`
 
 func scanRequest(row pgx.Row, record *chat.Record) error {
 	var code, message *string
-	err := row.Scan(&record.RequestID, &record.Status, &record.CreatedAt, &record.FinishedAt, &code, &message, &record.ConversationID, &record.UserID, &record.TeamID, &record.LastSeq, &record.AnswerStatus, &record.QuestionCategory)
+	err := row.Scan(&record.RequestID, &record.Status, &record.CreatedAt, &record.FinishedAt, &code, &message, &record.ConversationID, &record.UserID, &record.TeamID, &record.LastSeq)
 	if code != nil && message != nil {
 		record.Error = &chat.Error{Code: *code, Message: *message}
 	}
@@ -191,8 +190,15 @@ func (s *Chat) Get(ctx context.Context, actorID, id string) (chat.Record, error)
 		return chat.Record{}, denyPolicy(ctx, s.pool, tx, actor, policy.ReadChat, reason, chat.ErrNotFound)
 	}
 	if record.Status == "done" {
-		if err := tx.QueryRow(ctx, "SELECT content FROM chat_messages WHERE request_id=$1 AND role='assistant'", id).Scan(&record.FullText); err != nil {
+		var rawSources []byte
+		if err := tx.QueryRow(ctx, "SELECT content,sources,answer_status,question_category FROM chat_messages WHERE request_id=$1 AND role='assistant'", id).Scan(&record.FullText, &rawSources, &record.AnswerStatus, &record.QuestionCategory); err != nil {
 			return record, err
+		}
+		if err := json.Unmarshal(rawSources, &record.Sources); err != nil {
+			return record, err
+		}
+		if record.Sources == nil {
+			record.Sources = []json.RawMessage{}
 		}
 	}
 	return record, tx.Commit(ctx)
@@ -210,14 +216,39 @@ func (s *Chat) Finish(ctx context.Context, id string, event chat.Event) error {
 	}
 	var failure *chat.Error
 	var text string
-	var done chat.Done
+	var sourcesJSON []byte
+	var answerStatus, questionCategory *string
+	sourceRefs := []map[string]any{}
 	switch event.Type {
 	case "done":
-		if err := json.Unmarshal(event.Data, &done); err != nil || done.FullText == nil || done.Sources == nil || len(done.Sources) != 0 ||
-			!done.ValidMetadata() {
+		var done chat.Done
+		if err := json.Unmarshal(event.Data, &done); err != nil || !chat.ValidateDone(done) {
 			return chat.ErrInvalid
 		}
 		text = *done.FullText
+		answerStatus = done.AnswerStatus
+		questionCategory = done.QuestionCategory
+		for _, raw := range done.Sources {
+			var source chat.Source
+			if err := json.Unmarshal(raw, &source); err != nil {
+				return chat.ErrInvalid
+			}
+			var accessible bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS(
+				SELECT 1 FROM kb_documents
+				WHERE id=$1 AND team_id=$2 AND status='published' AND index_status='ready'
+			)`, source.DocumentID, record.TeamID).Scan(&accessible); err != nil {
+				return err
+			}
+			if !accessible {
+				return chat.ErrInvalid
+			}
+			sourceRefs = append(sourceRefs, map[string]any{"document_id": source.DocumentID, "revision": source.Revision})
+		}
+		sourcesJSON, err = json.Marshal(done.Sources)
+		if err != nil {
+			return chat.ErrInvalid
+		}
 	case "error":
 		failure = &chat.Error{}
 		if err := json.Unmarshal(event.Data, failure); err != nil {
@@ -235,10 +266,13 @@ func (s *Chat) Finish(ctx context.Context, id string, event chat.Event) error {
 		}
 		if record.Status == "done" && event.Type == "done" {
 			var saved string
-			if err := tx.QueryRow(ctx, "SELECT content FROM chat_messages WHERE request_id=$1 AND role='assistant'", id).Scan(&saved); err != nil {
+			var savedSources []byte
+			var savedAnswerStatus, savedQuestionCategory *string
+			if err := tx.QueryRow(ctx, "SELECT content,sources,answer_status,question_category FROM chat_messages WHERE request_id=$1 AND role='assistant'", id).Scan(&saved, &savedSources, &savedAnswerStatus, &savedQuestionCategory); err != nil {
 				return err
 			}
-			if saved == text && record.AnswerStatus == done.AnswerStatus && record.QuestionCategory == done.QuestionCategory {
+			var savedValue, sourceValue any
+			if json.Unmarshal(savedSources, &savedValue) == nil && json.Unmarshal(sourcesJSON, &sourceValue) == nil && saved == text && reflect.DeepEqual(savedValue, sourceValue) && reflect.DeepEqual(savedAnswerStatus, answerStatus) && reflect.DeepEqual(savedQuestionCategory, questionCategory) {
 				return nil
 			}
 		}
@@ -257,20 +291,26 @@ func (s *Chat) Finish(ctx context.Context, id string, event chat.Event) error {
 				return chat.ErrInvalid
 			}
 		}
-		if _, err := tx.Exec(ctx, "INSERT INTO chat_messages (request_id,role,content) VALUES ($1,'assistant',$2)", id, text); err != nil {
+		if _, err := tx.Exec(ctx, "INSERT INTO chat_messages (request_id,role,content,sources,answer_status,question_category) VALUES ($1,'assistant',$2,$3,$4,$5)", id, text, sourcesJSON, answerStatus, questionCategory); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, "UPDATE chat_requests SET status='done',last_seq=$2,terminal_seq=$2,finished_at=now(),updated_at=now() WHERE id=$1", id, event.Seq); err != nil {
 			return err
 		}
 		metadata := map[string]string{}
-		if done.AnswerStatus != "" {
-			metadata["answer_status"] = done.AnswerStatus
-			metadata["question_category"] = done.QuestionCategory
+		if answerStatus != nil {
+			metadata["answer_status"] = *answerStatus
+			metadata["question_category"] = *questionCategory
 		}
 		answerPayload, _ := json.Marshal(metadata)
 		if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,request_id,event_type,dedup_key,payload) VALUES ($1,$2,$3,'answer_completed',$4,$5)`, record.TeamID, record.UserID, id, "request:"+id+":answer_completed", answerPayload); err != nil {
 			return err
+		}
+		if len(sourceRefs) > 0 {
+			payload, _ := json.Marshal(map[string]any{"sources": sourceRefs, "source_count": len(sourceRefs)})
+			if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,request_id,event_type,dedup_key,payload) VALUES ($1,$2,$3,'answer_with_source',$4,$5)`, record.TeamID, record.UserID, id, "request:"+id+":answer_with_source", payload); err != nil {
+				return err
+			}
 		}
 	} else {
 		if _, err := tx.Exec(ctx, "UPDATE chat_requests SET status='error',error_code=$2,error_message=$3,last_seq=$4,terminal_seq=$4,finished_at=now(),updated_at=now() WHERE id=$1", id, failure.Code, failure.Message, event.Seq); err != nil {
@@ -360,13 +400,13 @@ func (s *Chat) History(ctx context.Context, actorID, conversationID, cursor stri
 	}
 	for _, record := range records {
 		turn := chat.Turn{Request: record.Request, Messages: []chat.Message{}, Actions: []json.RawMessage{}}
-		rows, err := tx.Query(ctx, "SELECT id::text,role,content,sources,created_at FROM chat_messages WHERE request_id=$1 ORDER BY CASE role WHEN 'user' THEN 1 ELSE 2 END", record.RequestID)
+		rows, err := tx.Query(ctx, "SELECT id::text,role,content,sources,created_at,answer_status,question_category FROM chat_messages WHERE request_id=$1 ORDER BY CASE role WHEN 'user' THEN 1 ELSE 2 END", record.RequestID)
 		if err != nil {
 			return result, err
 		}
 		messages, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (chat.Message, error) {
 			var message chat.Message
-			err := row.Scan(&message.ID, &message.Role, &message.Content, &message.Sources, &message.CreatedAt)
+			err := row.Scan(&message.ID, &message.Role, &message.Content, &message.Sources, &message.CreatedAt, &message.AnswerStatus, &message.QuestionCategory)
 			message.CreatedAt = message.CreatedAt.UTC()
 			return message, err
 		})

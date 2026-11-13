@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -15,6 +16,8 @@ import (
 )
 
 const chatAnya = "a24a3478-cf42-51b1-b05b-9833260247a5"
+
+func metadataString(value string) *string { return &value }
 
 func chatStore(t *testing.T) *Chat {
 	t.Helper()
@@ -38,7 +41,7 @@ func createChat(t *testing.T, store *Chat, input chat.Input) (chat.Record, chat.
 }
 func finishChat(t *testing.T, store *Chat, id, text string) {
 	t.Helper()
-	event := chat.NewEvent(id, 3, "done", chat.Done{FullText: &text, Sources: []json.RawMessage{}, AnswerStatus: "answered", QuestionCategory: "other"})
+	event := chat.NewEvent(id, 3, "done", chat.Done{FullText: &text, Sources: []json.RawMessage{}, AnswerStatus: metadataString("answered"), QuestionCategory: metadataString("other")})
 	if err := store.Finish(context.Background(), id, event); err != nil {
 		t.Fatal(err)
 	}
@@ -127,6 +130,91 @@ func TestChatStorageHistoryAndPermissions(t *testing.T) {
 	}
 }
 
+func TestChatFinishPersistsOnlyTeamSourcesAndPreservesMetadata(t *testing.T) {
+	store := chatStore(t)
+	ctx := context.Background()
+	record, _ := createChat(t, store, chat.Input{Message: "Ответь с источником"})
+	var sourceID string
+	if err := store.pool.QueryRow(ctx, `INSERT INTO kb_documents
+		(team_id,slug,title,content,source_type,status,index_status,indexed_revision)
+		VALUES ($1,'synthetic-guide','Synthetic guide','Synthetic content','seed','published','ready',1)
+		RETURNING id::text`, record.TeamID).Scan(&sourceID); err != nil {
+		t.Fatal(err)
+	}
+	fullText, answerStatus, category := "Grounded answer", "answered", "process"
+	source, err := json.Marshal(map[string]any{
+		"document_id": sourceID,
+		"revision":    1,
+		"title":       "Synthetic guide",
+		"section":     "Setup",
+		"url":         "kb/synthetic-guide",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	event := chat.NewEvent(record.RequestID, 1, "done", chat.Done{
+		FullText:         &fullText,
+		Sources:          []json.RawMessage{source},
+		AnswerStatus:     &answerStatus,
+		QuestionCategory: &category,
+	})
+	if err := store.Finish(ctx, record.RequestID, event); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Finish(ctx, record.RequestID, event); err != nil {
+		t.Fatal("source replay rejected", err)
+	}
+	var sourceEventCount int
+	var sourcePayload map[string]any
+	if err := store.pool.QueryRow(ctx, `SELECT payload FROM events WHERE request_id=$1 AND event_type='answer_with_source'`, record.RequestID).Scan(&sourcePayload); err != nil {
+		t.Fatal(err)
+	}
+	if sourcePayload["source_count"] != float64(1) {
+		t.Fatal("source event mismatch", sourcePayload)
+	}
+	if err := store.pool.QueryRow(ctx, `SELECT count(*) FROM events WHERE request_id=$1 AND event_type='answer_with_source'`, record.RequestID).Scan(&sourceEventCount); err != nil || sourceEventCount != 1 {
+		t.Fatal("source event duplicated", sourceEventCount, err)
+	}
+
+	saved, err := store.Get(ctx, chatAnya, record.RequestID)
+	if err != nil || saved.FullText != fullText || len(saved.Sources) != 1 || saved.AnswerStatus == nil || *saved.AnswerStatus != answerStatus || saved.QuestionCategory == nil || *saved.QuestionCategory != category {
+		t.Fatal("answer metadata was not persisted", err)
+	}
+	history, err := store.History(ctx, chatAnya, record.ConversationID, "", 50)
+	if err != nil || len(history.Items) != 1 || len(history.Items[0].Messages) != 2 || len(history.Items[0].Messages[1].Sources) != 1 {
+		t.Fatal("source snapshot was not restored from history", err)
+	}
+	if history.Items[0].Messages[1].AnswerStatus == nil || *history.Items[0].Messages[1].AnswerStatus != answerStatus || history.Items[0].Messages[1].QuestionCategory == nil || *history.Items[0].Messages[1].QuestionCategory != category {
+		t.Fatal("answer metadata was not restored from history")
+	}
+
+	foreign, _ := createChat(t, store, chat.Input{Message: "Не показывай чужие источники"})
+	var foreignTeam string
+	if err := store.pool.QueryRow(ctx, "SELECT team_id::text FROM users WHERE login='intern_petr'").Scan(&foreignTeam); err != nil {
+		t.Fatal(err)
+	}
+	var foreignSourceID string
+	if err := store.pool.QueryRow(ctx, `INSERT INTO kb_documents
+		(team_id,slug,title,content,source_type,status,index_status,indexed_revision)
+		VALUES ($1,'foreign-guide','Foreign guide','Foreign content','seed','published','ready',1)
+		RETURNING id::text`, foreignTeam).Scan(&foreignSourceID); err != nil {
+		t.Fatal(err)
+	}
+	foreignSource, _ := json.Marshal(map[string]any{
+		"document_id": foreignSourceID,
+		"revision":    1,
+		"title":       "Foreign guide",
+		"section":     "Private",
+		"url":         "kb/foreign-guide",
+	})
+	if err := store.Finish(ctx, foreign.RequestID, chat.NewEvent(foreign.RequestID, 1, "done", chat.Done{
+		FullText: &fullText,
+		Sources:  []json.RawMessage{foreignSource},
+	})); !errors.Is(err, chat.ErrInvalid) {
+		t.Fatal("foreign source accepted", err)
+	}
+}
+
 func TestChatConcurrentCreateAndAtomicFinish(t *testing.T) {
 	store := chatStore(t)
 	ctx := context.Background()
@@ -162,7 +250,7 @@ func TestChatConcurrentCreateAndAtomicFinish(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := "Ответ"
-	if err := store.Finish(ctx, id, chat.NewEvent(id, 2, "done", chat.Done{FullText: &text, Sources: []json.RawMessage{}, AnswerStatus: "answered", QuestionCategory: "other"})); err == nil {
+	if err := store.Finish(ctx, id, chat.NewEvent(id, 2, "done", chat.Done{FullText: &text, Sources: []json.RawMessage{}, AnswerStatus: metadataString("answered"), QuestionCategory: metadataString("other")})); err == nil {
 		t.Fatal("expected persistence failure")
 	}
 	record, err := store.Get(ctx, chatAnya, id)
@@ -203,7 +291,7 @@ func TestChatCompletionMetadataAndReplay(t *testing.T) {
 		record, _ := createChat(t, store, chat.Input{Message: "Вопрос"})
 		done := chat.Done{FullText: &text, Sources: []json.RawMessage{}}
 		if classified {
-			done.AnswerStatus, done.QuestionCategory = "unknown", "technical"
+			done.AnswerStatus, done.QuestionCategory = metadataString("unknown"), metadataString("technical")
 		}
 		event := chat.NewEvent(record.RequestID, 1, "done", done)
 		if err := store.Finish(ctx, record.RequestID, event); err != nil {
@@ -213,10 +301,10 @@ func TestChatCompletionMetadataAndReplay(t *testing.T) {
 			t.Fatal("identical replay rejected", err)
 		}
 		saved, err := store.Get(ctx, chatAnya, record.RequestID)
-		if err != nil || saved.AnswerStatus != done.AnswerStatus || saved.QuestionCategory != done.QuestionCategory {
+		if err != nil || !reflect.DeepEqual(saved.AnswerStatus, done.AnswerStatus) || !reflect.DeepEqual(saved.QuestionCategory, done.QuestionCategory) {
 			t.Fatal("completion metadata changed", saved, err)
 		}
-		done.AnswerStatus, done.QuestionCategory = "answered", "other"
+		done.AnswerStatus, done.QuestionCategory = metadataString("answered"), metadataString("other")
 		if err := store.Finish(ctx, record.RequestID, chat.NewEvent(record.RequestID, 1, "done", done)); !errors.Is(err, chat.ErrInvalid) {
 			t.Fatal("conflicting replay accepted", err)
 		}
