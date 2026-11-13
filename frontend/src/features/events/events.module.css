@@ -1,0 +1,367 @@
+/* ---------- Каркас: лента слева, buddy справа ---------- */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+  gap: var(--theme-gap-16);
+  height: var(--content-h);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-gap-16);
+  min-height: 0;
+  min-width: 0;
+}
+
+.side {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--theme-gap-16);
+}
+
+.title {
+  font-size: clamp(32px, 3.6vw, 48px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  margin-bottom: var(--theme-gap-8);
+}
+
+.headArt {
+  width: 180px;
+  flex-shrink: 0;
+}
+
+.scroller {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-gap-16);
+  padding-bottom: var(--theme-gap-16);
+  scroll-snap-type: y proximity;
+}
+
+.list {
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+.list > li {
+  scroll-snap-align: start;
+}
+
+.sectionTitle {
+  font-size: var(--theme-font-fontSize-xl);
+  line-height: var(--theme-font-lineHeight-xl);
+  margin-top: var(--theme-gap-8);
+}
+
+.cardTitle {
+  font-size: var(--theme-font-fontSize-xl);
+  line-height: var(--theme-font-lineHeight-xl);
+}
+
+/* ---------- Карточка события ---------- */
+.eventCard {
+  padding: 0;
+  transition: transform 0.2s var(--ease-out);
+}
+.eventCard:hover {
+  box-shadow: var(--theme-boxShadow-size-s);
+}
+.eventCard:active {
+  transform: scale(0.97);
+}
+
+.eventLink {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-16);
+  min-height: 88px;
+  padding: var(--theme-gap-16) var(--theme-gap-20);
+  border-radius: var(--radius-card);
+}
+
+.dateBox {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: var(--radius-inner);
+  color: var(--text);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s2);
+  font-weight: 700;
+}
+.dateBox b {
+  font-size: var(--theme-font-fontSize-xxl);
+  line-height: var(--theme-font-lineHeight-xxl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.kind-green {
+  background: var(--tint-green);
+}
+.kind-blue {
+  background: var(--tint-blue);
+}
+.kind-violet {
+  background: var(--tint-violet);
+}
+.kind-yellow {
+  background: var(--tint-yellow);
+}
+
+.eventBody {
+  display: grid;
+  gap: var(--theme-gap-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.eventKind {
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.eventTitle {
+  font-size: var(--theme-font-fontSize-l);
+  line-height: var(--theme-font-lineHeight-l2);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.eventMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--theme-gap-4) var(--theme-gap-6);
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+
+.eventSide {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-8);
+  flex-shrink: 0;
+}
+
+.eventArrow {
+  color: var(--text-2);
+}
+
+/* ---------- Диалог события ---------- */
+.dialogContent {
+  display: grid;
+  gap: var(--theme-gap-16);
+}
+
+.dialogTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--theme-gap-6);
+}
+
+.facts {
+  display: grid;
+  gap: var(--theme-gap-8);
+}
+.facts > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: var(--theme-gap-8);
+}
+.facts dt {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-6);
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-m1);
+}
+.facts dd {
+  font-weight: 700;
+}
+
+.inlineLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  width: fit-content;
+}
+
+.seats {
+  display: grid;
+  gap: var(--theme-gap-8);
+  padding: var(--theme-gap-16);
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+}
+
+.seatsHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--theme-gap-8);
+}
+
+/* ---------- Обязательные курсы ---------- */
+.courses {
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+.courseList {
+  display: grid;
+  gap: var(--theme-gap-8);
+}
+
+.courseItem {
+  display: grid;
+  gap: var(--theme-gap-8);
+  padding: var(--theme-gap-12) var(--theme-gap-16);
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+}
+
+.courseHead,
+.courseFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--theme-gap-8);
+}
+
+/* ---------- Buddy ---------- */
+.buddy {
+  display: grid;
+  gap: var(--theme-gap-16);
+  align-content: start;
+}
+
+.buddyHead {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-12);
+}
+
+.noteList {
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+.note {
+  display: grid;
+  gap: var(--theme-gap-6);
+  padding: var(--theme-gap-12) var(--theme-gap-16);
+  border-radius: var(--theme-borderRadius-xl);
+  background: var(--tint-green);
+}
+
+.noteHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--theme-gap-8);
+}
+
+.noteTitle {
+  font-size: var(--theme-font-fontSize-m);
+  line-height: var(--theme-font-lineHeight-m2);
+}
+
+.noteLines {
+  display: grid;
+  gap: var(--theme-gap-2);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+
+.focus {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--theme-gap-8);
+  padding: var(--theme-gap-8) var(--theme-gap-12);
+  border-radius: var(--theme-borderRadius-m);
+  background: var(--surface-card);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+
+.noteLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--theme-gap-16);
+}
+
+.noteGroup summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--text-2);
+  font-weight: 700;
+}
+.noteGroup .note {
+  background: var(--surface-sunken);
+}
+
+/* ---------- Адаптив ---------- */
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+  .side {
+    overflow: visible;
+    order: -1;
+  }
+  .scroller {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 720px) {
+  .headArt {
+    width: 120px;
+  }
+  .eventLink {
+    gap: var(--theme-gap-12);
+    padding: var(--theme-gap-12) var(--theme-gap-16);
+  }
+  .dateBox {
+    width: 52px;
+    height: 52px;
+  }
+  .eventSide {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .eventArrow {
+    display: none;
+  }
+  .facts > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--theme-gap-2);
+  }
+}

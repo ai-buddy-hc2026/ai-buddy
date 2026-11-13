@@ -40,7 +40,13 @@ jobs:
         run: npm ci
 
       - name: Prepare synthetic Compose environment
+        # Браузерные сценарии проверяют настоящий UI через Vite-прокси к Go API.
+        # Подмена fetch в этих сценариях не используется.
         run: cp .env.example .env
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
 
       - name: Start test services
         run: |
@@ -51,6 +57,13 @@ jobs:
         working-directory: frontend
         run: npm run test:e2e
 
+      - name: Upload UI failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-ui-failures
+          path: frontend/test-results
+          if-no-files-found: ignore
       - name: Compose logs on failure
         if: failure()
         run: docker compose --env-file .env.example -f docker-compose.yml -f compose.test.yml logs --tail 100 db-init backend postgres redis ai-service mock-llm
