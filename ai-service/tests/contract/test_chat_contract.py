@@ -341,3 +341,26 @@ async def test_search_result_sets_answer_status_sources_and_category(
     assert ai.messages[0]["role"] == "system"
     assert "Роль: стажёр" in ai.messages[0]["content"]
     assert any(tool["name"] == "knowledge_search" for tool in ai.tools)
+
+
+@pytest.mark.parametrize(
+    ("answer", "expected_status"),
+    [
+        ("Не знаю ответа на этот вопрос.", "unknown"),
+        ("Я не могу ответить без данных из базы.", "unknown"),
+        ("Вот инструкция, как обновить статус задачи.", "answered"),
+    ],
+)
+async def test_done_status_requires_explicit_unknown_answer(
+    answer,
+    expected_status,
+    monkeypatch,
+):
+    redis = FakeRedis()
+    ai = FakeAI(parts=(answer,))
+    monkeypatch.setattr(chat, "GenerationMCPClient", lambda **kwargs: SearchMCP([]))
+
+    await chat.pubsub_publish(ChatRequest.model_validate(payload()), ai, redis)
+
+    assert redis.events[-1]["event"] == "done"
+    assert redis.events[-1]["data"]["answer_status"] == expected_status

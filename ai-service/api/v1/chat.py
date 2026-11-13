@@ -19,7 +19,7 @@ from app.agent.knowledge_tool import (
 )
 from app.agent.knowledge_tool import extract_citations, run_knowledge_search
 from app.agent.prompts import build_system_prompt
-from app.agent.unknown import unknown_answer_text
+from app.agent.unknown import is_explicit_unknown_answer, unknown_answer_text
 from app.rag.runtime import ensure_kb_indexed, get_rag_resources
 from config import RouteTags
 from core.ai_service import (
@@ -375,6 +375,10 @@ async def pubsub_publish(
                     for source in found_sources
                     if source.get("document_id")
                 )
+        if is_explicit_unknown_answer(full_text):
+            answer_status = "unknown"
+        elif answer_status != "unknown":
+            answer_status = "answered"
         classify_question = getattr(ai_service, "classify_question", None)
         if classify_question is not None:
             try:
