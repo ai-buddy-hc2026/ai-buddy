@@ -17,7 +17,12 @@ export const employeeSchema = z.object({
   /** Зоны ответственности для «Кого спросить» (идея 19) */
   tags: z.array(z.string()),
   askAbout: z.string(),
-  workHours: z.object({ start: z.string(), end: z.string() }),
+  /** Рабочие часы (идея 43). days: 1 = пн ... 7 = вс, нет - пн-пт */
+  workHours: z.object({
+    start: z.string(),
+    end: z.string(),
+    days: z.array(z.number().int().min(1).max(7)).optional(),
+  }),
   /** День и месяц «MM-DD», без года. null - скрыт в профиле */
   birthday: z.string().nullable(),
   interests: z.array(z.string()),

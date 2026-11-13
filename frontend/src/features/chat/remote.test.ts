@@ -111,6 +111,13 @@ describe('stream reducer', () => {
     expect(twice.meta?.kind === 'remote' && twice.meta.actions).toHaveLength(1)
   })
 
+  test('tool_call запоминает инструмент один раз, done его сохраняет', () => {
+    const call = event(1, 'tool_call', { tool_name: 'search_kb', arguments: { q: 'отгул' } })
+    const twice = applyStreamEvent(applyStreamEvent(empty, call, 'q'), call, 'q')
+    const done = applyStreamEvent(twice, event(2, 'done', { full_text: 'Ок', sources: [] }), 'q')
+    expect(done.meta?.kind === 'remote' && done.meta.tools).toEqual(['search_kb'])
+  })
+
   test('error убирает частичный текст и сохраняет вопрос для повтора', () => {
     const partial = applyStreamEvent(empty, event(1, 'token', { text: 'Част' }), 'Вопрос')
     const failed = applyStreamEvent(

@@ -1,0 +1,147 @@
+/* ---------- Термины словаря в ответе (идея 30) ---------- */
+
+.termBox {
+  display: inline;
+}
+
+.term {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--brand-blue);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.term:hover,
+.term[aria-expanded='true'] {
+  text-decoration-style: solid;
+}
+
+/* Позиционируется от пузыря бота (.bubble-bot), чтобы не вылезать за ленту */
+.termPop {
+  position: absolute;
+  top: calc(100% + var(--theme-gap-6));
+  left: 0;
+  right: 0;
+  z-index: 4;
+  display: grid;
+  gap: var(--theme-gap-4);
+  min-width: min(240px, 70vw);
+  padding: var(--theme-gap-12) var(--theme-gap-14);
+  border-radius: var(--theme-borderRadius-l);
+  background: var(--surface-pop);
+  color: var(--text);
+  box-shadow: var(--theme-boxShadow-size-m);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+  white-space: normal;
+  animation: pop-in 0.2s var(--ease-out) both;
+}
+
+.termTitle {
+  font-weight: 800;
+}
+
+.termLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* ---------- «Почему я так ответил» (идея 35) ---------- */
+
+.why {
+  width: min(100%, 380px);
+  border-radius: var(--theme-borderRadius-l);
+  background: var(--surface-sunken);
+}
+
+.whySummary {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-6);
+  min-height: 44px;
+  padding: 0 var(--theme-gap-14);
+  border-radius: var(--theme-borderRadius-l);
+  color: var(--text-2);
+  font-weight: 700;
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+  list-style: none;
+  cursor: pointer;
+}
+
+.whySummary::-webkit-details-marker {
+  display: none;
+}
+
+.whySummary:hover {
+  color: var(--text);
+}
+
+.whyChevron {
+  margin-left: auto;
+  transition: transform 0.2s var(--ease-out);
+}
+
+.why[open] .whyChevron {
+  transform: rotate(180deg);
+}
+
+.whyBody {
+  display: grid;
+  gap: var(--theme-gap-10);
+  margin: 0;
+  padding: 0 var(--theme-gap-14) var(--theme-gap-14);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+
+.whyBody dt {
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+}
+
+.whyBody dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--theme-gap-4) var(--theme-gap-8);
+  margin: 0;
+}
+
+.whyItem {
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Отложенная доставка (идея 43) ---------- */
+
+.delivery {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--theme-gap-4) var(--theme-gap-8);
+}
+
+.offHours {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+}

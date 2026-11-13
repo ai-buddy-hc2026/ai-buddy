@@ -6,7 +6,9 @@ import { BuddyAvatar, Chip, ChipRow, ErrorState, IconButton, Skeleton, Switch } 
 import { useT } from '@/shared/lib/i18n'
 import { BotExtras } from './BotExtras'
 import { Bubble, ChatHeader, Composer, StreamText, TypingDots, useAutoScroll } from './ChatParts'
+import { TermText } from './TermText'
 import { useBuddy } from './useBuddy'
+import { WhyAnswer } from './WhyAnswer'
 import s from './Chat.module.css'
 
 /** Подсказки-чипы: шаги демо из MVP. */
@@ -87,6 +89,8 @@ export function BuddyChat({ initialQuestion, onBack }: Props) {
           )}
           {buddy.messages.map((m) => {
             const isStreaming = m.id === buddy.streamingId
+            const isPending = m.id === buddy.pendingId
+            const isSettled = m.from === 'bot' && !isStreaming && !isPending
             return (
               <Bubble
                 key={m.id}
@@ -94,8 +98,10 @@ export function BuddyChat({ initialQuestion, onBack }: Props) {
                 avatar={<BuddyAvatar size={32} />}
                 at={m.at}
                 text={
-                  m.id === buddy.pendingId && m.text === '' ? (
+                  isPending && m.text === '' ? (
                     <TypingDots />
+                  ) : isSettled ? (
+                    <TermText text={m.text} />
                   ) : (
                     <StreamText
                       text={m.text}
@@ -116,6 +122,7 @@ export function BuddyChat({ initialQuestion, onBack }: Props) {
                     isRetryDisabled={isBusy}
                   />
                 )}
+                {isSettled && <WhyAnswer message={m} />}
               </Bubble>
             )
           })}

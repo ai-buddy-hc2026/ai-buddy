@@ -52,6 +52,8 @@ export const botMetaSchema = z.discriminatedUnion('kind', [
     kind: z.literal('remote'),
     sources: z.array(knowledgeSourceSchema),
     actions: z.array(actionSchema),
+    /** Инструменты из событий tool_call SSE (идея 35); в истории их нет */
+    tools: z.array(z.string()).optional(),
   }),
   /** Генерация завершилась ошибкой: показываем «Повторить», вопрос задаётся заново */
   z.object({ kind: z.literal('error'), question: z.string(), message: z.string() }),
@@ -72,6 +74,8 @@ export const messageSchema = z.object({
   text: z.string(),
   at: z.string(),
   meta: botMetaSchema.optional(),
+  /** Отложенная доставка коллеге вне его рабочих часов (идея 43) */
+  delivery: z.object({ status: z.enum(['scheduled', 'sent']), deliverAt: z.string() }).optional(),
 })
 export type Message = z.infer<typeof messageSchema>
 
@@ -91,7 +95,18 @@ export function newMessage(input: Omit<Message, 'id' | 'at'> & { at?: string }):
 
 /** Чистая логика: заменить meta у сообщения, не мутируя ленту. */
 export function patchMeta(list: readonly Message[], messageId: string, meta: BotMeta): Message[] {
-  return list.map((m) => (m.id === messageId ? { ...m, meta } : m))
+  return patchMessage(list, messageId, { meta })
+}
+
+export type MessageChanges = Partial<Pick<Message, 'meta' | 'delivery'>>
+
+/** Чистая логика: обновить поля сообщения, не мутируя ленту. */
+export function patchMessage(
+  list: readonly Message[],
+  messageId: string,
+  changes: MessageChanges,
+): Message[] {
+  return list.map((m) => (m.id === messageId ? { ...m, ...changes } : m))
 }
 
 export const chatApi = {
@@ -107,8 +122,11 @@ export const chatApi = {
     return next
   },
   patch(threadId: string, messageId: string, meta: BotMeta): Message[] {
+    return chatApi.update(threadId, messageId, { meta })
+  },
+  update(threadId: string, messageId: string, changes: MessageChanges): Message[] {
     const threads = readThreads()
-    const next = patchMeta(threads[threadId] ?? [], messageId, meta)
+    const next = patchMessage(threads[threadId] ?? [], messageId, changes)
     threadsDb.write({ ...threads, [threadId]: next })
     return next
   },
@@ -123,6 +141,7 @@ export type ThreadApi = {
   refetch: () => void
   append: (messages: readonly Message[]) => void
   patch: (messageId: string, meta: BotMeta) => void
+  update: (messageId: string, changes: MessageChanges) => void
 }
 
 /** Лента чата: чтение через Query, запись синхронно в localStorage + сразу в кэш. */
@@ -139,6 +158,11 @@ export function useThread(threadId: string): ThreadApi {
       client.setQueryData(chatKey(threadId), chatApi.patch(threadId, messageId, meta)),
     [client, threadId],
   )
+  const update = useCallback(
+    (messageId: string, changes: MessageChanges) =>
+      client.setQueryData(chatKey(threadId), chatApi.update(threadId, messageId, changes)),
+    [client, threadId],
+  )
   return {
     messages: query.data ?? [],
     isLoading: query.isLoading,
@@ -146,6 +170,7 @@ export function useThread(threadId: string): ThreadApi {
     refetch: () => void query.refetch(),
     append,
     patch,
+    update,
   }
 }
 

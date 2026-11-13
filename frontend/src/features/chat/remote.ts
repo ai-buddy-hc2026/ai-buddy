@@ -75,8 +75,11 @@ export function applyStreamEvent(message: Message, event: StreamEvent, question:
   switch (event.event) {
     case 'token':
       return { ...message, text: message.text + event.data.text, meta }
-    case 'tool_call':
-      return message
+    case 'tool_call': {
+      const tools = meta.tools ?? []
+      if (tools.includes(event.data.tool_name)) return message
+      return { ...message, meta: { ...meta, tools: [...tools, event.data.tool_name] } }
+    }
     case 'action_proposal': {
       if (meta.actions.some((a) => a.id === event.data.action_id)) return message
       const action = toProposedAction(

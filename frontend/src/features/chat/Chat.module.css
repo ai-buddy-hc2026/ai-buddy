@@ -316,6 +316,8 @@
 }
 
 .bubble-bot {
+  /* Якорь для подсказки термина словаря (TermText) */
+  position: relative;
   background: var(--tint-green);
 }
 
