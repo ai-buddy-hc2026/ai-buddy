@@ -48,9 +48,18 @@ func TestPythonClientContract(t *testing.T) {
 
 func TestProfileEventValidation(t *testing.T) {
 	id, _ := identifier.NewUUID()
+	metadataEvent, err := ParseEvent([]byte(`{"event":"done","request_id":"`+id+`","seq":1,"data":{"full_text":"Ответ","sources":[{"document_id":"40000000-0000-0000-0000-000000000001","revision":3,"title":"Guide","section":"Setup","url":"kb/guide"}],"answer_status":"answered","question_category":"process"}}`), id)
+	if err != nil {
+		t.Fatal("valid source and classification fields rejected", err)
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal(metadataEvent.Data, &metadata); err != nil || metadata["answer_status"] != "answered" || metadata["question_category"] != "process" {
+		t.Fatal("done metadata was dropped", string(metadataEvent.Data), err)
+	}
 	for _, raw := range []string{
 		`{"event":"token","request_id":"` + id + `","seq":1,"data":{"text":" "}}`,
 		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[]}}`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[{"document_id":"40000000-0000-0000-0000-000000000001","revision":3,"title":"Guide","section":"Setup","url":"kb/guide"}],"answer_status":"answered","question_category":"process"}}`,
 		`{"event":"error","request_id":"` + id + `","seq":1,"data":{"code":"LLM_UNAVAILABLE","message":"private-token"}}`,
 	} {
 		event, err := ParseEvent([]byte(raw), id)
@@ -66,7 +75,10 @@ func TestProfileEventValidation(t *testing.T) {
 		`{"event":"token","request_id":"` + id + `","seq":0,"data":{"text":"x"}}`,
 		`{"event":"token","request_id":"` + id + `","seq":1,"data":{"text":null}}`,
 		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":null}}`,
-		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[{"document_id":"foreign"}]}}`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[{"document_id":"foreign","revision":1,"title":"Guide","section":"Setup","url":"kb/guide"}]}}`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[{"document_id":"40000000-0000-0000-0000-000000000001","title":"Guide","section":"Setup","url":"kb/guide"}]}}`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[],"answer_status":"unsure"}}`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[],"question_category":"personal"}}`,
 		`{"event":"error","request_id":"` + id + `","seq":1,"data":{"code":"invented","message":"x"}}`,
 	} {
 		if _, err := ParseEvent([]byte(raw), id); err == nil {

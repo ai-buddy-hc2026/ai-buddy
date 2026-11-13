@@ -17,6 +17,9 @@ class SearchResult:
     score: float
     source: str  # seed | mentor_answer
     team_id: str | None
+    document_id: str | None = None
+    revision: int | None = None
+    slug: str | None = None
 
     @property
     def source_label(self) -> str:
@@ -41,7 +44,17 @@ def search(
         return []
     hits = store.query(embedder.embed_query(query), team_id, top_k)
     return [
-        SearchResult(h.text, h.doc_title, h.section, h.score, h.source, h.team_id)
+        SearchResult(
+            h.text,
+            h.doc_title,
+            h.section,
+            h.score,
+            h.source,
+            h.team_id,
+            h.document_id,
+            h.revision,
+            h.slug,
+        )
         for h in hits
         if h.score >= min_score
     ][:top_k]

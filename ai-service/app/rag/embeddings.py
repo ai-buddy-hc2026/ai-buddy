@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Protocol
 
 from app.rag.settings import get_settings
@@ -48,3 +49,9 @@ class E5Embedder:
 
     def embed_query(self, text: str) -> list[float]:
         return self._encode([self._prefix("query") + text])[0]
+
+
+@lru_cache(maxsize=1)
+def get_embedder() -> E5Embedder:
+    settings = get_settings()
+    return E5Embedder(settings.model_name, settings.embedding_dim)

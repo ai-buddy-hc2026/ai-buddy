@@ -1,6 +1,7 @@
 import pytest
 
 from app.rag.ingest import ingest
+from app.rag.ingest import ingest_seed_documents
 from app.rag.search import search
 from app.rag.store import MemoryStore
 from tests.rag.conftest import HashEmbedder
@@ -27,3 +28,31 @@ def test_ingest_replaces_seed_chunks_and_makes_them_searchable(kb_dir):
 def test_ingest_rejects_empty_knowledge_directory(tmp_path):
     with pytest.raises(RuntimeError, match=r"\.md"):
         ingest(tmp_path, HashEmbedder(), MemoryStore(), max_chars=800, overlap=80)
+
+
+def test_seed_ingest_indexes_team_scoped_document_revisions(kb_dir, embedder):
+    class RecordingPgStore:
+        teams = ["team-a", "team-b"]
+
+        def __init__(self):
+            self.documents = []
+            self.indexes = []
+
+        def active_team_ids(self):
+            return self.teams
+
+        def prepare_seed_document(self, team_id, slug, title, content):
+            self.documents.append((team_id, slug, title, content))
+            return f"{team_id}-{slug}", 2
+
+        def replace_document_chunks(self, document_id, team_id, revision, slug, rows):
+            self.indexes.append((document_id, team_id, revision, slug, rows))
+
+    store = RecordingPgStore()
+    count = ingest_seed_documents(kb_dir, embedder, store, max_chars=800, overlap=80)
+
+    assert count > 0
+    assert len(store.documents) == len(list(kb_dir.glob("*.md"))) * 2
+    assert len(store.indexes) == len(store.documents)
+    assert all(index[1] in store.teams and index[2] == 2 for index in store.indexes)
+    assert all(row.document_id == index[0] and row.revision == 2 for index in store.indexes for row in index[4])

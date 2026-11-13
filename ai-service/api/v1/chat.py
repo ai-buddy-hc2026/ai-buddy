@@ -12,6 +12,17 @@ from openai import APITimeoutError, OpenAIError
 from redis.exceptions import RedisError
 
 from config import RouteTags
+from app.agent.context import UserContext
+from app.agent.knowledge_tool import (
+    MCP_NAME as KNOWLEDGE_MCP_NAME,
+    OPENAI_NAME as KNOWLEDGE_TOOL_NAME,
+    TOOL_DEFINITION as KNOWLEDGE_TOOL_DEFINITION,
+    extract_citations,
+    run_knowledge_search,
+)
+from app.agent.prompts import build_system_prompt
+from app.agent.unknown import unknown_answer_text
+from app.rag.runtime import ensure_kb_indexed, get_rag_resources
 from core.ai_service import (
     AIService,
     LLMTimeoutError,
@@ -54,6 +65,35 @@ EXPECTED_TOOL_ERRORS = {
     "POLICY_DENIED",
     "VERSION_CONFLICT",
 }
+
+
+async def _search_knowledge(arguments: dict[str, Any], context: UserContext) -> dict:
+    try:
+        await ensure_kb_indexed()
+        embedder, store = get_rag_resources()
+        return await asyncio.to_thread(
+            run_knowledge_search,
+            arguments,
+            context,
+            embedder=embedder,
+            store=store,
+        )
+    except Exception as exc:
+        logger.error("KB-поиск недоступен; details hidden error_type=%s", type(exc).__name__)
+        raise MCPContractError(
+            "DEPENDENCY_UNAVAILABLE",
+            "Не удалось выполнить поиск по базе знаний",
+            retryable=False,
+        ) from exc
+
+
+def _knowledge_tool() -> dict[str, Any]:
+    function = KNOWLEDGE_TOOL_DEFINITION["function"]
+    return {
+        "name": function["name"],
+        "description": function["description"],
+        "inputSchema": function["parameters"],
+    }
 
 
 def _get_field(value: Any, name: str, default: Any = None) -> Any:
@@ -115,8 +155,11 @@ async def pubsub_publish(
     answer_status = "answered"
     question_category = "other"
     sources: dict[str, dict[str, Any]] = {}
+    knowledge_result: dict[str, Any] | None = None
     deadline = time.monotonic() + GENERATION_TIMEOUT_SECONDS
-    messages = [item.model_dump() for item in chat_data.history]
+    context = UserContext.from_payload(chat_data.model_dump(mode="json"))
+    messages = [{"role": "system", "content": build_system_prompt(context)}]
+    messages.extend(item.model_dump() for item in chat_data.history)
     messages.append({"role": "user", "content": chat_data.message})
 
     async def publish_event(event: Any) -> None:
@@ -151,7 +194,7 @@ async def pubsub_publish(
         await publish_event(event_error)
 
     async def generate() -> None:
-        nonlocal seq, full_text, answer_status
+        nonlocal seq, full_text, answer_status, knowledge_result
         if ai_service.llm_client is None:
             raise LLMUnavailableError("LLM_API_KEY is not configured")
 
@@ -160,8 +203,14 @@ async def pubsub_publish(
             deadline_monotonic=deadline,
             publish_action_proposal=publish_proposal,
         ) as mcp:
-            tools = mcp.get_tools_for_llm()
+            tools = [
+                tool
+                for tool in mcp.get_tools_for_llm()
+                if tool["name"] != KNOWLEDGE_MCP_NAME
+            ]
+            tools.append(_knowledge_tool())
             tool_rounds = 0
+            no_answer_from_kb = False
 
             while True:
                 tool_calls: dict[int, dict[str, str]] = {}
@@ -239,6 +288,11 @@ async def pubsub_publish(
                             },
                         },
                     )
+                    event_tool_name = (
+                        KNOWLEDGE_MCP_NAME
+                        if call["name"] == KNOWLEDGE_TOOL_NAME
+                        else call["name"]
+                    )
                     seq += 1
                     await publish_event(
                         ToolCallEvent(
@@ -246,25 +300,21 @@ async def pubsub_publish(
                             request_id=chat_data.request_id,
                             seq=seq,
                             data=ToolCallData(
-                                tool_name=call["name"],
+                                tool_name=event_tool_name,
                                 arguments=arguments,
                             ),
                         ),
                     )
 
-                    if call["name"] in WRITE_TOOLS:
+                    if call["name"] == KNOWLEDGE_TOOL_NAME:
+                        knowledge_result = await _search_knowledge(arguments, context)
+                        no_answer_from_kb = knowledge_result.get("status") == "no_answer"
+                        result = knowledge_result
+                    elif call["name"] in WRITE_TOOLS:
                         result = await mcp.propose_action(call["name"], arguments)
                     else:
                         try:
                             result = await mcp.call_tool(call["name"], arguments)
-                            if call["name"] == "knowledge.search":
-                                items = result.get("items", [])
-                                if not items:
-                                    answer_status = "unknown"
-                                for item in items:
-                                    source = item.get("source", {})
-                                    if source:
-                                        sources[source["document_id"]] = source
                         except MCPContractError as error:
                             if error.code not in EXPECTED_TOOL_ERRORS:
                                 raise
@@ -297,29 +347,61 @@ async def pubsub_publish(
                 )
                 messages.extend(tool_results)
 
+                if no_answer_from_kb and proposal_count == 0:
+                    full_text = unknown_answer_text(context.role)
+                    answer_status = "unknown"
+                    seq += 1
+                    await publish_event(
+                        TokenEvent(
+                            event="token",
+                            request_id=chat_data.request_id,
+                            seq=seq,
+                            data=TokenData(text=full_text),
+                        ),
+                    )
+                    break
+
     try:
         async with asyncio.timeout(max(0, deadline - time.monotonic())):
             await generate()
             if not full_text and not proposal_count:
                 raise ValueError("Пустой ответ без предложения действия")
-            classify_question = getattr(ai_service, "classify_question", None)
-            if classify_question is not None:
-                question_category = await classify_question(chat_data.message)
-            seq += 1
-            await publish_event(
-                DoneEvent(
-                    event="done",
-                    request_id=chat_data.request_id,
-                    seq=seq,
-                    data=DoneData(
-                        full_text=full_text,
-                        sources=list(sources.values()),
-                        answer_status=answer_status,
-                        question_category=question_category,
-                    ),
+            if knowledge_result and knowledge_result.get("status") == "found":
+                full_text, found_sources = extract_citations(full_text, knowledge_result)
+                sources.update(
+                    (source["document_id"], source)
+                    for source in found_sources
+                    if source.get("document_id")
+                )
+        classify_question = getattr(ai_service, "classify_question", None)
+        if classify_question is not None:
+            try:
+                async with asyncio.timeout(3.0):
+                    question_category = await classify_question(chat_data.message)
+                if question_category not in {"task", "process", "access", "technical", "other"}:
+                    question_category = "other"
+            except Exception as error:
+                logger.warning(
+                    "Не удалось определить категорию вопроса request_id=%s error_type=%s",
+                    chat_data.request_id,
+                    type(error).__name__,
+                )
+                question_category = "other"
+        seq += 1
+        await publish_event(
+            DoneEvent(
+                event="done",
+                request_id=chat_data.request_id,
+                seq=seq,
+                data=DoneData(
+                    full_text=full_text,
+                    sources=list(sources.values()),
+                    answer_status=answer_status,
+                    question_category=question_category,
                 ),
-            )
-            state = "completed"
+            ),
+        )
+        state = "completed"
     except RedisError:
         # После потери публикации Go завершит запрос по своему дедлайну.
         logger.warning("Не удалось опубликовать событие в Redis")

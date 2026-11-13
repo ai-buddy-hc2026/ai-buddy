@@ -135,6 +135,8 @@ services:
       - LLM_BASE_URL=${LLM_BASE_URL:-http://ollama:11434/v1}
       - LLM_MODEL=${LLM_MODEL:-llama3:8b}
       - LLM_API_KEY=${LLM_API_KEY:-}
+      - POSTGRES_URL=${DATABASE_URL:-postgres://${POSTGRES_USER:-ai_buddy}:${POSTGRES_PASSWORD:-ai_buddy_dev}@postgres:5432/${POSTGRES_DB:-ai_buddy}?sslmode=disable}
+      - KB_INDEX_ON_STARTUP=${KB_INDEX_ON_STARTUP:-true}
       - REDIS_HOST=redis
       - MCP_SERVER_URL=${MCP_SERVER_URL:-http://backend:8080/mcp}
       - MCP_SERVICE_TOKEN=${MCP_SERVICE_TOKEN:?Set MCP_SERVICE_TOKEN in .env}
@@ -142,6 +144,8 @@ services:
       - AI_SERVICE_LOG_DIR=/app/logs
       - REDIS_PORT=6379
     depends_on:
+      db-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     healthcheck:
@@ -155,7 +159,10 @@ services:
     volumes:
       - ./logs/ai-service:/app/logs
       - ./ai-service:/app
+      - ./seed/kb:/app/seed/kb:ro
+      - ai_model_cache:/root/.cache/huggingface
 volumes:
   postgres_data:
   redis_data:
   ollama_data:
+  ai_model_cache:

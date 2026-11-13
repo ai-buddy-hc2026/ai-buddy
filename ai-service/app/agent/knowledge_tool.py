@@ -84,7 +84,17 @@ def run_knowledge_search(
                 "section": r.section,
                 "text": r.text,
                 "score": round(r.score, 3),
-                "source": r.source,
+                "source": (
+                    {
+                        "document_id": r.document_id,
+                        "revision": r.revision,
+                        "title": r.doc_title,
+                        "section": r.section,
+                        "url": f"kb/{r.slug}",
+                    }
+                    if r.document_id and r.revision and r.slug
+                    else None
+                ),
             }
             for i, r in enumerate(results, 1)
         ],
@@ -109,12 +119,7 @@ def extract_citations(text: str, tool_result: dict) -> tuple[str, list[dict]]:
     sources = []
     for i in chosen:
         r = by_id[i]
-        sources.append(
-            {
-                "doc_title": r["doc_title"],
-                "section": r["section"],
-                "source": r["source"],
-                "label": f"{r['doc_title']} / {r['section']}",
-            },
-        )
+        source = r.get("source")
+        if source is not None:
+            sources.append(source)
     return clean_text, sources

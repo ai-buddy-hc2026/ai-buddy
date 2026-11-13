@@ -21,6 +21,7 @@ EXPECTED_INTERN_TOOLS = {
     "checklist.get_plan",
     "checklist.update_status",
     "employees.get_manager",
+    "knowledge_search",
 }
 EXPECTED_BUDDY_TOOLS = EXPECTED_INTERN_TOOLS | {"absences.list_for_employee"}
 

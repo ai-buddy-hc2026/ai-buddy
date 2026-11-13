@@ -54,11 +54,14 @@ type Request struct {
 }
 type Record struct {
 	Request
-	ConversationID string
-	UserID         string
-	TeamID         string
-	LastSeq        int
-	FullText       string
+	ConversationID   string
+	UserID           string
+	TeamID           string
+	LastSeq          int
+	FullText         string
+	Sources          []json.RawMessage
+	AnswerStatus     *string
+	QuestionCategory *string
 }
 type Accepted struct {
 	RequestID      string `json:"request_id"`
@@ -67,11 +70,13 @@ type Accepted struct {
 	StreamURL      string `json:"stream_url"`
 }
 type Message struct {
-	ID        string            `json:"id"`
-	Role      string            `json:"role"`
-	Content   string            `json:"content"`
-	Sources   []json.RawMessage `json:"sources"`
-	CreatedAt time.Time         `json:"created_at"`
+	ID               string            `json:"id"`
+	Role             string            `json:"role"`
+	Content          string            `json:"content"`
+	Sources          []json.RawMessage `json:"sources"`
+	AnswerStatus     *string           `json:"answer_status,omitempty"`
+	QuestionCategory *string           `json:"question_category,omitempty"`
+	CreatedAt        time.Time         `json:"created_at"`
 }
 type Turn struct {
 	Request  Request           `json:"request"`
@@ -94,8 +99,63 @@ type Token struct {
 	Text *string `json:"text"`
 }
 type Done struct {
-	FullText *string           `json:"full_text"`
-	Sources  []json.RawMessage `json:"sources"`
+	FullText         *string           `json:"full_text"`
+	Sources          []json.RawMessage `json:"sources"`
+	AnswerStatus     *string           `json:"answer_status,omitempty"`
+	QuestionCategory *string           `json:"question_category,omitempty"`
+}
+
+type Source struct {
+	DocumentID string `json:"document_id"`
+	Revision   int    `json:"revision"`
+	Title      string `json:"title"`
+	Section    string `json:"section"`
+	URL        string `json:"url"`
+}
+
+func ValidateDone(done Done) bool {
+	if done.FullText == nil || utf8.RuneCountInString(*done.FullText) > 20000 || done.Sources == nil {
+		return false
+	}
+	if done.AnswerStatus != nil && *done.AnswerStatus != "answered" && *done.AnswerStatus != "unknown" {
+		return false
+	}
+	if done.QuestionCategory != nil {
+		switch *done.QuestionCategory {
+		case "task", "process", "access", "technical", "other":
+		default:
+			return false
+		}
+	}
+	for _, raw := range done.Sources {
+		var source Source
+		if json.Unmarshal(raw, &source) != nil ||
+			!identifier.ValidUUID(source.DocumentID) || source.Revision < 1 ||
+			strings.TrimSpace(source.Title) == "" || utf8.RuneCountInString(source.Title) > 500 ||
+			utf8.RuneCountInString(source.Section) > 500 || !validSourceURL(source.URL) {
+			return false
+		}
+	}
+	return true
+}
+
+func validSourceURL(value string) bool {
+	if strings.HasPrefix(value, "kb/") {
+		value = strings.TrimPrefix(value, "kb/")
+	} else if strings.HasPrefix(value, "/docs/kb/") {
+		value = strings.TrimPrefix(value, "/docs/kb/")
+	} else {
+		return false
+	}
+	if value == "" || strings.Contains(value, "..") || strings.ContainsAny(value, "/?#%") {
+		return false
+	}
+	for _, char := range value {
+		if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '-' && char != '_' {
+			return false
+		}
+	}
+	return true
 }
 
 func StreamURL(id string) string { return "/chat/stream/" + id }
@@ -145,7 +205,7 @@ func ParseEvent(raw []byte, id string) (Event, error) {
 		event.Data, _ = json.Marshal(token)
 	case "done":
 		var done Done
-		if json.Unmarshal(event.Data, &done) != nil || done.FullText == nil || utf8.RuneCountInString(*done.FullText) > 20000 || done.Sources == nil || len(done.Sources) != 0 {
+		if json.Unmarshal(event.Data, &done) != nil || !ValidateDone(done) {
 			return event, ErrInvalid
 		}
 		event.Data, _ = json.Marshal(done)

@@ -57,12 +57,16 @@ class FakeAI:
         self.calls = 0
         self.closed = False
         self.category = category
+        self.messages = []
+        self.tools = []
 
     async def classify_question(self, _question):
         return self.category
 
-    async def stream_step(self, _messages, _tools):
+    async def stream_step(self, messages, tools):
         self.calls += 1
+        self.messages = messages
+        self.tools = tools
         try:
             for part in self.parts:
                 if self.delay:
@@ -200,12 +204,31 @@ async def test_redis_loss_does_not_publish_conflicting_sequence(caplog):
     assert json.loads(redis.values[f"chat:{data.request_id}"])["state"] == "failed"
 
 
+async def test_classification_failure_keeps_answer_and_uses_other(monkeypatch):
+    redis = FakeRedis()
+    ai = FakeAI(parts=("Synthetic answer",))
+    monkeypatch.setattr(chat, "GenerationMCPClient", lambda **kwargs: SearchMCP([]))
+
+    async def fail_classification(_question):
+        raise TimeoutError("private classification timeout")
+
+    ai.classify_question = fail_classification
+    await chat.pubsub_publish(ChatRequest.model_validate(payload()), ai, redis)
+
+    assert [event["event"] for event in redis.events] == ["token", "done"]
+    assert redis.events[-1]["data"]["full_text"] == "Synthetic answer"
+    assert redis.events[-1]["data"]["question_category"] == "other"
+    assert json.loads(redis.values[f"chat:{redis.events[-1]['request_id']}"])["state"] == "completed"
+
+
 class SearchAI(FakeAI):
     def __init__(self, category="process"):
         super().__init__(parts=(), category=category)
 
-    async def stream_step(self, _messages, _tools):
+    async def stream_step(self, messages, tools):
         self.calls += 1
+        self.messages = messages
+        self.tools = tools
         try:
             if self.calls == 1:
                 yield {
@@ -214,8 +237,8 @@ class SearchAI(FakeAI):
                         "index": 0,
                         "id": "search-1",
                         "function": {
-                            "name": "knowledge.search",
-                            "arguments": "{}",
+                            "name": "knowledge_search",
+                            "arguments": '{"query":"Synthetic question"}',
                         },
                     },
                 }
@@ -254,7 +277,7 @@ class SearchMCP:
                         "revision": 3,
                         "title": "Synthetic guide",
                         "section": "Setup",
-                        "url": "/knowledge/synthetic-guide",
+                        "url": "kb/synthetic-guide",
                     },
                     "content": "Synthetic content",
                 },
@@ -266,7 +289,7 @@ class SearchMCP:
                     "revision": 3,
                     "title": "Synthetic guide",
                     "section": "Setup",
-                    "url": "/knowledge/synthetic-guide",
+                    "url": "kb/synthetic-guide",
                 },
             ],
         ),
@@ -282,6 +305,29 @@ async def test_search_result_sets_answer_status_sources_and_category(
     ai = SearchAI()
     monkeypatch.setattr(chat, "GenerationMCPClient", lambda **kwargs: SearchMCP(items))
 
+    async def search_knowledge(_arguments, _context):
+        if not items:
+            return {
+                "status": "no_answer",
+                "who_to_ask": ["наставник"],
+                "suggest_escalation": True,
+            }
+        source = items[0]["source"]
+        return {
+            "status": "found",
+            "results": [
+                {
+                    "id": 1,
+                    "doc_title": source["title"],
+                    "section": source["section"],
+                    "text": items[0]["content"],
+                    "source": source,
+                }
+            ],
+        }
+
+    monkeypatch.setattr(chat, "_search_knowledge", search_knowledge)
+
     await chat.pubsub_publish(ChatRequest.model_validate(payload()), ai, redis)
 
     done = redis.events[-1]
@@ -289,3 +335,6 @@ async def test_search_result_sets_answer_status_sources_and_category(
     assert done["data"]["answer_status"] == expected_status
     assert done["data"]["question_category"] == "process"
     assert done["data"]["sources"] == expected_sources
+    assert ai.messages[0]["role"] == "system"
+    assert "Роль: стажёр" in ai.messages[0]["content"]
+    assert any(tool["name"] == "knowledge_search" for tool in ai.tools)
