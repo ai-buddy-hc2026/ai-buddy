@@ -72,6 +72,8 @@ func TestProfileEventValidation(t *testing.T) {
 	}
 	for _, raw := range []string{
 		`null`, `{`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[],"answer_status":"answered"}}`,
+		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":[],"question_category":"process"}}`,
 		`{"event":"token","request_id":"` + id + `","seq":0,"data":{"text":"x"}}`,
 		`{"event":"token","request_id":"` + id + `","seq":1,"data":{"text":null}}`,
 		`{"event":"done","request_id":"` + id + `","seq":1,"data":{"full_text":"Ответ","sources":null}}`,

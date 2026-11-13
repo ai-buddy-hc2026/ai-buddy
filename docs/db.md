@@ -437,7 +437,7 @@ pending_approval. Составные FK ограничивают ссылки о
 
 Индексы: `(team_id, event_type, created_at, id)`, `(actor_id, created_at, id) WHERE actor_id IS NOT NULL`, `(request_id) WHERE request_id IS NOT NULL`, `(action_id) WHERE action_id IS NOT NULL`, `(task_id) WHERE task_id IS NOT NULL`.
 
-Начальный каталог: `chat_question`, `answer_completed`, `answer_with_source`, `answer_unknown`, `action_proposed`, `action_confirmed`, `action_failed`, `escalation_created`, `policy_denied`, `task_status_changed`. События могут пересекаться: один ответ даёт `answer_completed` и при наличии источника `answer_with_source`. `answer_unknown` записывается по явному исходу «ответ не найден», а не просто по пустому массиву источников.
+Начальный каталог: `chat_question`, `answer_completed`, `answer_with_source`, `action_proposed`, `action_confirmed`, `action_failed`, `escalation_created`, `policy_denied`, `task_status_changed`. `answer_completed` содержит `answer_status` (`answered` или `unknown`) и назначаемую AI-service `question_category` (`task`, `process`, `access`, `technical` или `other`). Явное «не знаю» записывается как `answer_completed` со статусом `unknown`. Событие `answer_with_source` дополняет его при наличии подтверждённых источников.
 
 Каталог, поля и формулы метрик согласуются с аналитиком; это не PostgreSQL enum. Полный текст чата, токены доступа и параметры с секретами в `payload` не дублируются. Событие, связанное с изменением БД, записывается в той же транзакции. Пример `dedup_key`: `request:<uuid>:answer_completed` или `task:<uuid>:version:<n>:status_changed`.
 

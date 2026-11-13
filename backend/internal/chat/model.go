@@ -114,6 +114,9 @@ type Source struct {
 }
 
 func ValidateDone(done Done) bool {
+	if (done.AnswerStatus == nil) != (done.QuestionCategory == nil) {
+		return false
+	}
 	if done.FullText == nil || utf8.RuneCountInString(*done.FullText) > 20000 || done.Sources == nil {
 		return false
 	}

@@ -129,7 +129,8 @@ func (s *Chat) Create(ctx context.Context, actorID, id string, input chat.Input)
 	if _, err := tx.Exec(ctx, "UPDATE conversations SET updated_at=now() WHERE id=$1", payload.ConversationID); err != nil {
 		return record, payload, err
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,request_id,event_type,dedup_key) VALUES ($1,$2,$3,'chat_question',$4)`, payload.TeamID, actorID, id, "request:"+id+":chat_question"); err != nil {
+	questionPayload, _ := json.Marshal(map[string]string{"conversation_id": payload.ConversationID})
+	if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,request_id,event_type,dedup_key,payload) VALUES ($1,$2,$3,'chat_question',$4,$5)`, payload.TeamID, actorID, id, "request:"+id+":chat_question", questionPayload); err != nil {
 		return record, payload, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -217,6 +218,7 @@ func (s *Chat) Finish(ctx context.Context, id string, event chat.Event) error {
 	var text string
 	var sourcesJSON []byte
 	var answerStatus, questionCategory *string
+	sourceRefs := []map[string]any{}
 	switch event.Type {
 	case "done":
 		var done chat.Done
@@ -241,6 +243,7 @@ func (s *Chat) Finish(ctx context.Context, id string, event chat.Event) error {
 			if !accessible {
 				return chat.ErrInvalid
 			}
+			sourceRefs = append(sourceRefs, map[string]any{"document_id": source.DocumentID, "revision": source.Revision})
 		}
 		sourcesJSON, err = json.Marshal(done.Sources)
 		if err != nil {
@@ -294,8 +297,20 @@ func (s *Chat) Finish(ctx context.Context, id string, event chat.Event) error {
 		if _, err := tx.Exec(ctx, "UPDATE chat_requests SET status='done',last_seq=$2,terminal_seq=$2,finished_at=now(),updated_at=now() WHERE id=$1", id, event.Seq); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,request_id,event_type,dedup_key) VALUES ($1,$2,$3,'answer_completed',$4)`, record.TeamID, record.UserID, id, "request:"+id+":answer_completed"); err != nil {
+		metadata := map[string]string{}
+		if answerStatus != nil {
+			metadata["answer_status"] = *answerStatus
+			metadata["question_category"] = *questionCategory
+		}
+		answerPayload, _ := json.Marshal(metadata)
+		if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,request_id,event_type,dedup_key,payload) VALUES ($1,$2,$3,'answer_completed',$4,$5)`, record.TeamID, record.UserID, id, "request:"+id+":answer_completed", answerPayload); err != nil {
 			return err
+		}
+		if len(sourceRefs) > 0 {
+			payload, _ := json.Marshal(map[string]any{"sources": sourceRefs, "source_count": len(sourceRefs)})
+			if _, err := tx.Exec(ctx, `INSERT INTO events (team_id,actor_id,request_id,event_type,dedup_key,payload) VALUES ($1,$2,$3,'answer_with_source',$4,$5)`, record.TeamID, record.UserID, id, "request:"+id+":answer_with_source", payload); err != nil {
+				return err
+			}
 		}
 	} else {
 		if _, err := tx.Exec(ctx, "UPDATE chat_requests SET status='error',error_code=$2,error_message=$3,last_seq=$4,terminal_seq=$4,finished_at=now(),updated_at=now() WHERE id=$1", id, failure.Code, failure.Message, event.Seq); err != nil {
