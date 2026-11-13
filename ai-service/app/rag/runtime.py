@@ -35,4 +35,4 @@ def start_kb_indexing() -> asyncio.Task[int]:
 
 async def ensure_kb_indexed() -> int:
     task = start_kb_indexing()
-    return await task
+    return await asyncio.shield(task)

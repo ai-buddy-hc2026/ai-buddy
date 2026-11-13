@@ -1,6 +1,10 @@
 import pytest
 
-from app.rag.ingest import ingest, ingest_seed_documents
+from app.rag.ingest import (
+    ingest,
+    ingest_published_answers,
+    ingest_seed_documents,
+)
 from app.rag.search import search
 from app.rag.store import MemoryStore
 from tests.rag.conftest import HashEmbedder
@@ -59,3 +63,34 @@ def test_seed_ingest_indexes_team_scoped_document_revisions(kb_dir, embedder):
         for index in store.indexes
         for row in index[4]
     )
+
+
+def test_published_answer_is_indexed_once_per_revision(embedder):
+    class AnswerStore:
+        revision = 1
+        indexed_revision = None
+
+        def unindexed_answers(self, team_id):
+            assert team_id == "team-a"
+            if self.indexed_revision == self.revision:
+                return []
+            return [
+                (
+                    "doc-1",
+                    team_id,
+                    self.revision,
+                    "buddy-answer",
+                    "# Ответ\n\nНаставник объяснил процесс.",
+                ),
+            ]
+
+        def replace_document_chunks(self, document_id, team_id, revision, slug, rows):
+            assert document_id == "doc-1" and team_id == "team-a"
+            assert rows and all(row.revision == revision for row in rows)
+            self.indexed_revision = revision
+
+    store = AnswerStore()
+    assert ingest_published_answers("team-a", embedder, store) > 0
+    assert ingest_published_answers("team-a", embedder, store) == 0
+    store.revision = 2
+    assert ingest_published_answers("team-a", embedder, store) > 0

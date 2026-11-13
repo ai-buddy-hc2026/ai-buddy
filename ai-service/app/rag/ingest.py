@@ -113,6 +113,39 @@ def ingest_kb(retries: int = 30, delay: float = 2.0) -> int:
     raise RuntimeError(f"Не удалось загрузить базу знаний: {last}")
 
 
+def ingest_published_answers(team_id: str, embedder: Embedder, store: PgStore) -> int:
+    """Индексирует новые редакции ответов наставника перед поиском команды."""
+    settings = get_settings()
+    count = 0
+    for document_id, document_team, revision, slug, content in store.unindexed_answers(
+        team_id,
+    ):
+        chunks = chunk_document(
+            content,
+            slug,
+            settings.chunk_max_chars,
+            settings.chunk_overlap,
+        )
+        if not chunks:
+            continue
+        vectors = embedder.embed_passages([chunk.embed_text for chunk in chunks])
+        rows = [
+            ChunkRow(
+                chunk.doc_title,
+                chunk.section,
+                chunk.text,
+                vector,
+                document_team,
+                document_id,
+                revision,
+            )
+            for chunk, vector in zip(chunks, vectors, strict=True)
+        ]
+        store.replace_document_chunks(document_id, document_team, revision, slug, rows)
+        count += len(rows)
+    return count
+
+
 if __name__ == "__main__":
     n = ingest_kb()
     print(f"kb ingest: {n} chunks", file=sys.stderr)

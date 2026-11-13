@@ -267,6 +267,25 @@ class SearchMCP:
     async def call_tool(self, _name, _arguments):
         return {"items": self.items}
 
+    async def authorize_knowledge(self):
+        data = payload()
+        return {key: data[key] for key in ("user_id", "team_id", "role")}
+
+
+async def test_denied_knowledge_scope_never_reads_kb(monkeypatch):
+    class DeniedSearchMCP(SearchMCP):
+        async def authorize_knowledge(self):
+            raise chat.MCPContractError("POLICY_DENIED", "Доступ закрыт")
+
+    async def forbidden_search(*_args):
+        pytest.fail("KB must not be queried after a policy denial")
+
+    monkeypatch.setattr(chat, "GenerationMCPClient", lambda **kwargs: DeniedSearchMCP([]))
+    monkeypatch.setattr(chat, "_search_knowledge", forbidden_search)
+    redis = FakeRedis()
+    await chat.pubsub_publish(ChatRequest.model_validate(payload()), SearchAI(), redis)
+    assert redis.events[-1]["event"] == "error"
+
 
 @pytest.mark.parametrize(
     ("items", "expected_status", "expected_sources"),

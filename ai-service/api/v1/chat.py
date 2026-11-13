@@ -20,6 +20,7 @@ from app.agent.knowledge_tool import (
 from app.agent.knowledge_tool import extract_citations, run_knowledge_search
 from app.agent.prompts import build_system_prompt
 from app.agent.unknown import is_explicit_unknown_answer, unknown_answer_text
+from app.rag.ingest import ingest_published_answers
 from app.rag.runtime import ensure_kb_indexed, get_rag_resources
 from config import RouteTags
 from core.ai_service import (
@@ -70,6 +71,12 @@ async def _search_knowledge(arguments: dict[str, Any], context: UserContext) -> 
     try:
         await ensure_kb_indexed()
         embedder, store = get_rag_resources()
+        await asyncio.to_thread(
+            ingest_published_answers,
+            context.team_id,
+            embedder,
+            store,
+        )
         return await asyncio.to_thread(
             run_knowledge_search,
             arguments,
@@ -309,6 +316,16 @@ async def pubsub_publish(
                     )
 
                     if call["name"] == KNOWLEDGE_TOOL_NAME:
+                        scope = await mcp.authorize_knowledge()
+                        if (
+                            scope["user_id"] != context.user_id
+                            or scope["team_id"] != context.team_id
+                            or scope["role"] != context.role
+                        ):
+                            raise MCPContractError(
+                                "POLICY_DENIED",
+                                "Контекст доступа изменился",
+                            )
                         knowledge_result = await _search_knowledge(arguments, context)
                         no_answer_from_kb = knowledge_result.get("status") == "no_answer"
                         result = knowledge_result

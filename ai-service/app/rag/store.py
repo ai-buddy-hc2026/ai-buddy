@@ -98,6 +98,24 @@ class PgStore:
             cur.execute("SELECT id::text FROM teams WHERE active ORDER BY id")
             return [row[0] for row in cur.fetchall()]
 
+    def unindexed_answers(self, team_id: str) -> list[tuple]:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT d.id::text, d.team_id::text, d.revision, d.slug, d.content
+                FROM kb_documents d
+                WHERE d.team_id = %s AND d.status = 'published'
+                    AND d.source_type = 'buddy_answer'
+                    AND NOT EXISTS (
+                        SELECT 1 FROM kb_chunks c WHERE c.document_id = d.id
+                        AND c.team_id = d.team_id AND c.revision = d.revision
+                    )
+                ORDER BY d.created_at, d.id
+                """,
+                (team_id,),
+            )
+            return cur.fetchall()
+
     def prepare_seed_document(
         self,
         team_id: str,
@@ -170,6 +188,13 @@ class PgStore:
     ) -> None:
         with self._connect() as conn, conn.cursor() as cur:
             cur.execute(
+                "SELECT id FROM kb_documents WHERE id = %s AND team_id = %s "
+                "AND revision = %s AND status = 'published' FOR UPDATE",
+                (document_id, team_id, revision),
+            )
+            if cur.fetchone() is None:
+                raise RuntimeError("KB document changed while indexing")
+            cur.execute(
                 "DELETE FROM kb_chunks WHERE document_id = %s AND team_id = %s",
                 (document_id, team_id),
             )
@@ -179,7 +204,7 @@ class PgStore:
                 UPDATE kb_documents
                 SET index_status = 'ready', indexed_revision = %s,
                     index_error = NULL, updated_at = now()
-                WHERE id = %s AND team_id = %s AND revision = %s
+                WHERE id = %s AND team_id = %s AND revision = %s AND status = 'published'
                 """,
                 (revision, document_id, team_id, revision),
             )
