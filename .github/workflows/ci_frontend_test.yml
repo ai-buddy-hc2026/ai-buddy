@@ -1,0 +1,64 @@
+name: Frontend CI
+
+on:
+  push:
+    branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service-*'
+      - main
+      - master
+  pull_request:
+    branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service'
+      - 'ai-service-*'
+      - main
+      - master
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check code formatting (Prettier)
+        run: npm run format:check
+
+      - name: Run Linter (ESLint)
+        run: npm run lint
+
+      - name: Run Typecheck (TypeScript)
+        run: npm run typecheck
+
+      - name: Test coverage
+        run: npm run test:coverage
+
+      - name: Upload TypeScript coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: typescript-coverage
+          path: coverage/typescript
+          if-no-files-found: error
+
+      - name: Build frontend
+        run: npm run build

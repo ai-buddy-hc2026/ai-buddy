@@ -1,0 +1,51 @@
+name: ai-service test
+on:
+  push:
+    branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service-*'
+      - main
+      - master
+  pull_request:
+    branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service'
+      - 'ai-service-*'
+      - main
+      - master
+jobs:
+  ai-service-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+          cache: 'pip'
+          cache-dependency-path: ai-service/requirements/test.txt
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ai-service/requirements/test.txt
+          pip install pytest-cov
+
+      - name: Create env.test
+        run: |
+          cat << 'EOF' > ai-service/.env
+          ${{ secrets.ENV_TEST_SECRET }}
+          EOF
+      - name: Run Unit & Integration Tests
+        run: pytest tests/agent tests/contract tests/rag tests/unit --cov=api --cov=app --cov=config --cov=core --cov=integrations --cov=schemas --cov=main --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80
+        working-directory: ai-service
+      - name: Upload Python Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: ai-service/coverage.xml
+          if-no-files-found: error

@@ -1,0 +1,26 @@
+[flake8]
+exclude = 
+    .git
+    __pycache__
+    .tox
+    .eggs
+    *.egg
+    .venv
+    venv
+    */site-packages/*
+    ./*/site-packages/*
+    ./.venv/*
+    ./*/migrations
+    manage.py
+    /static/
+    __init__.py
+    alembic
+
+ignore = N805, B008, F821, E701, W503, B042
+max-line-length = 90
+import-order-style = google
+application-import-names = api, config, schemas, core
+
+inline-quotes = double
+multiline-quotes = double
+docstring-quotes = double

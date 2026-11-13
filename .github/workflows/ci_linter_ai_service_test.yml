@@ -1,0 +1,44 @@
+name: linter ai-service test
+on:
+  push:
+    branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service-*'
+      - main
+      - master
+  pull_request:
+    branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service'
+      - 'ai-service-*'
+      - main
+      - master
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+      - name: Set Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ai-service/requirements/dev.txt
+
+      - name: Isort check
+        run: isort . --check-only
+        working-directory: ai-service
+
+      - name: black
+        run: black --check .
+        working-directory: ai-service
+
+      - name: flake8
+        run: flake8 .
+        working-directory: ai-service

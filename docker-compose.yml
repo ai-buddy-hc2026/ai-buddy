@@ -14,11 +14,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 60s
 
   redis:
     image: redis:7-alpine
@@ -34,6 +34,20 @@ services:
       timeout: 3s
       retries: 10
 
+  db-init:
+    build:
+      context: ./backend
+    entrypoint: ["/app/db-init"]
+    restart: "no"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-ai_buddy}:${POSTGRES_PASSWORD:-ai_buddy_dev}@postgres:5432/${POSTGRES_DB:-ai_buddy}?sslmode=disable}
+      CHECKLIST_SEED_PATH: /app/seed/checklist.json
+    volumes:
+      - ./seed:/app/seed:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   backend:
     build:
       context: ./backend
@@ -43,11 +57,19 @@ services:
       HOST: 0.0.0.0
       PORT: "8080"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env, see .env.example}
+      JWT_TTL: ${JWT_TTL:-1h}
       DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-ai_buddy}:${POSTGRES_PASSWORD:-ai_buddy_dev}@postgres:5432/${POSTGRES_DB:-ai_buddy}?sslmode=disable}
       REDIS_URL: redis://redis:6379/0
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8000}
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?Set AI_SERVICE_TOKEN in .env}
+      MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-}
+      ABSENCES_FAIL_RATE: ${ABSENCES_FAIL_RATE:-0}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     depends_on:
+      db-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -64,7 +86,83 @@ services:
     depends_on:
       backend:
         condition: service_started
+  ollama:
+    profiles: [ollama]
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
+  ollama-init:
+    profiles: [ollama]
+    image: ollama/ollama:latest
+    container_name: ollama_init
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    depends_on:
+      - ollama
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for Ollama server to start...';
+      until ollama list > /dev/null 2>&1; do
+        sleep 2;
+      done;
+      echo 'Ollama server is up! Pulling llama3 model...';
+      ollama pull llama3;
+      echo 'Model successfully pulled!';
+      "
+    restart: "no"
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://ollama:11434/v1}
+      - LLM_MODEL=${LLM_MODEL:-llama3:8b}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - POSTGRES_URL=${DATABASE_URL:-postgres://${POSTGRES_USER:-ai_buddy}:${POSTGRES_PASSWORD:-ai_buddy_dev}@postgres:5432/${POSTGRES_DB:-ai_buddy}?sslmode=disable}
+      - KB_INDEX_ON_STARTUP=${KB_INDEX_ON_STARTUP:-true}
+      - REDIS_HOST=redis
+      - MCP_SERVER_URL=${MCP_SERVER_URL:-http://backend:8080/mcp}
+      - MCP_SERVICE_TOKEN=${MCP_SERVICE_TOKEN:?Set MCP_SERVICE_TOKEN in .env}
+      - AI_SERVICE_LOG_LEVEL=${AI_SERVICE_LOG_LEVEL:-INFO}
+      - AI_SERVICE_LOG_DIR=/app/logs
+      - REDIS_PORT=6379
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; exit(0) if urllib.request.urlopen('http://127.0.0.1:8000/health').getcode() == 200 else exit(1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    ports:
+      - "127.0.0.1:${AI_SERVICE_PORT:-8000}:8000"
+    volumes:
+      - ./logs/ai-service:/app/logs
+      - ./ai-service:/app
+      - ./seed/kb:/app/seed/kb:ro
+      - ai_model_cache:/root/.cache/huggingface
 volumes:
   postgres_data:
   redis_data:
+  ollama_data:
+  ai_model_cache:
