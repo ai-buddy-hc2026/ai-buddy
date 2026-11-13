@@ -9,6 +9,17 @@ from openai import (
 
 from config import get_settings
 
+# OpenAI requires function names to match ^[a-zA-Z0-9_-]+$, MCP tool names use dots.
+LLM_TOOL_NAME_SEPARATOR = "__"
+
+
+def to_llm_tool_name(mcp_name: str) -> str:
+    return mcp_name.replace(".", LLM_TOOL_NAME_SEPARATOR)
+
+
+def from_llm_tool_name(llm_name: str) -> str:
+    return llm_name.replace(LLM_TOOL_NAME_SEPARATOR, ".")
+
 
 class LLMUnavailableError(Exception):
     pass
@@ -47,7 +58,7 @@ class AIService:
                 {
                     "type": "function",
                     "function": {
-                        "name": t["name"],
+                        "name": to_llm_tool_name(t["name"]),
                         "description": t.get("description", ""),
                         "parameters": t["inputSchema"],
                     },

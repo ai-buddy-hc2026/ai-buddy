@@ -16,6 +16,7 @@ from core.ai_service import (
     AIService,
     LLMTimeoutError,
     LLMUnavailableError,
+    from_llm_tool_name,
     get_ai_service,
 )
 from core.dependencies import get_redis
@@ -236,6 +237,7 @@ async def pubsub_publish(
                             },
                         },
                     )
+                    tool_name = from_llm_tool_name(call["name"])
                     seq += 1
                     await publish_event(
                         ToolCallEvent(
@@ -243,17 +245,17 @@ async def pubsub_publish(
                             request_id=chat_data.request_id,
                             seq=seq,
                             data=ToolCallData(
-                                tool_name=call["name"],
+                                tool_name=tool_name,
                                 arguments=arguments,
                             ),
                         ),
                     )
 
-                    if call["name"] in WRITE_TOOLS:
-                        result = await mcp.propose_action(call["name"], arguments)
+                    if tool_name in WRITE_TOOLS:
+                        result = await mcp.propose_action(tool_name, arguments)
                     else:
                         try:
-                            result = await mcp.call_tool(call["name"], arguments)
+                            result = await mcp.call_tool(tool_name, arguments)
                         except MCPContractError as error:
                             if error.code not in EXPECTED_TOOL_ERRORS:
                                 raise
