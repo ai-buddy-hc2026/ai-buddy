@@ -1,5 +1,4 @@
 import os
-from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -24,13 +23,10 @@ def infra_containers():
 
 
 @pytest_asyncio.fixture
-async def ai_service(monkeypatch: pytest.MonkeyPatch):
-    settings = get_settings()
-    monkeypatch.setattr(settings, "LLM_BASE_URL", "https://llm.invalid/v1")
-    monkeypatch.setattr(settings, "LLM_MODEL", "synthetic-model")
-    monkeypatch.setattr(settings, "LLM_API_KEY", "synthetic-key")
+async def ai_service():
+    if os.getenv("TEST_INFRA_FROM_COMPOSE") != "1":
+        pytest.fail("Запустите интеграционные тесты через docker-compose.test.yml")
     service = AIService()
-    monkeypatch.setattr(service, "classify_question", AsyncMock(return_value="other"))
     try:
         yield service
     finally:
