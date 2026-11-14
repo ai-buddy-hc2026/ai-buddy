@@ -1,9 +1,12 @@
 import asyncio
 import json
+from unittest.mock import AsyncMock
 from uuid import UUID
 
+import httpx
 import pytest
 import redis.asyncio as aioredis
+from openai import APIStatusError
 
 from api.v1.chat import pubsub_publish
 from config import get_settings
@@ -98,11 +101,24 @@ async def test_pubsub_publish_streams_tokens_and_done(
 async def test_pubsub_publish_emits_error_when_generation_fails(
     chat_request: ChatRequest,
     redis_client: aioredis.Redis,
+    ai_service: AIService,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = get_settings()
-    monkeypatch.setattr(settings, "LLM_MODEL", "missing-ai-buddy-test-model")
-    ai_service = AIService()
+    response = httpx.Response(
+        404,
+        request=httpx.Request("POST", "https://llm.invalid/v1/chat/completions"),
+    )
+    monkeypatch.setattr(
+        ai_service.llm_client.chat.completions,
+        "create",
+        AsyncMock(
+            side_effect=APIStatusError(
+                "synthetic missing model",
+                response=response,
+                body={"error": {"code": "model_not_found"}},
+            ),
+        ),
+    )
 
     events = await _run_and_read_events(chat_request, ai_service, redis_client)
 

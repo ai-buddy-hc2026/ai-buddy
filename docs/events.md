@@ -6,19 +6,19 @@
 
 ## Общие поля
 
-| Поле             | Тип           |Назначение                                                                          |
+| Поле             | Тип           | Назначение                                                                          |
 | ---------------- | ------------- | ----------------------------------------------------------------------------------- |
-| `id`             | `uuid`       | Уникальный идентификатор события, первичный ключ.                                   |
-| `team_id`        | `uuid`            | Команда, к которой относится событие.                                               |
-| `actor_id`       | `uuid`              | Пользователь, инициировавший событие. Для системных событий `NULL`.                 |
-| `request_id`     | `uuid`               | Идентификатор генерации ответа или связанного запроса.                              |
-| `action_id`      | `uuid`              | Идентификатор действия, если событие связано с действием.                           |
-| `task_id`        | `uuid`               | Идентификатор задачи, если событие связано с задачей.                               |
-| `event_type`     | `text`            | Код события из каталога ниже. Это не PostgreSQL enum.                               |
-| `schema_version` | `smallint`        | Версия структуры `payload`, по умолчанию `1`. Значение не меньше `1`.               |
-| `dedup_key`      | `text`              | Устойчивый ключ для защиты от повторной записи. Должен быть уникальным, если задан. |
-| `payload`        | `jsonb`           | Дополнительные разрешённые данные события. По умолчанию `{}`.                       |
-| `created_at`     | `timestamptz`    | Время записи события в PostgreSQL.                                                  |
+| `id`             | `uuid`        | Уникальный идентификатор события, первичный ключ.                                   |
+| `team_id`        | `uuid`        | Команда, к которой относится событие.                                               |
+| `actor_id`       | `uuid`        | Пользователь, инициировавший событие. Для системных событий `NULL`.                 |
+| `request_id`     | `uuid`        | Идентификатор генерации ответа или связанного запроса.                              |
+| `action_id`      | `uuid`        | Идентификатор действия, если событие связано с действием.                           |
+| `task_id`        | `uuid`        | Идентификатор задачи, если событие связано с задачей.                               |
+| `event_type`     | `text`        | Код события из каталога ниже. Это не PostgreSQL enum.                               |
+| `schema_version` | `smallint`    | Версия структуры `payload`, по умолчанию `1`. Значение не меньше `1`.               |
+| `dedup_key`      | `text`        | Устойчивый ключ для защиты от повторной записи. Должен быть уникальным, если задан. |
+| `payload`        | `jsonb`       | Дополнительные разрешённые данные события. По умолчанию `{}`.                       |
+| `created_at`     | `timestamptz` | Время записи события в PostgreSQL.                                                  |
 
 `team_id` ограничивает область события. Связанные `actor_id`, `request_id`,
 `action_id` и `task_id` должны принадлежать той же команде. Неверный или чужой
@@ -31,42 +31,74 @@
 
 ## Каталог и момент записи
 
-| Событие               | Связанные поля                                                             | Когда записывается                                                                                                                            | Минимальный `payload`                                                      |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `chat_question`       | `team_id`, `actor_id`, `request_id`                                        | Одновременно с созданием `chat_requests` и пользовательского сообщения, после проверки доступа.                                                   | `conversation_id`. Категория здесь не задаётся: её определяет AI-service после генерации. |
-| `answer_completed`   | `team_id`, `actor_id`, `request_id`                                        | При атомарном сохранении успешного ответа. Записывается и для результата `unknown`.                                                            | `answer_status`: `answered` или `unknown`; `question_category`: `task`, `process`, `access`, `technical` или `other`. |
-| `answer_with_source`  | `team_id`, `actor_id`, `request_id`                                        | Дополнительное событие успешного ответа, если Go проверил и сохранил один или несколько подтверждённых источников.                              | Идентификаторы документов и их `revision`, количество источников.          |
-| `action_proposed`     | `team_id`, `actor_id`, `request_id`, `action_id`                           | После сохранения предложения действия со статусом `proposed` и до показа карточки в UI.                                                       | `action_type`, `proposal_seq`.                                              |
-| `action_confirmed`    | `team_id`, `actor_id`, `request_id`, `action_id`                           | После повторной проверки пользователя и параметров, при атомарной фиксации подтверждения и резервировании выполнения.                         | `action_type`, `status=confirmed`.                                          |
-| `action_failed`       | `team_id`, `actor_id`, `request_id`, `action_id`                           | После неуспешного выполнения или после фиксации ошибки выполнения действия.                                                                   | `attempt`, код ошибки, безопасное сообщение и `status=failed`.                    |
-| `escalation_created`  | `team_id`, `actor_id`, `request_id`, `action_id`                           | После создания эскалации наставнику. Для действия передачи вопроса запись выполняется в одной транзакции с результатом действия и эскалацией. | `escalation_id`, идентификатор назначенного наставника, безопасный статус. |
-| `policy_denied`       | `team_id`, `actor_id`, при наличии `request_id`, `action_id` или `task_id` | Сразу после отказа по роли, владельцу, назначению или принадлежности к команде.                                                               | `operation` и `reason` из перечислений ниже, без чужих данных.              |
-| `task_status_changed` | `team_id`, `actor_id`, `task_id`                                           | В одной транзакции с условным изменением задачи и добавлением строки в `task_status_history`.                                                 | Предыдущий и новый статус, версия задачи, причина перехода.                |
+| Событие               | Связанные поля                                   | Когда записывается                                                                                                                            | Минимальный `payload`                                                                                                 |
+| --------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `chat_question`       | `team_id`, `actor_id`, `request_id`              | Одновременно с созданием `chat_requests` и пользовательского сообщения, после проверки доступа.                                               | `conversation_id`. Категория здесь не задаётся: её определяет AI-service после генерации.                             |
+| `answer_completed`    | `team_id`, `actor_id`, `request_id`              | При атомарном сохранении успешного ответа. Записывается и для результата `unknown`.                                                           | `answer_status`: `answered` или `unknown`; `question_category`: `task`, `process`, `access`, `technical` или `other`. |
+| `answer_with_source`  | `team_id`, `actor_id`, `request_id`              | Дополнительное событие успешного ответа, если Go проверил и сохранил один или несколько подтверждённых источников.                            | Идентификаторы документов и их `revision`, количество источников.                                                     |
+| `action_proposed`     | `team_id`, `actor_id`, `request_id`, `action_id` | После сохранения предложения действия со статусом `proposed` и до показа карточки в UI.                                                       | `action_type`, `proposal_seq`.                                                                                        |
+| `action_confirmed`    | `team_id`, `actor_id`, `request_id`, `action_id` | После повторной проверки пользователя и параметров, при атомарной фиксации подтверждения и резервировании выполнения.                         | `action_type`, `status=confirmed`.                                                                                    |
+| `action_failed`       | `team_id`, `actor_id`, `request_id`, `action_id` | После каждой неуспешной попытки выполнения, при сохранении ошибки действия.                                                                   | `attempt`, код ошибки, безопасное сообщение и `status=failed`.                                                        |
+| `escalation_created`  | `team_id`, `actor_id`, `request_id`, `action_id` | После создания эскалации наставнику. Для действия передачи вопроса запись выполняется в одной транзакции с результатом действия и эскалацией. | `escalation_id`, идентификатор назначенного наставника, безопасный статус.                                            |
+| `policy_denied`       | `team_id`, `actor_id`                            | Сразу после отказа по роли, владельцу, назначению или принадлежности к команде.                                                               | `operation` и `reason` из перечислений ниже, без чужих данных.                                                        |
+| `task_status_changed` | `team_id`, `actor_id`, `task_id`                 | В одной транзакции с условным изменением задачи и добавлением строки в `task_status_history`.                                                 | Предыдущий и новый статус, версия задачи, причина перехода.                                                           |
 
-`answer_completed` фиксирует финальный исход каждой успешной генерации. AI-service
-определяет `answer_status` и `question_category`; Go проверяет их по допустимым
-значениям и сохраняет вместе с ответом. `unknown` ставится только при явном
-ответе «не знаю»/«не могу ответить», а не из-за пустого списка источников.
-`answer_with_source` остаётся дополнительным событием для подтверждённых
-источников. Go сохраняет `answer_with_source` в той же транзакции, что и ответ,
-с `sources` (только `document_id` и `revision`) и `source_count`.
+### Допустимые значения payload
 
-На время обновления Python ответы без обеих меток сохраняются с пустым
-payload `answer_completed`, как и раньше. Они не учитываются как `answered`,
-`unknown` или `other` в классификации. Частично переданная или неверная пара
-отклоняется. Это правило также сохраняет возможность чтения старой истории.
+Для `answer_completed` используются значения, переданные AI-service:
 
-Допустимые `operation`: `checklist.get_plan`, `checklist.update_status`,
-`chat.create`, `chat.read`, `employees.get_manager`, `absences.get_policy`,
-`absences.list_for_employee`, `absences.create_request`, `escalation.create`,
-`escalation.answer`, `knowledge.search`, `buddy.list_interns`, `actions.list`.
-Допустимые `reason`: `invalid_actor`, `role_denied`, `team_denied`,
-`owner_or_assignment_denied`, `assignee_denied`, `owner_denied`,
-`assignment_denied`, `operation_denied`, `resource_unavailable`,
-`action_unavailable`, `confirmation_required`, `buddy_unavailable`,
-`source_unavailable`, `context_unavailable`, `assignment_changed`,
-`conversation_unavailable`.
-Go проверяет `operation` и `reason` по этим спискам перед записью события.
+- `answer_status`: `answered` или `unknown`;
+- `question_category`: `task`, `process`, `access`, `technical`, `other`.
+
+AI-service определяет оба значения; Go проверяет их и сохраняет вместе с
+ответом. `unknown` означает явный ответ «не знаю»/«не могу ответить», а не
+пустой список источников. При ошибке или таймауте генерации `answer_completed`
+не записывается: Go сохраняет ошибку в `chat_requests`. Отдельное событие
+`answer_unknown` не создаётся.
+
+Для совместимости со старыми версиями Python Go принимает ответ без обеих
+меток. В таком случае `payload` события `answer_completed` остаётся пустым;
+такой ответ не учитывается как `answered`, `unknown` или `other` в
+классификации. Неполная пара или недопустимое значение отклоняются.
+
+`answer_with_source` дополняет `answer_completed`: Go сохраняет его в той же
+транзакции с ответом, если подтвердил хотя бы один источник. В `payload`
+передаются `sources` (только `document_id` и `revision`) и `source_count`.
+
+Для `policy_denied` допустимы:
+
+- `operation`: `checklist.get_plan`, `checklist.update_status`,
+  `chat.create`, `chat.read`, `employees.get_manager`, `absences.get_policy`,
+  `absences.list_for_employee`, `absences.create_request`, `escalation.create`,
+  `escalation.answer`, `knowledge.search`, `buddy.list_interns`, `actions.list`;
+- `reason`: `invalid_actor`, `role_denied`, `team_denied`,
+  `owner_or_assignment_denied`, `assignee_denied`, `owner_denied`,
+  `assignment_denied`, `operation_denied`, `resource_unavailable`,
+  `action_unavailable`, `confirmation_required`, `buddy_unavailable`,
+  `source_unavailable`, `context_unavailable`, `assignment_changed`,
+  `conversation_unavailable`.
+
+Go проверяет оба поля по этим спискам перед записью события. Новые значения
+добавляются согласованно в каталог и проверку Go. Поля содержат коды операций и причин отказа,
+а не произвольный текст или данные недоступного ресурса.
+
+При отказе Go откатывает исходную операцию и записывает `policy_denied`
+отдельной транзакцией в области инициатора. Текущая реализация заполняет
+`team_id`, `actor_id`, `operation` и `reason`; поля `request_id`, `action_id`
+и `task_id` этого события остаются `NULL`, чтобы не сохранять непроверенные
+связи с недоступными объектами.
+Для `action_proposed` в `payload` сохраняются `action_type` и `proposal_seq`.
+Параметры действия хранятся в `actions_log`, а не дублируются в событии.
+Ключ дедупликации: `action:<action_id>:proposed`.
+
+Для `action_confirmed` в `payload` сохраняются `action_type` и
+`status=confirmed`. Повтор подтверждения не создаёт ещё одно событие;
+ключ дедупликации: `action:<action_id>:confirmed`.
+
+Для `action_failed` сохраняются `attempt`, `code`, безопасное `message` и
+`status=failed`. Номер попытки - положительное целое `attempt`, начиная с `1`.
+Ключ дедупликации: `action:<action_id>:attempt:<attempt>:failed`. Разные
+неудачные попытки одного действия являются разными событиями.
 
 ## Транзакции и повторы
 
@@ -83,7 +115,8 @@ Go проверяет `operation` и `reason` по этим спискам пе�
 - Для повторяемых операций используется `dedup_key`, например
   `request:<uuid>:chat_question`,
   `request:<uuid>:answer_completed`,
-  `request:<uuid>:action_proposed` или
+  `action:<uuid>:proposed`,
+  `action:<uuid>:confirmed`,
   `action:<uuid>:attempt:<n>:failed`,
   `task:<uuid>:version:<n>:status_changed`.
 - Закрытие SSE не является моментом записи события. Источник истины для
