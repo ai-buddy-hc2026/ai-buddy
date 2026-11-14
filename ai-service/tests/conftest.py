@@ -1,13 +1,11 @@
 import os
+from unittest.mock import AsyncMock
 
+import pytest
 import pytest_asyncio
 import redis.asyncio as aioredis
-import requests
 from httpx import ASGITransport, AsyncClient
-from testcontainers.community.postgres import PostgresContainer
 from testcontainers.community.redis import RedisContainer
-from testcontainers.core.container import DockerContainer
-from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
 from config import get_settings
 from core.ai_service import AIService
@@ -20,50 +18,23 @@ def infra_containers():
         yield {}
         return
 
-    ollama_container = (
-        DockerContainer("ollama/ollama:latest")
-        .with_exposed_ports(11434)
-        .waiting_for(LogMessageWaitStrategy("Listening on "))
-    )
-
-    with (
-        PostgresContainer("ankane/pgvector:latest") as postgres,
-        RedisContainer("redis:7-alpine") as redis,
-        ollama_container as ollama,
-    ):
-        postgres_url = postgres.get_connection_url(driver="asyncpg")
-        redis_host = redis.get_container_host_ip()
-        redis_port = redis.get_exposed_port(6379)
-        ollama_url = (
-            f"http://{ollama.get_container_host_ip()}:{ollama.get_exposed_port(11434)}"
-        )
-
-        test_model = "DeepSeek-R1:1.5b"
-        response = requests.post(
-            f"{ollama_url}/api/pull",
-            json={"name": test_model, "stream": False},
-            timeout=300,
-        )
-        response.raise_for_status()
-        settings = get_settings()
-        settings.POSTGRES_URL = postgres_url
-        settings.REDIS_HOST = redis_host
-        settings.REDIS_PORT = int(redis_port)
-        settings.LLM_PROVIDER = "ollama"
-        settings.LLM_BASE_URL = f"{ollama_url}/v1"
-        settings.LLM_MODEL = test_model
-        settings.LLM_API_KEY = "ollama"
-
-        yield {
-            "postgres": postgres,
-            "redis": redis,
-            "ollama": ollama,
-        }
+    # Эти сценарии проверяют настоящий Redis, но подменяют ответы модели.
+    with RedisContainer("redis:7-alpine") as redis:
+        yield {"redis": redis}
 
 
-@pytest_asyncio.fixture(scope="session", loop_scope="session")
-async def ai_service(infra_containers):
-    return AIService()
+@pytest_asyncio.fixture
+async def ai_service(monkeypatch: pytest.MonkeyPatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "LLM_BASE_URL", "https://llm.invalid/v1")
+    monkeypatch.setattr(settings, "LLM_MODEL", "synthetic-model")
+    monkeypatch.setattr(settings, "LLM_API_KEY", "synthetic-key")
+    service = AIService()
+    monkeypatch.setattr(service, "classify_question", AsyncMock(return_value="other"))
+    try:
+        yield service
+    finally:
+        await service.llm_client.close()
 
 
 @pytest_asyncio.fixture
