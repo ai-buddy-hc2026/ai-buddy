@@ -120,7 +120,7 @@ def configure_ai_service(
                     index=0,
                     id="call-1",
                     function=SimpleNamespace(
-                        name=tool_name,
+                        name=tool_name.replace(".", "_")[:5],
                         arguments="{",
                     ),
                 ),
@@ -130,7 +130,7 @@ def configure_ai_service(
                 "tool_call": SimpleNamespace(
                     index=0,
                     function=SimpleNamespace(
-                        name=None,
+                        name=tool_name.replace(".", "_")[5:],
                         arguments="}",
                     ),
                 ),
@@ -185,6 +185,8 @@ async def test_chat_fetches_tools_calls_go_and_continues_generation(
     assert FakeMCPClient.instance.call_args == [("checklist.get_plan", {})]
     assert calls[0][1][0]["inputSchema"] == TOOL_SCHEMA
     assert calls[1][0][-2]["role"] == "assistant"
+    assert calls[1][0][-2]["tool_calls"][0]["function"]["name"] == "checklist_get_plan"
+    assert events[1]["data"]["tool_name"] == "checklist.get_plan"
     assert calls[1][0][-1]["role"] == "tool"
     assert calls[1][0][-1]["content"] == '{"stage": "week_1"}'
     assert [event["seq"] for event in events] == [1, 2, 3, 4]
@@ -256,6 +258,56 @@ async def test_chat_proposes_write_and_returns_confirmation_error_to_llm(
         "done",
     ]
     assert [event["seq"] for event in events] == [1, 2, 3, 4, 5]
+
+
+async def test_unadvertised_tool_never_reaches_go(
+    chat_request,
+    monkeypatch,
+    redis_client,
+    ai_service,
+):
+    monkeypatch.setattr(chat, "GenerationMCPClient", FakeMCPClient)
+    calls = configure_ai_service(monkeypatch, ai_service, "absences.list_for_employee")
+
+    events = await run_and_read_events(chat_request, ai_service, redis_client)
+
+    assert FakeMCPClient.instance.call_args == []
+    assert FakeMCPClient.instance.proposal_args == []
+    assert json.loads(calls[1][0][-1]["content"])["error"]["code"] == "POLICY_DENIED"
+    assert not any(e["event"] in {"tool_call", "action_proposal"} for e in events)
+    assert events[-1]["event"] == "done"
+
+
+@pytest.mark.parametrize("name", ["bad name", "unknown.function", "a" * 65])
+async def test_invalid_model_name_is_not_sent_back_in_history(
+    monkeypatch,
+    chat_request,
+    redis_client,
+    ai_service,
+    name,
+):
+    monkeypatch.setattr(chat, "GenerationMCPClient", FakeMCPClient)
+    calls = []
+
+    async def malformed_call(messages, _tools):
+        calls.append(messages)
+        yield {
+            "type": "tool_call_delta",
+            "tool_call": SimpleNamespace(
+                index=0,
+                id="bad-call",
+                function=SimpleNamespace(name=name, arguments="{}"),
+            ),
+        }
+
+    monkeypatch.setattr(ai_service, "stream_step", malformed_call)
+    events = await run_and_read_events(chat_request, ai_service, redis_client)
+
+    assert len(calls) == 1
+    assert FakeMCPClient.instance.call_args == []
+    assert FakeMCPClient.instance.proposal_args == []
+    assert [event["event"] for event in events] == ["error"]
+    assert events[0]["data"]["code"] == "TOOL_FAILED"
 
 
 @pytest.mark.asyncio

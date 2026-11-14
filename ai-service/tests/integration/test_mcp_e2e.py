@@ -63,7 +63,7 @@ class ScriptedAIService:
                     index=0,
                     id="mcp-e2e-call",
                     function=SimpleNamespace(
-                        name="employees.get_manager",
+                        name="employees_get_manager",
                         arguments="{}",
                     ),
                 ),
@@ -93,7 +93,7 @@ class ScriptedAIService:
                     index=0,
                     id="mcp-create-absence",
                     function=SimpleNamespace(
-                        name="absences.create_request",
+                        name="absences_create_request",
                         arguments=json.dumps(
                             {"date": self.absence_date, "type": "day_off"},
                         ),
@@ -112,7 +112,7 @@ class ScriptedAIService:
                     index=0,
                     id="mcp-list-absences",
                     function=SimpleNamespace(
-                        name="absences.list_for_employee",
+                        name="absences_list_for_employee",
                         arguments="{}",
                     ),
                 ),
@@ -143,7 +143,7 @@ class ScriptedAIService:
                     index=0,
                     id="mcp-forbidden-absences",
                     function=SimpleNamespace(
-                        name="absences.list_for_employee",
+                        name="absences_list_for_employee",
                         arguments="{}",
                     ),
                 ),
@@ -379,14 +379,12 @@ async def test_intern_cannot_read_foreign_absences(
 
     assert len(ai_service_server.calls) == 2
     assert [event["event"] for event in events] == [
-        "tool_call",
         "token",
         "done",
     ]
-    assert events[0]["data"]["tool_name"] == "absences.list_for_employee"
-    assert events[1]["data"]["text"] == (
+    assert events[0]["data"]["text"] == (
         "Я не могу показывать чужие заявки на отсутствие."
     )
-    assert events[-1]["data"]["full_text"] == events[1]["data"]["text"]
+    assert events[-1]["data"]["full_text"] == events[0]["data"]["text"]
     assert "ABS-" not in events[-1]["data"]["full_text"]
     assert actions_response.json()["items"] == []

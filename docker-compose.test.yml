@@ -99,7 +99,7 @@ services:
       MCP_SERVER_URL: http://backend:8080/mcp
       REDIS_HOST: redis
       REDIS_PORT: "6379"
-      POSTGRES_URL: postgresql+asyncpg://ai_buddy:ai_buddy_test@postgres:5432/ai_buddy
+      POSTGRES_URL: postgresql://ai_buddy:ai_buddy_test@postgres:5432/ai_buddy
       LLM_PROVIDER: ollama
       LLM_BASE_URL: http://ollama:11434/v1
       LLM_MODEL: llama3.2:1b
