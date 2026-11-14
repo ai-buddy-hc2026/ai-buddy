@@ -236,13 +236,9 @@
     opacity: 0.6;
   }
   .task {
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr);
-    align-items: start;
+    flex-wrap: wrap;
   }
   .status {
-    grid-column: 2;
-    justify-self: start;
-    margin-left: 0;
+    margin-left: calc(var(--theme-gap-12) + 28px);
   }
 }

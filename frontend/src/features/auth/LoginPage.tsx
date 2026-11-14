@@ -5,7 +5,7 @@ import { mustEmployee } from '@/entities/employees'
 import { planApi } from '@/entities/plan'
 import { TEST_USERS, useSession, type TestUser } from '@/entities/session'
 import { useSettings } from '@/entities/settings'
-import { errorMessage, IS_MOCK } from '@/shared/api/http'
+import { errorMessage } from '@/shared/api/http'
 import { IsoCity } from '@/shared/iso'
 import { useT } from '@/shared/lib/i18n'
 import { resetAllMockData } from '@/shared/lib/storage'
@@ -72,7 +72,7 @@ export function LoginPage() {
         </p>
 
         <ul className={s.users}>
-          {TEST_USERS.filter((user) => IS_MOCK || user.role !== 'hr').map((user, i) => {
+          {TEST_USERS.map((user, i) => {
             const employee = mustEmployee(user.employeeId)
             return (
               <li key={user.login} className="rise" style={{ '--i': i + 1 } as CSSProperties}>
