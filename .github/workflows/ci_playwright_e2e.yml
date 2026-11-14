@@ -1,0 +1,73 @@
+name: Playwright API E2E
+
+on:
+  push:
+    branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service-*'
+      - ai-service
+      - main
+      - master
+  pull_request:
+    branches:
+      - 'codex/**'
+      - 'feat/**'
+      - ai-service
+      - 'ai-service-*'
+      - main
+      - master
+
+jobs:
+  playwright-api-e2e:
+    runs-on: ubuntu-latest
+    env:
+      BACKEND_PORT: '18080'
+      PLAYWRIGHT_API_URL: http://127.0.0.1:18080
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install TypeScript dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Prepare synthetic Compose environment
+        # Браузерные сценарии проверяют настоящий UI через Vite-прокси к Go API.
+        # Подмена fetch в этих сценариях не используется.
+        run: cp .env.example .env
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Start test services
+        run: |
+          docker compose --env-file .env.example -f docker-compose.yml -f compose.test.yml config --quiet
+          docker compose --env-file .env.example -f docker-compose.yml -f compose.test.yml up --build -d --wait backend ai-service mock-llm
+
+      - name: Run Playwright API E2E
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Upload UI failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-ui-failures
+          path: frontend/test-results
+          if-no-files-found: ignore
+      - name: Compose logs on failure
+        if: failure()
+        run: docker compose --env-file .env.example -f docker-compose.yml -f compose.test.yml logs --tail 100 db-init backend postgres redis ai-service mock-llm
+
+      - name: Stop test services
+        if: always()
+        run: docker compose --env-file .env.example -f docker-compose.yml -f compose.test.yml down

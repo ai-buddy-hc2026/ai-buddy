@@ -1,0 +1,135 @@
+.grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+/* ---------- Герой ---------- */
+.hero {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--theme-gap-16);
+}
+
+.heroText {
+  display: grid;
+  gap: var(--theme-gap-12);
+  min-width: 0;
+}
+
+.title {
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.lead {
+  max-width: 44ch;
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-l);
+  line-height: var(--theme-font-lineHeight-l1);
+}
+
+.heroArt {
+  max-width: 320px;
+  justify-self: center;
+}
+
+/* ---------- Термин ---------- */
+.term {
+  display: grid;
+  gap: var(--theme-gap-12);
+  align-content: start;
+}
+
+.termTitle {
+  font-size: var(--theme-font-fontSize-xxl);
+  line-height: var(--theme-font-lineHeight-xxl);
+}
+
+.synonym {
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+
+.definition {
+  font-size: var(--theme-font-fontSize-l);
+  line-height: var(--theme-font-lineHeight-l1);
+}
+
+.example {
+  display: grid;
+  gap: var(--theme-gap-4);
+}
+
+.source {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--theme-gap-6);
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+.source svg {
+  flex: none;
+  margin-top: var(--theme-gap-2);
+}
+
+.stale {
+  justify-self: start;
+}
+
+.termActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--theme-gap-8);
+}
+
+/* ---------- Проверка простоты ---------- */
+.check {
+  display: grid;
+  gap: var(--theme-gap-8);
+  padding: var(--theme-gap-12) var(--theme-gap-16);
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+}
+
+.checkHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--theme-gap-8);
+}
+
+.checkList {
+  display: grid;
+  gap: var(--theme-gap-4);
+  list-style: disc;
+  padding-left: var(--theme-gap-20);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+
+/* ---------- Форма ---------- */
+.form {
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+@media (max-width: 1000px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .heroArt {
+    max-width: 240px;
+    order: -1;
+  }
+}

@@ -21,5 +21,9 @@ export default defineConfig([
       ecmaVersion: 2023,
       globals: globals.browser,
     },
+    rules: {
+      // Файлы с компонентами экспортируют и хелперы (роутер, иконки, тосты)
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+    },
   },
 ])

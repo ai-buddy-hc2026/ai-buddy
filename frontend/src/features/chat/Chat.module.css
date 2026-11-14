@@ -1,0 +1,642 @@
+/* ---------- Каркас: список + переписка ---------- */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: var(--theme-gap-16);
+  height: var(--content-h);
+  min-height: 0;
+}
+
+.listPane,
+.convPane {
+  min-height: 0;
+  min-width: 0;
+  background: var(--surface-card);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.emptyPane {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: var(--theme-gap-24);
+}
+
+/* ---------- Список чатов ---------- */
+.listNav {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: var(--theme-gap-12);
+  height: 100%;
+  padding: var(--theme-gap-20) var(--theme-gap-12) var(--theme-gap-12);
+}
+
+.listTitle {
+  margin: 0;
+  padding: 0 var(--theme-gap-8);
+  font-size: var(--theme-font-fontSize-xxl);
+  line-height: var(--theme-font-lineHeight-xxl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-8);
+  height: 44px;
+  margin: 0 var(--theme-gap-4);
+  padding: 0 var(--theme-gap-12);
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+  color: var(--text-2);
+}
+
+.search:focus-within {
+  box-shadow: var(--theme-focusBoxShadow-default);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.threads {
+  display: grid;
+  align-content: start;
+  gap: var(--theme-gap-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thread {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-12);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--theme-gap-8);
+  border: 0;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    transform 0.2s var(--ease-out);
+}
+
+.thread:hover {
+  background: var(--hover);
+}
+
+.thread:active {
+  transform: scale(0.98);
+}
+
+.pinned {
+  margin-bottom: var(--theme-gap-8);
+  background: var(--tint-blue);
+}
+
+.pinned:hover {
+  background: var(--tint-blue);
+}
+
+.active,
+.active:hover {
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 2px var(--line-strong);
+}
+
+.threadBody {
+  display: grid;
+  gap: var(--theme-gap-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.threadTop {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-8);
+}
+
+.threadTop b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.threadTop time {
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+  color: var(--text-2);
+}
+
+.preview {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noResults {
+  padding: var(--theme-gap-16);
+  color: var(--text-2);
+}
+
+/* ---------- Переписка ---------- */
+.chat {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+}
+
+.header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-12);
+  min-height: 72px;
+  padding: var(--theme-gap-12) var(--theme-gap-16);
+  border-bottom: 1px solid var(--line);
+}
+
+.back {
+  display: none;
+}
+
+.headerText {
+  flex: 1;
+  min-width: 0;
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: var(--theme-font-fontSize-m);
+  line-height: var(--theme-font-lineHeight-m1);
+  font-weight: 800;
+}
+
+.headerSub {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerActions {
+  display: flex;
+  gap: var(--theme-gap-4);
+}
+
+.loading {
+  display: grid;
+  align-content: start;
+  gap: var(--theme-gap-12);
+  padding: var(--theme-gap-20);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-gap-12);
+  margin: 0;
+  padding: var(--theme-gap-20) var(--theme-gap-16);
+  list-style: none;
+}
+
+.hero {
+  display: grid;
+  justify-items: center;
+  gap: var(--theme-gap-8);
+  max-width: 420px;
+  margin: auto;
+  padding: var(--theme-gap-24) 0;
+  text-align: center;
+}
+
+.hero h3 {
+  margin: 0;
+  font-size: var(--theme-font-fontSize-xxl);
+  line-height: var(--theme-font-lineHeight-xxl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.hero p {
+  margin: 0;
+}
+
+.heroArt {
+  width: 168px;
+  height: auto;
+}
+
+/* ---------- Сообщения ---------- */
+.msg {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--theme-gap-8);
+  max-width: min(78%, 620px);
+  animation: msg-in 0.3s var(--ease-out) both;
+}
+
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.msg-me {
+  align-self: flex-end;
+}
+
+.msg-bot,
+.msg-peer {
+  align-self: flex-start;
+}
+
+.msgAvatar {
+  flex: none;
+  width: 32px;
+}
+
+.msgBody {
+  display: grid;
+  gap: var(--theme-gap-6);
+  min-width: 0;
+}
+
+.msg-me .msgBody {
+  justify-items: end;
+}
+
+.author {
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+  font-weight: 700;
+}
+
+.bubble {
+  padding: var(--theme-gap-10) var(--theme-gap-14);
+  border-radius: var(--theme-borderRadius-l);
+  font-size: var(--theme-font-fontSize-m);
+  line-height: var(--theme-font-lineHeight-m1);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.bubble-me {
+  background: var(--tint-blue);
+}
+
+.bubble-bot {
+  /* Якорь для подсказки термина словаря (TermText) */
+  position: relative;
+  background: var(--tint-green);
+}
+
+.bubble-peer {
+  background: var(--surface-sunken);
+}
+
+.time {
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+}
+
+.dots {
+  display: inline-flex;
+  gap: var(--theme-gap-4);
+  padding: var(--theme-gap-6) 0;
+}
+
+.dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-2);
+  animation: dot 1s infinite ease-in-out;
+}
+
+.dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* ---------- Под ответом бота ---------- */
+.extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--theme-gap-6) var(--theme-gap-8);
+}
+
+.disclaimer {
+  display: block;
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+}
+
+.linkChip,
+.inlineLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--theme-gap-6);
+  min-height: 36px;
+  color: var(--text);
+  font-weight: 700;
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+
+.linkChip {
+  padding: 0 var(--theme-gap-14);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  text-decoration: none;
+  transition: transform 0.2s var(--ease-out);
+}
+
+.linkChip:active {
+  transform: scale(0.97);
+}
+
+.fieldset {
+  display: grid;
+  gap: var(--theme-gap-6);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fieldset legend {
+  margin-bottom: var(--theme-gap-4);
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+  font-weight: 700;
+}
+
+.fieldset:disabled {
+  opacity: 0.55;
+}
+
+/* Карточка заявки */
+.card {
+  display: grid;
+  gap: var(--theme-gap-12);
+  width: min(100%, 380px);
+  padding: var(--theme-gap-16);
+  border: 1px solid var(--line);
+  border-radius: var(--theme-borderRadius-xl);
+  background: var(--surface-card);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--theme-gap-8);
+}
+
+.details {
+  display: grid;
+  gap: var(--theme-gap-6);
+  margin: 0;
+}
+
+.details div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--theme-gap-12);
+}
+
+.details dt {
+  color: var(--text-2);
+}
+
+.details dd {
+  margin: 0;
+  text-align: right;
+}
+
+.code {
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--theme-gap-8);
+}
+
+.cardFoot {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+
+.cardFoot a {
+  color: var(--text);
+}
+
+/* Диалог эскалации */
+.dialogBody {
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+.dialogBody p {
+  margin: 0;
+}
+
+.quote {
+  margin: 0;
+  padding: var(--theme-gap-12) var(--theme-gap-16);
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+  font-weight: 700;
+}
+
+.contextList {
+  display: grid;
+  gap: var(--theme-gap-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+
+/* ---------- Низ: подсказки и ввод ---------- */
+.footer {
+  display: grid;
+  gap: var(--theme-gap-8);
+  padding: var(--theme-gap-8) var(--theme-gap-16) var(--theme-gap-16);
+}
+
+.suggest {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.suggest > * {
+  flex: none;
+}
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--theme-gap-8);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  max-height: 140px;
+  padding: var(--theme-gap-10) var(--theme-gap-16);
+  border: 0;
+  border-radius: var(--radius-inner);
+  outline: 0;
+  background: var(--surface-sunken);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--theme-font-fontSize-m);
+  line-height: var(--theme-font-lineHeight-m1);
+  resize: none;
+  field-sizing: content;
+}
+
+.input::placeholder {
+  color: var(--text-2);
+}
+
+.input:focus-visible {
+  box-shadow: var(--theme-focusBoxShadow-default);
+}
+
+.send {
+  flex: none;
+  width: 44px;
+  height: 44px;
+}
+
+/* ---------- Меню «...» ---------- */
+.menuBox {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + var(--theme-gap-8));
+  right: 0;
+  z-index: 5;
+  display: grid;
+  gap: var(--theme-gap-8);
+  width: min(320px, calc(100vw - 2 * var(--theme-gap-16)));
+  padding: var(--theme-gap-12);
+  border-radius: var(--theme-borderRadius-xl);
+  background: var(--surface-pop);
+  box-shadow: var(--theme-boxShadow-size-m);
+  animation: msg-in 0.2s var(--ease-out) both;
+}
+
+.menuRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--theme-gap-12);
+  padding: var(--theme-gap-4);
+}
+
+.menuLink {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--theme-gap-4);
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* ---------- Телефон: список и переписка - отдельные экраны ---------- */
+@media (max-width: 720px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .layout.hasActive .listPane,
+  .layout:not(.hasActive) .convPane {
+    display: none;
+  }
+
+  .back {
+    display: inline-flex;
+  }
+
+  .header {
+    padding: var(--theme-gap-8) var(--theme-gap-8) var(--theme-gap-8) var(--theme-gap-4);
+  }
+
+  .list {
+    padding: var(--theme-gap-16) var(--theme-gap-12);
+  }
+
+  .msg {
+    max-width: 90%;
+  }
+
+  .footer {
+    padding: var(--theme-gap-8) var(--theme-gap-12) var(--theme-gap-12);
+  }
+}

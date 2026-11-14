@@ -2,10 +2,17 @@ name: linter ai-service test
 on:
   push:
     branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service-*'
       - main
       - master
   pull_request:
     branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service'
+      - 'ai-service-*'
       - main
       - master
 jobs:

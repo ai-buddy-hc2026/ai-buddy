@@ -1,0 +1,475 @@
+/* ---------- Сетка раздела ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--theme-gap-16);
+  align-items: start;
+}
+
+.span4 {
+  grid-column: span 4;
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--theme-gap-12);
+}
+
+.cardTitle {
+  font-size: var(--theme-font-fontSize-xl);
+  line-height: var(--theme-font-lineHeight-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.bigTitle {
+  font-size: var(--theme-font-fontSize-xxl);
+  line-height: var(--theme-font-lineHeight-xxl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.sectionTitle {
+  grid-column: 1 / -1;
+  margin-top: var(--theme-gap-8);
+  font-size: var(--theme-font-fontSize-xl);
+  line-height: var(--theme-font-lineHeight-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.sectionTitle span {
+  margin-left: var(--theme-gap-8);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.headIcon {
+  color: var(--brand-red);
+  flex: none;
+}
+
+.headArt {
+  width: 112px;
+  height: auto;
+  flex: none;
+}
+
+/* ---------- Изометрия ---------- */
+.artGround {
+  fill: var(--iso-ground);
+}
+.artFigure {
+  transition: transform 0.2s var(--ease-out);
+}
+.askCard:hover .artFigure:nth-child(odd) {
+  transform: translateY(-4px);
+}
+
+/* ---------- Ссылки-кнопки ---------- */
+.linkBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--theme-gap-6);
+  min-height: var(--theme-size-s-height);
+  padding: 0 var(--theme-gap-14);
+  border-radius: var(--theme-size-s-borderRadius);
+  background: var(--theme-semantics-components-button-bg-secondary);
+  color: var(--text);
+  font-size: var(--theme-size-s-fontSize);
+  line-height: var(--theme-size-s-lineHeight);
+  font-weight: 700;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    var(--theme-animation-transition-control-hover),
+    transform 0.12s var(--ease-out);
+}
+.linkBtn:hover {
+  background: var(--theme-semantics-components-button-bg-secondaryHover);
+}
+.linkBtn:active {
+  transform: scale(0.97);
+}
+.linkBtnMain {
+  background: var(--theme-semantics-components-button-bg-primary);
+  color: var(--text-inverse);
+}
+.linkBtnMain:hover {
+  background: var(--theme-semantics-components-button-bg-primaryHover);
+}
+
+.iconLink {
+  display: inline-grid;
+  place-items: center;
+  width: var(--theme-size-m-height);
+  height: var(--theme-size-m-height);
+  border-radius: var(--theme-size-m-borderRadius);
+  color: var(--text);
+  flex: none;
+  transition:
+    var(--theme-animation-transition-control-hover),
+    transform 0.12s var(--ease-out);
+}
+.iconLink:hover {
+  background: var(--hover);
+}
+.iconLink:active {
+  transform: scale(0.97);
+}
+
+.moreLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--theme-gap-8);
+  min-height: var(--theme-size-m-height);
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Карточка человека ---------- */
+.person {
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-gap-14);
+  transition: transform 0.2s var(--ease-out);
+}
+.person:hover {
+  transform: translateY(-2px);
+}
+
+.personHead {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-12);
+  min-width: 0;
+}
+
+.personName {
+  min-width: 0;
+}
+.personName h3 {
+  font-size: var(--theme-font-fontSize-l);
+  line-height: var(--theme-font-lineHeight-l2);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.askAbout {
+  display: grid;
+  gap: var(--theme-gap-2);
+  font-size: var(--theme-font-fontSize-m);
+  line-height: var(--theme-font-lineHeight-m2);
+}
+
+.tag {
+  min-height: 0;
+  height: var(--theme-size-xs-height);
+  font-size: var(--theme-font-fontSize-s);
+}
+
+.personActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--theme-gap-8);
+  margin-top: auto;
+}
+
+.remote {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--theme-gap-6);
+  color: var(--text-2);
+}
+
+/* ---------- Вкладка «Команда» ---------- */
+.askCard {
+  grid-column: span 7;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  align-items: center;
+  gap: var(--theme-gap-16);
+  min-height: 320px;
+}
+
+.askText {
+  display: grid;
+  gap: var(--theme-gap-14);
+  min-width: 0;
+}
+
+.askForm {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--theme-gap-8);
+}
+.askForm > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.askArt {
+  width: 100%;
+  height: auto;
+}
+
+.result {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--theme-gap-16);
+  align-items: start;
+}
+
+.birthdays {
+  grid-column: span 5;
+  display: grid;
+  gap: var(--theme-gap-14);
+}
+
+.bdayList {
+  display: grid;
+  gap: var(--theme-gap-10);
+}
+
+.bdayItem {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-12);
+}
+
+.bdayText {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.bdayText b {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Вкладка «Приёмные часы» ---------- */
+.hours {
+  grid-column: span 8;
+  display: grid;
+  gap: var(--theme-gap-16);
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--theme-gap-10);
+}
+
+.slotBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-12);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--theme-gap-12) var(--theme-gap-16);
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+  color: var(--text);
+  text-align: left;
+  transition:
+    var(--theme-animation-transition-control-hover),
+    transform 0.12s var(--ease-out);
+}
+.slotBtn:hover {
+  background: var(--tint-blue);
+}
+.slotBtn:active {
+  transform: scale(0.97);
+}
+.slotBtn > svg {
+  color: var(--brand-blue);
+  flex: none;
+}
+.slotBtn > span {
+  display: grid;
+}
+
+.meetings {
+  grid-column: span 4;
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+.meetList {
+  display: grid;
+  gap: var(--theme-gap-4);
+}
+
+.dialogBody {
+  display: grid;
+  gap: var(--theme-gap-14);
+}
+
+.slotWhen {
+  display: grid;
+  gap: var(--theme-gap-2);
+  font-size: var(--theme-font-fontSize-l);
+  line-height: var(--theme-font-lineHeight-l2);
+}
+
+/* ---------- Вкладка «Random coffee» ---------- */
+.pair {
+  grid-column: span 8;
+  position: relative;
+  display: grid;
+  gap: var(--theme-gap-14);
+  overflow: hidden;
+  min-height: 360px;
+}
+
+.pairAvatars {
+  display: flex;
+}
+.pairAvatars > * + * {
+  margin-left: calc(var(--theme-gap-12) * -1);
+  box-shadow: 0 0 0 var(--theme-gap-4) var(--surface-card);
+}
+
+.pairHint {
+  font-weight: 700;
+}
+
+.pairActions,
+.pairDone {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--theme-gap-12);
+}
+.pairDone {
+  display: grid;
+  justify-items: start;
+}
+
+.pairArt {
+  position: absolute;
+  top: var(--theme-gap-16);
+  right: var(--theme-gap-16);
+  width: 140px;
+  height: auto;
+  pointer-events: none;
+}
+
+.rules {
+  grid-column: span 4;
+  display: grid;
+  gap: var(--theme-gap-14);
+}
+
+.rulesList {
+  display: grid;
+  gap: var(--theme-gap-8);
+  padding-left: var(--theme-gap-20);
+  list-style: disc;
+  color: var(--text-2);
+}
+
+/* ---------- Вкладка «Интересы» ---------- */
+.mine {
+  grid-column: span 7;
+  display: grid;
+  gap: var(--theme-gap-14);
+}
+
+.chats {
+  grid-column: span 5;
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+.chatIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--theme-borderRadius-m);
+  background: var(--tint-violet);
+  color: var(--brand-violet);
+  flex: none;
+}
+
+.matches {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+.matchGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--theme-gap-10);
+}
+
+.matchItem {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-12);
+  padding: var(--theme-gap-12);
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+}
+
+/* ---------- Адаптив ---------- */
+@media (max-width: 1000px) {
+  .span4 {
+    grid-column: span 6;
+  }
+  .askCard,
+  .birthdays,
+  .hours,
+  .meetings,
+  .pair,
+  .rules,
+  .mine,
+  .chats {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .span4 {
+    grid-column: 1 / -1;
+  }
+  .askCard {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+  .askArt {
+    order: -1;
+    max-width: 200px;
+    justify-self: center;
+  }
+  .result {
+    grid-template-columns: 1fr;
+  }
+  .askForm {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .headArt {
+    width: 80px;
+  }
+  .pairArt {
+    width: 96px;
+  }
+  .linkBtn {
+    min-height: var(--theme-size-m-height);
+  }
+}

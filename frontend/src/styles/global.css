@@ -1,0 +1,246 @@
+/*
+  Глобальные стили AI-buddy. Все значения - из токенов Авито (avito-tokens.css).
+  Здесь только короткие алиасы и база. Hex напрямую не пишем.
+*/
+:root {
+  /* Поверхности. В светлой теме фон приложения тёплый серый, карточки белые */
+  --surface-app: var(--theme-semantics-bg-default);
+  --surface-card: var(--theme-semantics-bg-elevation1);
+  --surface-sunken: var(--theme-semantics-bg-default);
+  --surface-pop: var(--theme-semantics-bg-elevation2);
+  --surface-inverse: var(--theme-semantics-components-button-bg-primary);
+
+  --text: var(--theme-semantics-text-primary);
+  --text-2: var(--theme-semantics-text-secondary);
+  --text-inverse: var(--theme-semantics-components-button-text-primary);
+  --line: var(--theme-semantics-border-default);
+  --line-strong: var(--theme-semantics-border-hover);
+  --hover: var(--theme-semantics-components-button-bg-ghostHover);
+
+  /* Четыре точки логотипа - акценты этапов и иллюстраций */
+  --brand-green: var(--theme-palette-green500);
+  --brand-blue: var(--theme-palette-blue500);
+  --brand-red: var(--theme-palette-red600);
+  --brand-violet: var(--theme-palette-violet600);
+  --brand-yellow: var(--theme-palette-yellow400);
+  --brand-orange: var(--theme-palette-orange500);
+
+  /* Мягкие подложки под акценты, сами переключаются в тёмной теме */
+  --tint-green: var(--theme-semantics-bg-success);
+  --tint-blue: var(--theme-semantics-bg-accent);
+  --tint-red: var(--theme-semantics-bg-error);
+  --tint-violet: var(--theme-semantics-bg-pay);
+  --tint-yellow: var(--theme-semantics-bg-warning);
+
+  /* Изометрия */
+  --iso-ground: var(--theme-palette-warmGray4);
+  --iso-ground-edge: var(--theme-palette-warmGray12);
+  --iso-plot: var(--theme-palette-white);
+  --iso-shade: var(--theme-palette-black);
+  --iso-stroke: var(--theme-palette-black8);
+  --iso-window: var(--theme-palette-white);
+  --iso-ink: var(--theme-palette-gray92);
+
+  --radius-card: var(--theme-borderRadius-xxl);
+  --radius-inner: var(--theme-borderRadius-l);
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --shell-max: 1320px;
+  --tabbar-h: 64px;
+
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --surface-app: var(--theme-semantics-bg-page);
+  --surface-card: var(--theme-semantics-bg-elevation2);
+  --surface-sunken: var(--theme-semantics-bg-default);
+  --iso-ground: var(--theme-palette-warmGray88);
+  --iso-ground-edge: var(--theme-palette-warmGray76);
+  --iso-plot: var(--theme-palette-warmGray76);
+  --iso-stroke: var(--theme-palette-black24);
+  --iso-ink: var(--theme-palette-warmGray12);
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--surface-app);
+  font-size: var(--theme-font-fontSize-m);
+  line-height: var(--theme-font-lineHeight-m1);
+  font-weight: 500;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+dl,
+dd,
+ul,
+ol,
+figure {
+  margin: 0;
+  padding: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  box-shadow: var(--theme-focusBoxShadow-default);
+}
+
+::selection {
+  background: var(--theme-palette-blue200);
+  color: var(--theme-palette-black);
+}
+
+/* Тонкий скролл внутри панелей */
+.scroll-area {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  overscroll-behavior: contain;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Типографика-утилиты (ступени из design.md) */
+.t-xs {
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+}
+.t-s {
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+.t-m {
+  font-size: var(--theme-font-fontSize-m);
+  line-height: var(--theme-font-lineHeight-m1);
+}
+.t-l {
+  font-size: var(--theme-font-fontSize-l);
+  line-height: var(--theme-font-lineHeight-l1);
+}
+.t-xl {
+  font-size: var(--theme-font-fontSize-xl);
+  line-height: var(--theme-font-lineHeight-xl);
+}
+.t-xxl {
+  font-size: var(--theme-font-fontSize-xxl);
+  line-height: var(--theme-font-lineHeight-xxl);
+}
+.t-xxxl {
+  font-size: var(--theme-font-fontSize-xxxl);
+  line-height: var(--theme-font-lineHeight-xxxl);
+}
+.t-muted {
+  color: var(--text-2);
+}
+.t-bold {
+  font-weight: 700;
+}
+.t-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Появление экрана и карточек. Задержка через --i */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise-in 0.5s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

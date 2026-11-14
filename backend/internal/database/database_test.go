@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io/fs"
 	"os"
@@ -51,16 +52,32 @@ func testPool(t *testing.T) *pgxpool.Pool {
 func TestPrepareRepeatAndConstraints(t *testing.T) {
 	pool := testPool(t)
 	ctx := context.Background()
+	migrations, err := fs.Glob(scripts, "migrations/*.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
 	var wg sync.WaitGroup
 	for range 2 {
 		wg.Go(func() {
-			if err := Prepare(ctx, pool); err != nil {
+			if err := Prepare(ctx, pool, "../../../seed/checklist.json"); err != nil {
 				t.Error(err)
 			}
 		})
 	}
 	wg.Wait()
-	for table, want := range map[string]int{"teams": 2, "users": 6, "schema_migrations": 1} {
+	expectedCounts := map[string]int{
+		"teams":               2,
+		"users":               6,
+		"schema_migrations":   len(migrations),
+		"onboarding_plans":    2,
+		"tasks":               30,
+		"task_status_history": 30,
+		"actions_log":         0,
+		"absence_requests":    0,
+		"escalations":         0,
+		"kb_documents":        0,
+	}
+	for table, want := range expectedCounts {
 		var got int
 		if err := pool.QueryRow(ctx, "SELECT count(*) FROM "+table).Scan(&got); err != nil || got != want {
 			t.Fatalf("%s count=%d, want=%d, err=%v", table, got, want, err)
@@ -69,7 +86,7 @@ func TestPrepareRepeatAndConstraints(t *testing.T) {
 	if _, err := pool.Exec(ctx, "UPDATE users SET active=false, display_name='Изменено', updated_at='2026-11-11T00:00:00Z' WHERE login='intern_anya'"); err != nil {
 		t.Fatal(err)
 	}
-	if err := Prepare(ctx, pool); err != nil {
+	if err := Prepare(ctx, pool, "../../../seed/checklist.json"); err != nil {
 		t.Fatal(err)
 	}
 	var preserved bool
@@ -107,7 +124,7 @@ func TestPrepareRollbackAndChecksum(t *testing.T) {
 	}
 	seed := files["seeds/users.sql"]
 	files["seeds/users.sql"] = &fstest.MapFile{Data: []byte("SELECT missing_column FROM users;")}
-	if err := prepare(ctx, pool, files); err == nil {
+	if err := prepare(ctx, pool, files, checklistFixture(t)); err == nil {
 		t.Fatal("expected seed failure")
 	}
 	var absent bool
@@ -115,11 +132,11 @@ func TestPrepareRollbackAndChecksum(t *testing.T) {
 		t.Fatalf("failed preparation was not rolled back: %v, %v", absent, err)
 	}
 	files["seeds/users.sql"] = seed
-	if err := prepare(ctx, pool, files); err != nil {
+	if err := prepare(ctx, pool, files, checklistFixture(t)); err != nil {
 		t.Fatal(err)
 	}
 	files["migrations/0001_users.sql"].Data = append(files["migrations/0001_users.sql"].Data, []byte("\n-- changed\n")...)
-	if err := prepare(ctx, pool, files); err == nil || !strings.Contains(err.Error(), "changed after application") {
+	if err := prepare(ctx, pool, files, checklistFixture(t)); err == nil || !strings.Contains(err.Error(), "changed after application") {
 		t.Fatalf("expected checksum error, got %v", err)
 	}
 }
@@ -129,5 +146,31 @@ func TestOpenInvalidURL(t *testing.T) {
 		if pool, err := Open(context.Background(), url); err == nil || pool != nil || strings.Contains(err.Error(), "secret") {
 			t.Fatalf("expected safe connection error, got %v", err)
 		}
+	}
+}
+
+func TestMigrationChecksumAcrossLineEndings(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+	if err := Prepare(ctx, pool, "../../../seed/checklist.json"); err != nil {
+		t.Fatal(err)
+	}
+	body, err := fs.ReadFile(scripts, "migrations/0002_onboarding.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lf := strings.ReplaceAll(string(body), "\r\n", "\n")
+	legacy := fmt.Sprintf("%x", sha256.Sum256([]byte(strings.ReplaceAll(lf, "\n", "\r\n"))))
+	if _, err := pool.Exec(ctx, "UPDATE schema_migrations SET checksum=$1 WHERE name='migrations/0002_onboarding.sql'", legacy); err != nil {
+		t.Fatal(err)
+	}
+	if err := Prepare(ctx, pool, "../../../seed/checklist.json"); err != nil {
+		t.Fatalf("equivalent CRLF migration rejected: %v", err)
+	}
+	if _, err := pool.Exec(ctx, "UPDATE schema_migrations SET checksum='different-content' WHERE name='migrations/0002_onboarding.sql'"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Prepare(ctx, pool, "../../../seed/checklist.json"); err == nil {
+		t.Fatal("changed migration accepted")
 	}
 }

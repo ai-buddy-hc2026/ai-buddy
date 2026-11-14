@@ -1,12 +1,9 @@
 import asyncio
 import json
-from collections.abc import AsyncIterator, Iterator
 from uuid import UUID
 
 import pytest
-import pytest_asyncio
 import redis.asyncio as aioredis
-from testcontainers.community.redis import RedisContainer
 
 from api.v1.chat import pubsub_publish
 from config import get_settings
@@ -15,24 +12,6 @@ from schemas import chat as chat_schema
 from schemas.chat import ChatRequest
 
 REQUEST_ID = UUID("20000000-0000-0000-0000-000000000001")
-
-
-@pytest.fixture
-def redis_container() -> Iterator[RedisContainer]:
-    with RedisContainer("redis:7-alpine") as container:
-        yield container
-
-
-@pytest_asyncio.fixture
-async def redis_client(redis_container: RedisContainer) -> AsyncIterator[aioredis.Redis]:
-    client = aioredis.Redis(
-        host=redis_container.get_container_host_ip(),
-        port=int(redis_container.get_exposed_port(6379)),
-        decode_responses=True,
-    )
-    await client.ping()
-    yield client
-    await client.aclose()
 
 
 @pytest.fixture
@@ -87,7 +66,13 @@ async def test_pubsub_publish_streams_tokens_and_done(
     chat_request: ChatRequest,
     redis_client: aioredis.Redis,
     ai_service: AIService,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    async def stream_tokens(_messages, _tools):
+        yield {"type": "token", "text": "Детерминированный "}
+        yield {"type": "token", "text": "ответ."}
+
+    monkeypatch.setattr(ai_service, "stream_step", stream_tokens)
     events = await _run_and_read_events(chat_request, ai_service, redis_client)
 
     token_events = events[:-1]
@@ -96,7 +81,12 @@ async def test_pubsub_publish_streams_tokens_and_done(
     assert [event["seq"] for event in events] == list(range(1, len(events) + 1))
     assert events[-1]["event"] == "done"
     token_text = "".join(event["data"]["text"] for event in token_events)
-    assert events[-1]["data"] == {"full_text": token_text, "sources": []}
+    assert events[-1]["data"] == {
+        "full_text": token_text,
+        "sources": [],
+        "answer_status": "answered",
+        "question_category": "other",
+    }
     assert all(event["request_id"] == str(REQUEST_ID) for event in events)
     state = await redis_client.get(f"chat:{REQUEST_ID}")
     assert state is not None
