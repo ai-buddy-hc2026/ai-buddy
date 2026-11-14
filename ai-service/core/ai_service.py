@@ -1,4 +1,6 @@
 import json
+import logging
+import re
 from collections.abc import AsyncIterator, Sequence
 
 from openai import (
@@ -9,6 +11,29 @@ from openai import (
 )
 
 from config import get_settings
+from core.tool_names import ToolNames
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_identifier(value: object) -> str | None:
+    if not isinstance(value, str) or value.startswith("sk-"):
+        return None
+    return value if re.fullmatch(r"[a-zA-Z0-9_.\[\]-]{1,128}", value) else None
+
+
+def _log_failure(operation: str, error: Exception) -> None:
+    # Тело ошибки и объект запроса могут содержать ключ или текст пользователя.
+    logger.warning(
+        "Ошибка LLM operation=%s error_type=%s status=%s code=%s param=%s "
+        "provider_request_id=%s",
+        operation,
+        type(error).__name__,
+        getattr(error, "status_code", None),
+        _safe_identifier(getattr(error, "code", None)),
+        _safe_identifier(getattr(error, "param", None)),
+        _safe_identifier(getattr(error, "request_id", None)),
+    )
 
 
 class LLMUnavailableError(Exception):
@@ -59,8 +84,10 @@ class AIService:
             allowed = {"task", "process", "access", "technical", "other"}
             return category if category in allowed else "other"
         except APITimeoutError as e:
+            _log_failure("classification", e)
             raise LLMTimeoutError("LLM timeout") from e
         except (APIConnectionError, APIStatusError) as e:
+            _log_failure("classification", e)
             raise LLMUnavailableError("LLM unavailable") from e
         except (json.JSONDecodeError, AttributeError, IndexError, TypeError):
             return "other"
@@ -75,11 +102,12 @@ class AIService:
 
         kwargs: dict = {}
         if tools:
+            names = ToolNames(tools)
             kwargs["tools"] = [
                 {
                     "type": "function",
                     "function": {
-                        "name": t["name"],
+                        "name": names.for_model(t["name"]),
                         "description": t.get("description", ""),
                         "parameters": t["inputSchema"],
                     },
@@ -97,6 +125,8 @@ class AIService:
             )
             try:
                 async for chunk in response:
+                    if not chunk.choices:
+                        continue
                     delta = chunk.choices[0].delta
                     if delta.content:
                         yield {"type": "token", "text": delta.content}
@@ -106,8 +136,10 @@ class AIService:
             finally:
                 await response.close()
         except APITimeoutError as e:
+            _log_failure("stream", e)
             raise LLMTimeoutError("LLM timeout") from e
         except (APIConnectionError, APIStatusError) as e:
+            _log_failure("stream", e)
             raise LLMUnavailableError("LLM unavailable") from e
 
 
