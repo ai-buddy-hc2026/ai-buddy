@@ -20,6 +20,7 @@ logs/
 *.exe
 *.test
 /backend/bin/
+.tmp
 
 # coverage
 coverage/
