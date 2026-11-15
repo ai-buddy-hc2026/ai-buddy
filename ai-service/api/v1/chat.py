@@ -12,11 +12,6 @@ from openai import APITimeoutError, OpenAIError
 from redis.exceptions import RedisError
 
 from app.agent.context import UserContext
-from app.agent.escalation_tool import (
-    ESCALATION_MCP_NAME,
-    TOOL_DEFINITION as ESCALATION_TOOL_DEFINITION,
-    proposal_details as escalation_proposal_details,
-)
 from app.agent.knowledge_tool import MCP_NAME as KNOWLEDGE_MCP_NAME
 from app.agent.knowledge_tool import OPENAI_NAME as KNOWLEDGE_TOOL_NAME
 from app.agent.knowledge_tool import (
@@ -174,9 +169,7 @@ async def pubsub_publish(
     deadline = time.monotonic() + GENERATION_TIMEOUT_SECONDS
     context = UserContext.from_payload(chat_data.model_dump(mode="json"))
     messages = [{"role": "system", "content": build_system_prompt(context)}]
-    messages.extend(
-        item.model_dump(exclude={"message_id", "sources"}) for item in chat_data.history
-    )
+    messages.extend(item.model_dump() for item in chat_data.history)
     messages.append({"role": "user", "content": chat_data.message})
 
     async def publish_event(event: Any) -> None:
@@ -226,8 +219,6 @@ async def pubsub_publish(
                 if tool["name"] != KNOWLEDGE_MCP_NAME
             ]
             tools.append(_knowledge_tool())
-            if context.role == "intern":
-                tools.append(ESCALATION_TOOL_DEFINITION)
             try:
                 names = ToolNames(tools)
             except ToolNameError as exc:
@@ -371,30 +362,6 @@ async def pubsub_publish(
                         knowledge_result = await _search_knowledge(arguments, context)
                         no_answer_from_kb = knowledge_result.get("status") == "no_answer"
                         result = knowledge_result
-                    elif tool_name == ESCALATION_MCP_NAME:
-                        if context.role != "intern":
-                            raise MCPContractError(
-                                "POLICY_DENIED",
-                                "Передача вопроса доступна только стажёру",
-                            )
-                        await publish_proposal(
-                            ESCALATION_MCP_NAME,
-                            escalation_proposal_details(
-                                chat_data.message,
-                                [
-                                    item.model_dump(mode="json")
-                                    for item in chat_data.history
-                                ],
-                            ),
-                        )
-                        result = {
-                            "ok": False,
-                            "error": {
-                                "code": "CONFIRMATION_REQUIRED",
-                                "message": "Передача предложена и ждёт подтверждения.",
-                                "retryable": False,
-                            },
-                        }
                     elif tool_name in WRITE_TOOLS:
                         result = await mcp.propose_action(tool_name, arguments)
                     else:
@@ -444,17 +411,6 @@ async def pubsub_publish(
                             data=TokenData(text=full_text),
                         ),
                     )
-                    if knowledge_result and knowledge_result.get("suggest_escalation"):
-                        await publish_proposal(
-                            ESCALATION_MCP_NAME,
-                            escalation_proposal_details(
-                                chat_data.message,
-                                [
-                                    item.model_dump(mode="json")
-                                    for item in chat_data.history
-                                ],
-                            ),
-                        )
                     break
 
     try:

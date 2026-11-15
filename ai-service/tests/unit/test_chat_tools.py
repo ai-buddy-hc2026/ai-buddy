@@ -12,7 +12,7 @@ from api.v1 import chat
 from core.ai_service import AIService
 from integrations import mcp_client
 from schemas import chat as chat_schema
-from schemas.chat import ChatHistoryMessage, ChatRequest
+from schemas.chat import ChatRequest
 
 REQUEST_ID = UUID("20000000-0000-0000-0000-000000000001")
 TOOL_SCHEMA = {"type": "object", "properties": {}, "additionalProperties": False}
@@ -258,126 +258,6 @@ async def test_chat_proposes_write_and_returns_confirmation_error_to_llm(
         "done",
     ]
     assert [event["seq"] for event in events] == [1, 2, 3, 4, 5]
-
-
-@pytest.mark.asyncio
-async def test_chat_proposes_escalation_without_executing_it(
-    chat_request: ChatRequest,
-    monkeypatch: pytest.MonkeyPatch,
-    ai_service: AIService,
-) -> None:
-    monkeypatch.setattr(chat, "GenerationMCPClient", FakeMCPClient)
-    chat_request.message = "Помоги передать вопрос наставнику"
-    chat_request.history = [
-        ChatHistoryMessage(
-            role="user",
-            content="Как оформить отгул?",
-            message_id=UUID("30000000-0000-0000-0000-000000000099"),
-            sources=[],
-        ),
-    ]
-    calls = configure_ai_service(monkeypatch, ai_service, "escalation.create")
-
-    class RecordingRedis:
-        def __init__(self) -> None:
-            self.events: list[dict] = []
-
-        async def publish(self, _channel: str, payload: str) -> None:
-            self.events.append(json.loads(payload))
-
-        async def set(self, *_args, **_kwargs) -> None:
-            return None
-
-    redis = RecordingRedis()
-    await chat.pubsub_publish(chat_request, ai_service, redis)
-
-    events = redis.events
-    proposals = [event for event in events if event["event"] == "action_proposal"]
-    assert len(proposals) == 1
-    assert proposals[0]["data"]["action_type"] == "escalation.create"
-    assert proposals[0]["data"]["details"] == {
-        "question": "Как оформить отгул?",
-        "context_snapshot": [
-            {
-                "message_id": "30000000-0000-0000-0000-000000000099",
-                "role": "user",
-                "content": "Как оформить отгул?",
-                "sources": [],
-            },
-        ],
-    }
-    assert not FakeMCPClient.instance.call_args
-    assert "escalation.create" in [tool["name"] for tool in calls[0][1]]
-    assert events[-1]["event"] == "done"
-
-
-@pytest.mark.asyncio
-async def test_unknown_kb_answer_offers_confirmable_escalation(
-    chat_request: ChatRequest,
-    monkeypatch: pytest.MonkeyPatch,
-    ai_service: AIService,
-) -> None:
-    class ScopedMCPClient(FakeMCPClient):
-        async def authorize_knowledge(self) -> dict[str, str]:
-            return {
-                "user_id": str(chat_request.user_id),
-                "team_id": str(chat_request.team_id),
-                "role": chat_request.role,
-            }
-
-    monkeypatch.setattr(chat, "GenerationMCPClient", ScopedMCPClient)
-    monkeypatch.setattr(
-        chat,
-        "_search_knowledge",
-        lambda *_args: asyncio.sleep(
-            0,
-            result={"status": "no_answer", "suggest_escalation": True},
-        ),
-    )
-
-    calls = 0
-
-    async def stream_step(_messages: list[dict], _tools: list[dict]):
-        nonlocal calls
-        calls += 1
-        if calls == 1:
-            yield {
-                "type": "tool_call_delta",
-                "tool_call": SimpleNamespace(
-                    index=0,
-                    id="call-kb",
-                    function=SimpleNamespace(
-                        name="knowledge_search",
-                        arguments=json.dumps({"query": chat_request.message}),
-                    ),
-                ),
-            }
-            return
-        yield {"type": "token", "text": "Не нашёл ответ."}
-
-    monkeypatch.setattr(ai_service, "stream_step", stream_step)
-
-    class RecordingRedis:
-        def __init__(self) -> None:
-            self.events: list[dict] = []
-
-        async def publish(self, _channel: str, payload: str) -> None:
-            self.events.append(json.loads(payload))
-
-        async def set(self, *_args, **_kwargs) -> None:
-            return None
-
-    redis = RecordingRedis()
-    await chat.pubsub_publish(chat_request, ai_service, redis)
-
-    proposals = [event for event in redis.events if event["event"] == "action_proposal"]
-    assert len(proposals) == 1
-    assert proposals[0]["data"]["action_type"] == "escalation.create"
-    assert proposals[0]["data"]["details"] == {
-        "question": chat_request.message,
-        "context_snapshot": [],
-    }
-    assert redis.events[-1]["event"] == "done"
 
 
 async def test_unadvertised_tool_never_reaches_go(
