@@ -11,22 +11,6 @@ from core.ai_service import AIService
 from main import app
 
 
-@pytest.fixture(scope="session")
-def search_kb_dir(tmp_path_factory):
-    """Стабильный корпус для HashEmbedder, независимый от редактуры seed KB."""
-    directory = tmp_path_factory.mktemp("search-kb")
-    documents = {
-        "otgul": "# Отгул\n\n## Оформление\nКак оформить отгул? Подтверди заявку.",
-        "review": "# Code review\n\n## Ревью\nРевьюер проверяет pull request.",
-        "git": "# Git\n\n## Ветка\nСоздай ветку для новой задачи.",
-        "meeting": "# Встреча\n\n## План\nОбсуди задачи с наставником.",
-        "setup": "# Окружение\n\n## Запуск\nУстанови редактор и Docker.",
-    }
-    for slug, text in documents.items():
-        (directory / f"{slug}.md").write_text(text + "\n", encoding="utf-8")
-    return directory
-
-
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 def infra_containers():
     if os.getenv("TEST_INFRA_FROM_COMPOSE") == "1":

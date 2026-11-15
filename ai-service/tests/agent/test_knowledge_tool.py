@@ -22,24 +22,24 @@ def run(q, ctx=INTERN, store=None, embedder=None, **kw):
     )
 
 
-def test_found(search_kb_dir, embedder):
-    store = make_store(search_kb_dir, embedder)
+def test_found(kb_dir, embedder):
+    store = make_store(kb_dir, embedder)
     r = run("Как оформить отгул?", store=store, embedder=embedder)
     assert r["status"] == "found" and r["results"][0]["id"] == 1
     assert "отгул" in r["results"][0]["doc_title"].lower()
     assert len(r["results"]) <= 4
 
 
-def test_budget_is_no_answer_with_contacts(search_kb_dir, embedder):
-    store = make_store(search_kb_dir, embedder)
+def test_budget_is_no_answer_with_contacts(kb_dir, embedder):
+    store = make_store(kb_dir, embedder)
     r = run("Какой бюджет на конференции?", store=store, embedder=embedder)
     assert r["status"] == "no_answer"
     assert r["who_to_ask"] == ["наставник", "руководитель", "HR BP"]
     assert r["suggest_escalation"] is True
 
 
-def test_no_escalation_for_buddy(search_kb_dir, embedder):
-    store = make_store(search_kb_dir, embedder)
+def test_no_escalation_for_buddy(kb_dir, embedder):
+    store = make_store(kb_dir, embedder)
     ctx = UserContext(user_id="b", role="buddy", team_id="team-a")
     r = run("Какой бюджет на конференции?", ctx=ctx, store=store, embedder=embedder)
     assert r["suggest_escalation"] is False and "наставник" not in r["who_to_ask"]

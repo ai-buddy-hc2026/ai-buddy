@@ -6,8 +6,8 @@ from app.rag.store import ChunkRow, MemoryStore
 FAKE_MIN = 0.35
 
 
-def make_store(search_kb_dir, embedder):
-    chunks = build_chunks(search_kb_dir, 800, 80)
+def make_store(kb_dir, embedder):
+    chunks = build_chunks(kb_dir, 800, 80)
     vecs = embedder.embed_passages([c.embed_text for c in chunks])
     store = MemoryStore()
     store.replace_source(
@@ -17,8 +17,8 @@ def make_store(search_kb_dir, embedder):
     return store
 
 
-def test_otgul_question_finds_otgul_doc(search_kb_dir, embedder):
-    store = make_store(search_kb_dir, embedder)
+def test_otgul_question_finds_otgul_doc(kb_dir, embedder):
+    store = make_store(kb_dir, embedder)
     res = search(
         "Как оформить отгул?",
         "team-a",
@@ -30,8 +30,8 @@ def test_otgul_question_finds_otgul_doc(search_kb_dir, embedder):
     assert res[0].source_label.startswith(res[0].doc_title)
 
 
-def test_budget_question_finds_nothing(search_kb_dir, embedder):
-    store = make_store(search_kb_dir, embedder)
+def test_budget_question_finds_nothing(kb_dir, embedder):
+    store = make_store(kb_dir, embedder)
     res = search(
         "Какой бюджет на конференции?",
         "team-a",
@@ -42,8 +42,8 @@ def test_budget_question_finds_nothing(search_kb_dir, embedder):
     assert res == []
 
 
-def test_top_k_limit(search_kb_dir, embedder):
-    store = make_store(search_kb_dir, embedder)
+def test_top_k_limit(kb_dir, embedder):
+    store = make_store(kb_dir, embedder)
     res = search(
         "code review pull request ревьюер",
         "team-a",
@@ -55,8 +55,8 @@ def test_top_k_limit(search_kb_dir, embedder):
     assert len(res) == 4
 
 
-def test_empty_query(search_kb_dir, embedder):
-    store = make_store(search_kb_dir, embedder)
+def test_empty_query(kb_dir, embedder):
+    store = make_store(kb_dir, embedder)
     assert search("   ", "team-a", embedder=embedder, store=store) == []
 
 
@@ -75,10 +75,10 @@ def test_team_filter(embedder):
     assert other == [] and no_team == []
 
 
-def test_replace_source_is_idempotent(search_kb_dir, embedder):
-    store = make_store(search_kb_dir, embedder)
+def test_replace_source_is_idempotent(kb_dir, embedder):
+    store = make_store(kb_dir, embedder)
     n1 = len(store.query(embedder.embed_query("отгул"), "t", 1000))
-    chunks = build_chunks(search_kb_dir, 800, 80)
+    chunks = build_chunks(kb_dir, 800, 80)
     vecs = embedder.embed_passages([c.embed_text for c in chunks])
     store.replace_source(
         "seed",

@@ -1,10 +1,13 @@
 openapi: 3.0.3
 info:
   title: AI-buddy - внешний Go API
-  version: 0.1.0
+  version: 0.1.0-draft
   description: |
-    Описание HTTP-профиля реализации MVP. Основа: docs/mvp.md, docs/db.md
-    и docs/ai-contract.md. Нереализованные операции помечены x-implementation-status.
+    Черновик для согласования Go, frontend и AI-service, а не описание готовой реализации.
+    Основа: docs/mvp.md и docs/db.md. Межсервисные события сверены с
+    docs/ai-contract.md, добавленным в main через PR #60:
+    https://github.com/ai-buddy-hc2026/ai-buddy/pull/60
+    (docs/ai-contract.md, 1.2-draft, blob 1a547cd06d821d1ae650cd8ff73a3477e5678c5b).
     Внутренний POST /chat Python и MCP не входят во внешний API.
 
     Данные MVP синтетические. Mock-login без пароля предназначен для тестового
@@ -15,13 +18,20 @@ info:
     Время передаётся в RFC 3339 UTC, календарные даты в YYYY-MM-DD.
     Все текстовые лимиты считаются в Unicode code points после обрезки крайних пробелов.
 
-    GET /chat/messages:
+    Предложение черновика: GET /chat/messages,
     ответы списков с курсором, восстановление беседы через GET /chat/messages
-    без conversation_id. У пользователя одна активная беседа в текущем профиле:
+    без conversation_id. У пользователя одна активная беседа в этом черновике:
     GET возвращает её ID, первый POST без ID атомарно создаёт или выбирает её.
     Создание нескольких бесед и их архивирование здесь не определены.
-    Матрица прав описана в docs/mcp.md и specs/tools.
-    Методика метрик находится в docs/metrics.md; endpoint сводки не реализован.
+    Остальные HTTP-схемы, TTL JWT и параметры лимитов также требуют ревью команды.
+    Матрица прав инструментов уточняется в specs/tools; контракт не расширяет её.
+    Метрики пока не имеют согласованных формул, см. issue #52.
+x-review-questions:
+  - Сверить поля с frontend (#16) и финализировать контракт в #22.
+  - Сверить реализацию SSE и обязательный revision с docs/ai-contract.md; не менять внутренний контракт молча.
+  - Уточнить схемы details/result действий по спецификациям инструментов (#49).
+  - Подтвердить области видимости и формулы метрик с аналитиком (#52).
+  - Согласовать единственную активную беседу, пагинацию истории и токен версии ответа наставника.
 servers:
   - url: http://localhost:8080
     description: Локальный Go API, без префикса /api
@@ -199,6 +209,7 @@ paths:
       tags: [chat]
       operationId: getChatMessages
       summary: Восстановить историю своей беседы после перезагрузки
+      x-draft-proposal: true
       x-implementation: 'feat/mcp-contract-alignment: история, пагинация и сохраненные карточки действий'
       description: |
         Без conversation_id выбирает единственную активную беседу пользователя;
@@ -287,9 +298,10 @@ paths:
       tags: [chat]
       operationId: streamChatRequest
       summary: Читать или восстановить SSE одной генерации по request_id
-      x-implementation: 'token/tool_call/action_proposal/done/error, heartbeat, Last-Event-ID; один процесс Go'
+      x-implementation: '#24: token/done/error, heartbeat, Last-Event-ID; один процесс Go'
       description: |
-        Реализация поддерживает все пять событий и RAG-источники с revision.
+        Реализация #24 поддерживает token/done/error с пустыми sources.
+        tool_call/action_proposal и RAG-источники ниже остаются целевым контрактом.
         После потери буфера сохраняется только терминальный итог. Для потерянной
         running-генерации курсор выше восстановленного seq дает 400: нужно прочитать
         историю без Last-Event-ID; прозрачного продолжения генерации нет.
@@ -499,7 +511,7 @@ paths:
         и не обновляет её молча; true явно публикует новую revision при изменении текста.
         Результат содержит состояние документа KB. Полнотекстовая индексация выполняется
         локально в той же транзакции. Опубликованный ответ доступен стажерам той же команды
-        через GET /knowledge/search с источником. Чат использует отдельный векторный поиск Python с проверкой доступа в Go.
+        через GET /knowledge/search с источником. Чат пока не использует этот HTTP-поиск автоматически.
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -564,10 +576,9 @@ paths:
     get:
       tags: [metrics]
       operationId: getMetricsSummary
-      summary: Планируемая сводка метрик (не реализована)
-      x-implementation-status: not_implemented
+      summary: Получить черновую сводку метрик в разрешённой области
       description: |
-        План развития, не действующий endpoint. Проектная область: intern только свои данные; buddy только назначенные
+        Предложение прав для ревью: intern только свои данные; buddy только назначенные
         стажёры; lead только своя команда. Произвольный team_id не принимается.
         Интервал [from, to), UTC; без границ вся доступная история. from должен быть < to.
         Формулы, знаменатели и дедупликация согласуются с аналитиком в issue #52.
@@ -861,7 +872,7 @@ components:
         details:
           type: object
           additionalProperties: true
-          description: Проверенные Go поля для карточки; форма зависит от инструмента, см. docs/mcp.md и specs/tools.
+          description: Проверенные Go поля для карточки; форма зависит от инструмента, см. specs/tools и PR #60.
         status: {$ref: '#/components/schemas/ActionStatus'}
         result:
           type: object

@@ -1,20 +1,21 @@
-# Инструменты AI-buddy
+# Спеки инструментов AI-buddy
 
-Матрица прав и JSON Schema: [MCP](../../docs/mcp.md). Реализация проверок:
-[policy Go](../../backend/internal/policy/policy.go). Аргументы модели не определяют права.
+Источник правды по правам: таблица в MVP (раздел 7) и policy-слой на Go. Права проверяет Go перед каждым вызовом, агент получает только разрешённые роли инструменты.
 
-| Операция | Доступ | Подтверждение |
+Имена: в контракте MCP используются имена с точкой (`knowledge.search`), в function calling LLM имена без точки (`knowledge_search`). Соответствие делает агент: точка заменяется на `_`.
+
+| Инструмент | Кому доступен | Подтверждение |
 |---|---|---|
-| checklist.get_plan | intern: свой; buddy: назначенные; lead: своя команда | нет |
-| checklist.update_status | исполнитель в доступном плане | да, для агентного пути |
-| employees.get_manager | все, про себя | нет |
-| absences.get_policy | все, своя команда | нет |
-| absences.create_request | все, за себя | да |
-| absences.list_for_employee | buddy: назначенные; lead: команда; intern запрещено | нет |
-| knowledge.search | intern, своя команда после проверки Go | нет |
-| escalation.create | внутренний исполнитель Go для intern; Python не подключён | да |
+| checklist.get_plan | стажёр: свой план, наставник: планы своих стажёров | нет |
+| checklist.update_status | стажёр: свои задачи | нет |
+| knowledge.search | все | нет |
+| absences.get_policy | все | нет |
+| absences.create_request | все, только за себя | да |
+| absences.list_for_employee | руководитель по своей команде | нет |
+| employees.get_manager | все, только про себя | нет |
+| escalation.create | стажёр | да |
 
-Первые шесть операций опубликованы в MCP. knowledge.search выполняется в Python
-после POST /mcp/knowledge-scope. escalation.create не входит в MCP tools/list.
-Служебный токен и request_id связывают вызов с доверенным контекстом Go.
-Имена MCP с точками преобразуются для LLM и восстанавливаются транспортным адаптером.
+Общие правила:
+- user_id, team_id и роль берутся из JWT, а не из аргументов, которые сформировала модель. Аргумент user_id или team_id, не совпадающий с токеном, отклоняется.
+- Любой отказ по правам пишется в events как `policy_denied`.
+- Ошибки возвращаются в виде `{"error": {"code": "...", "message": "..."}}`. Агент не пересказывает чужие данные из текста ошибки.
