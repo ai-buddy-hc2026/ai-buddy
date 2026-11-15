@@ -11,12 +11,16 @@ from pydantic import (
     model_validator,
 )
 
+from schemas.event import Source
+
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class ChatHistoryMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str
+    message_id: UUID | None = None
+    sources: list[Source] = Field(default_factory=list)
 
 
 class ChatRequest(BaseModel):

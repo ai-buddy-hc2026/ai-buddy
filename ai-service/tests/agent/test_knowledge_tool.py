@@ -4,6 +4,7 @@ from app.agent.knowledge_tool import (
     extract_citations,
     run_knowledge_search,
 )
+from app.rag.search import SearchResult
 from app.rag.store import ChunkRow
 from tests.agent.conftest import FAKE_MIN
 from tests.rag.test_search import make_store
@@ -36,6 +37,38 @@ def test_budget_is_no_answer_with_contacts(kb_dir, embedder):
     assert r["status"] == "no_answer"
     assert r["who_to_ask"] == ["наставник", "руководитель", "HR BP"]
     assert r["suggest_escalation"] is True
+    assert r["confidence"] == "low" and r["fragments"] == []
+
+
+def test_confidence_uses_score_and_result_count(monkeypatch, embedder):
+    import app.agent.knowledge_tool as knowledge_tool
+
+    monkeypatch.setattr(
+        knowledge_tool,
+        "get_settings",
+        lambda: type(
+            "Settings",
+            (),
+            {
+                "confidence_high_score": 0.88,
+                "confidence_medium_score": 0.80,
+                "confidence_high_min_results": 2,
+            },
+        )(),
+    )
+    results = [
+        SearchResult("Текст 1", "Гайд", "Раздел 1", 0.91, "seed", "team-a"),
+        SearchResult("Текст 2", "Гайд", "Раздел 2", 0.85, "seed", "team-a"),
+    ]
+    monkeypatch.setattr(knowledge_tool, "search", lambda *_args, **_kwargs: results)
+
+    response = run("Вопрос", store=object(), embedder=embedder)
+
+    assert response["confidence"] == "high"
+    assert response["fragments"] == [
+        {"doc": "Гайд", "text": "Текст 1", "score": 0.91},
+        {"doc": "Гайд", "text": "Текст 2", "score": 0.85},
+    ]
 
 
 def test_no_escalation_for_buddy(kb_dir, embedder):

@@ -52,6 +52,8 @@ class Source(BaseModel):
 class DoneData(BaseModel):
     full_text: str = Field(max_length=20_000)
     sources: list[Source]
+    confidence: Literal["high", "medium", "low"] | None = None
+    fragments: list[dict[str, Any]] | None = None
     answer_status: Literal["answered", "unknown"]
     question_category: Literal["task", "process", "access", "technical", "other"]
 

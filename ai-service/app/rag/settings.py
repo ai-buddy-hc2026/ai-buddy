@@ -10,6 +10,9 @@ class RagSettings:
     kb_dir: Path
     top_k: int
     min_score: float
+    confidence_high_score: float
+    confidence_medium_score: float
+    confidence_high_min_results: int
     chunk_max_chars: int
     chunk_overlap: int
     database_url: str
@@ -23,6 +26,9 @@ def get_settings() -> RagSettings:
         top_k=int(os.getenv("KB_TOP_K", "4")),
         # Временное значение. Подобрать скриптом scripts/calibrate_threshold.py
         min_score=float(os.getenv("KB_MIN_SCORE", "0.80")),
+        confidence_high_score=float(os.getenv("KB_CONFIDENCE_HIGH_SCORE", "0.88")),
+        confidence_medium_score=float(os.getenv("KB_CONFIDENCE_MEDIUM_SCORE", "0.80")),
+        confidence_high_min_results=int(os.getenv("KB_CONFIDENCE_HIGH_MIN_RESULTS", "2")),
         chunk_max_chars=int(os.getenv("KB_CHUNK_MAX_CHARS", "800")),
         chunk_overlap=int(os.getenv("KB_CHUNK_OVERLAP", "80")),
         database_url=os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL", ""),

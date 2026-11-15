@@ -4,7 +4,11 @@ import pytest
 import pytest_asyncio
 import redis.asyncio as aioredis
 from httpx import ASGITransport, AsyncClient
-from testcontainers.community.redis import RedisContainer
+
+try:
+    from testcontainers.community.redis import RedisContainer
+except ModuleNotFoundError:  # testcontainers 4.14 keeps Redis under the legacy namespace
+    from testcontainers.redis import RedisContainer
 
 from config import get_settings
 from core.ai_service import AIService

@@ -8,6 +8,7 @@ from app.agent.context import UserContext
 from app.agent.unknown import can_escalate, who_to_ask
 from app.rag.embeddings import Embedder
 from app.rag.search import search
+from app.rag.settings import get_settings
 from app.rag.store import Store
 
 MCP_NAME = "knowledge.search"  # имя в контракте MCP
@@ -71,12 +72,31 @@ def run_knowledge_search(
     if not results:
         return {
             "status": "no_answer",
+            "confidence": "low",
+            "fragments": [],
             "who_to_ask": who_to_ask(ctx.role),
             "suggest_escalation": can_escalate(ctx.role),
             "instruction": NO_ANSWER_INSTRUCTION,
         }
+    settings = get_settings()
+    best_score = max(result.score for result in results)
+    if (
+        best_score >= settings.confidence_high_score
+        and len(results) >= settings.confidence_high_min_results
+    ):
+        confidence = "high"
+    elif best_score >= settings.confidence_medium_score:
+        confidence = "medium"
+    else:
+        confidence = "low"
+    fragments = [
+        {"doc": result.doc_title, "text": result.text, "score": round(result.score, 3)}
+        for result in results
+    ]
     return {
         "status": "found",
+        "confidence": confidence,
+        "fragments": fragments,
         "results": [
             {
                 "id": i,
