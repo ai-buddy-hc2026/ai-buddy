@@ -31,6 +31,7 @@ from core.ai_service import (
 )
 from core.dependencies import get_redis
 from core.security import verify_token
+from core.tool_names import ToolNameError, ToolNames, valid_model_name
 from integrations.mcp_client import (
     WRITE_TOOLS,
     GenerationMCPClient,
@@ -218,6 +219,13 @@ async def pubsub_publish(
                 if tool["name"] != KNOWLEDGE_MCP_NAME
             ]
             tools.append(_knowledge_tool())
+            try:
+                names = ToolNames(tools)
+            except ToolNameError as exc:
+                raise MCPContractError(
+                    "INTERNAL_ERROR",
+                    "Некорректный каталог инструментов",
+                ) from exc
             tool_rounds = 0
             no_answer_from_kb = False
 
@@ -273,6 +281,11 @@ async def pubsub_publish(
                             "INVALID_ARGUMENT",
                             "Модель вернула неполный вызов инструмента",
                         )
+                    if not valid_model_name(call["name"]):
+                        raise MCPContractError(
+                            "INVALID_ARGUMENT",
+                            "Модель вернула некорректное имя функции",
+                        )
                     raw_arguments = call["arguments"] or "{}"
                     try:
                         arguments = json.loads(raw_arguments)
@@ -297,10 +310,30 @@ async def pubsub_publish(
                             },
                         },
                     )
+                    try:
+                        tool_name = names.for_mcp(call["name"])
+                    except ToolNameError:
+                        tool_results.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": call["id"],
+                                "content": json.dumps(
+                                    {
+                                        "error": {
+                                            "code": "POLICY_DENIED",
+                                            "message": "Инструмент недоступен.",
+                                            "retryable": False,
+                                        },
+                                    },
+                                    ensure_ascii=False,
+                                ),
+                            },
+                        )
+                        continue
                     event_tool_name = (
                         KNOWLEDGE_MCP_NAME
-                        if call["name"] == KNOWLEDGE_TOOL_NAME
-                        else call["name"]
+                        if tool_name == KNOWLEDGE_TOOL_NAME
+                        else tool_name
                     )
                     seq += 1
                     await publish_event(
@@ -315,7 +348,7 @@ async def pubsub_publish(
                         ),
                     )
 
-                    if call["name"] == KNOWLEDGE_TOOL_NAME:
+                    if tool_name == KNOWLEDGE_TOOL_NAME:
                         scope = await mcp.authorize_knowledge()
                         if (
                             scope["user_id"] != context.user_id
@@ -329,11 +362,11 @@ async def pubsub_publish(
                         knowledge_result = await _search_knowledge(arguments, context)
                         no_answer_from_kb = knowledge_result.get("status") == "no_answer"
                         result = knowledge_result
-                    elif call["name"] in WRITE_TOOLS:
-                        result = await mcp.propose_action(call["name"], arguments)
+                    elif tool_name in WRITE_TOOLS:
+                        result = await mcp.propose_action(tool_name, arguments)
                     else:
                         try:
-                            result = await mcp.call_tool(call["name"], arguments)
+                            result = await mcp.call_tool(tool_name, arguments)
                         except MCPContractError as error:
                             if error.code not in EXPECTED_TOOL_ERRORS:
                                 raise

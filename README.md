@@ -47,6 +47,7 @@ Go проверяет роль, владельца, команду и назна
 | Внешний HTTP API Go, схемы и SSE | [Черновик OpenAPI](docs/openapi.yaml), требует ревью frontend и AI-service |
 | Новая задача в отдельном чате, Git и передача результата | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Запуск и проверки Go API | [backend/README.md](backend/README.md) |
+| Запуск AI-service с OpenAI и диагностика модели | [ai-service/Readme.md](ai-service/Readme.md) |
 | Выбор контекста агентом | [AGENTS.md](AGENTS.md); вход Claude Code через [CLAUDE.md](CLAUDE.md) |
 | Контракт Go/Python | [docs/ai-contract.md](docs/ai-contract.md), статус 1.2-draft |
 | Схема БД и подробные правила дедлайнов | [docs/db.md](docs/db.md) |

@@ -1,6 +1,7 @@
 """OpenAI-compatible deterministic server for chat scenarios."""
 
 import json
+import re
 import time
 from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -90,7 +91,10 @@ def _tool_call(name: str, call_id: str, arguments: dict) -> bytes:
                     "index": 0,
                     "id": call_id,
                     "type": "function",
-                    "function": {"name": name, "arguments": json.dumps(arguments)},
+                    "function": {
+                        "name": name.replace(".", "_"),
+                        "arguments": json.dumps(arguments),
+                    },
                 },
             ],
         },
@@ -102,8 +106,8 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, _format, *_args):
         pass
 
-    def _write_json(self, body: dict) -> None:
-        self.send_response(200)
+    def _write_json(self, body: dict, status: int = 200) -> None:
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps(body, ensure_ascii=False).encode())
@@ -128,9 +132,9 @@ class Handler(BaseHTTPRequestHandler):
         elif scenario == FOREIGN_DATA and previous_call is None:
             self.wfile.write(
                 _tool_call(
-                    "absences.list_for_employee",
+                    "checklist.get_plan",
                     "mock-foreign-data-request",
-                    {"limit": 100},
+                    {"intern_id": "2db7cc77-4114-52d8-a833-f670ab60e4e0"},
                 ),
             )
         else:
@@ -177,6 +181,15 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
+        names = [t["function"]["name"] for t in body.get("tools", [])]
+        names += [
+            call["function"]["name"]
+            for message in body.get("messages", [])
+            for call in message.get("tool_calls", [])
+        ]
+        if any(not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", name) for name in names):
+            self._write_json({"error": {"code": "invalid_tool_name"}}, status=400)
+            return
         if body.get("stream", False):
             self._write_stream(body)
             return

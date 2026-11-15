@@ -88,9 +88,11 @@ func (s *Tools) ProcessEvent(ctx context.Context, requestID string, event chat.E
 			Name      string          `json:"tool_name"`
 			Arguments json.RawMessage `json:"arguments"`
 		}
-		if tools.Decode(event.Data, &input) != nil || toolcontract.Input(input.Name) == "" {
+		if tools.Decode(event.Data, &input) != nil || (toolcontract.Input(input.Name) == "" && input.Name != string(policy.SearchKnowledge)) {
 			return event, chat.ErrInvalid
 		}
+		// knowledge.search выполняется в Python после проверки knowledge-scope.
+		// Здесь принимаем только уведомление, очищая аргументы перед SSE.
 		event.Data, _ = json.Marshal(map[string]any{"tool_name": input.Name, "arguments": map[string]any{}})
 		return event, nil
 	}

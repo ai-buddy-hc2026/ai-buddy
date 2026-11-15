@@ -110,7 +110,7 @@ class PgStore:
                         SELECT 1 FROM kb_chunks c WHERE c.document_id = d.id
                         AND c.team_id = d.team_id AND c.revision = d.revision
                     )
-                ORDER BY d.created_at, d.id
+                ORDER BY d.updated_at, d.id
                 """,
                 (team_id,),
             )
