@@ -15,7 +15,7 @@ import (
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/employees"
 )
 
-// Независимая фикстура: полное наполнение Саши не меняет сценарии проверки прав.
+// Независимая фикстура: полное наполнение справочника не меняет сценарии проверки прав.
 //
 //go:embed testdata/employees.json
 var employeeTestSeed []byte
