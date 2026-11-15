@@ -173,7 +173,7 @@ async def pubsub_publish(
     messages.append({"role": "user", "content": chat_data.message})
 
     async def publish_event(event: Any) -> None:
-        await redis.publish(channel_key, event.model_dump_json())
+        await redis.publish(channel_key, event.model_dump_json(exclude_none=True))
 
     async def publish_proposal(
         action_type: str,
@@ -458,6 +458,8 @@ async def pubsub_publish(
                 data=DoneData(
                     full_text=full_text,
                     sources=list(sources.values()),
+                    confidence=(knowledge_result or {}).get("confidence"),
+                    fragments=(knowledge_result or {}).get("fragments"),
                     answer_status=answer_status,
                     question_category=question_category,
                 ),

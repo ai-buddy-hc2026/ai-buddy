@@ -49,9 +49,17 @@ class Source(BaseModel):
     url: str
 
 
+class Fragment(BaseModel):
+    doc: str = Field(min_length=1, max_length=500)
+    text: str = Field(min_length=1, max_length=20_000)
+    score: float = Field(ge=0, le=1)
+
+
 class DoneData(BaseModel):
     full_text: str = Field(max_length=20_000)
     sources: list[Source]
+    confidence: Literal["high", "medium", "low"] | None = None
+    fragments: list[Fragment] | None = None
     answer_status: Literal["answered", "unknown"]
     question_category: Literal["task", "process", "access", "technical", "other"]
 

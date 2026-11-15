@@ -17,9 +17,10 @@ def test_contacts_by_role():
     assert who_to_ask("lead") == ["HR BP"]
 
 
-def test_unknown_text_for_intern_has_button_hint():
+def test_unknown_text_for_intern_suggests_a_person_without_claiming_a_button():
     t = unknown_answer_text("intern")
-    assert "наставник" in t and "HR BP" in t and "Передать наставнику" in t
+    assert "наставник" in t and "HR BP" in t
+    assert "Передать наставнику" not in t
 
 
 def test_unknown_text_for_buddy_has_no_button():
@@ -32,6 +33,7 @@ def test_unknown_text_for_buddy_has_no_button():
         ("Не знаю ответа на этот вопрос.", True),
         ("Я не могу ответить без данных из базы.", True),
         ("В базе знаний ответа на этот вопрос нет, гадать не буду.", True),
+        ("Не нашёл достаточно надёжного ответа, поэтому гадать не буду.", True),
         ("Вот инструкция, как обновить статус задачи.", False),
         ("I can explain the process step by step.", False),
     ],
