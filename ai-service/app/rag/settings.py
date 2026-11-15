@@ -17,6 +17,23 @@ class RagSettings:
     chunk_overlap: int
     database_url: str
 
+    def __post_init__(self) -> None:
+        score_thresholds = {
+            "min_score": self.min_score,
+            "confidence_medium_score": self.confidence_medium_score,
+            "confidence_high_score": self.confidence_high_score,
+        }
+        for name, score in score_thresholds.items():
+            if not 0 <= score <= 1:
+                raise ValueError(f"{name} must be between 0 and 1")
+        if self.confidence_high_score < self.confidence_medium_score:
+            raise ValueError(
+                "confidence_high_score must be greater than or equal to "
+                "confidence_medium_score",
+            )
+        if self.confidence_high_min_results < 1:
+            raise ValueError("confidence_high_min_results must be at least 1")
+
 
 def get_settings() -> RagSettings:
     return RagSettings(

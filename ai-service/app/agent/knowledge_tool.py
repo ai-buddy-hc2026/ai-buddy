@@ -93,6 +93,15 @@ def run_knowledge_search(
         {"doc": result.doc_title, "text": result.text, "score": round(result.score, 3)}
         for result in results
     ]
+    if confidence == "low":
+        return {
+            "status": "no_answer",
+            "confidence": confidence,
+            "fragments": fragments,
+            "who_to_ask": who_to_ask(ctx.role),
+            "suggest_escalation": can_escalate(ctx.role),
+            "instruction": NO_ANSWER_INSTRUCTION,
+        }
     return {
         "status": "found",
         "confidence": confidence,

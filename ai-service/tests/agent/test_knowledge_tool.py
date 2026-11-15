@@ -23,7 +23,22 @@ def run(q, ctx=INTERN, store=None, embedder=None, **kw):
     )
 
 
-def test_found(kb_dir, embedder):
+def test_found(kb_dir, embedder, monkeypatch):
+    import app.agent.knowledge_tool as knowledge_tool
+
+    monkeypatch.setattr(
+        knowledge_tool,
+        "get_settings",
+        lambda: type(
+            "Settings",
+            (),
+            {
+                "confidence_high_score": 1.0,
+                "confidence_medium_score": 0.0,
+                "confidence_high_min_results": 2,
+            },
+        )(),
+    )
     store = make_store(kb_dir, embedder)
     r = run("Как оформить отгул?", store=store, embedder=embedder)
     assert r["status"] == "found" and r["results"][0]["id"] == 1
@@ -40,7 +55,7 @@ def test_budget_is_no_answer_with_contacts(kb_dir, embedder):
     assert r["confidence"] == "low" and r["fragments"] == []
 
 
-def test_confidence_uses_score_and_result_count(monkeypatch, embedder):
+def test_high_confidence_uses_score_and_result_count(monkeypatch, embedder):
     import app.agent.knowledge_tool as knowledge_tool
 
     monkeypatch.setattr(
@@ -69,6 +84,35 @@ def test_confidence_uses_score_and_result_count(monkeypatch, embedder):
         {"doc": "Гайд", "text": "Текст 1", "score": 0.91},
         {"doc": "Гайд", "text": "Текст 2", "score": 0.85},
     ]
+
+
+def test_low_confidence_does_not_return_an_answer_from_weak_matches(monkeypatch, embedder):
+    import app.agent.knowledge_tool as knowledge_tool
+
+    monkeypatch.setattr(
+        knowledge_tool,
+        "get_settings",
+        lambda: type(
+            "Settings",
+            (),
+            {
+                "confidence_high_score": 0.88,
+                "confidence_medium_score": 0.80,
+                "confidence_high_min_results": 2,
+            },
+        )(),
+    )
+    result = SearchResult("Слабый фрагмент", "Гайд", "Раздел", 0.72, "seed", "team-a")
+    monkeypatch.setattr(knowledge_tool, "search", lambda *_args, **_kwargs: [result])
+
+    response = run("Вопрос", store=object(), embedder=embedder)
+
+    assert response["status"] == "no_answer"
+    assert response["confidence"] == "low"
+    assert response["fragments"] == [
+        {"doc": "Гайд", "text": "Слабый фрагмент", "score": 0.72},
+    ]
+    assert response["who_to_ask"] == ["наставник", "руководитель", "HR BP"]
 
 
 def test_no_escalation_for_buddy(kb_dir, embedder):
