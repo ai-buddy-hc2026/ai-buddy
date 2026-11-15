@@ -10,11 +10,11 @@ from app.rag.store import MemoryStore
 from tests.rag.conftest import HashEmbedder
 
 
-def test_ingest_replaces_seed_chunks_and_makes_them_searchable(kb_dir):
+def test_ingest_replaces_seed_chunks_and_makes_them_searchable(search_kb_dir):
     embedder = HashEmbedder()
     store = MemoryStore()
 
-    inserted = ingest(kb_dir, embedder, store, max_chars=800, overlap=80)
+    inserted = ingest(search_kb_dir, embedder, store, max_chars=800, overlap=80)
     results = search(
         "Как оформить отгул?",
         "team-a",
