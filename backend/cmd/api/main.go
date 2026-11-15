@@ -92,6 +92,7 @@ func run() error {
 		return err
 	}
 	handler = httpapi.WithListings(handler, service, listings)
+	handler = httpapi.WithEmployees(handler, service, listings)
 	escalations, err := database.NewEscalations(pool, authCfg.SigningKey)
 	if err != nil {
 		return err

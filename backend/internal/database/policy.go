@@ -28,7 +28,7 @@ func validPolicyEventOperation(operation policy.Operation) bool {
 	case policy.GetPlan, policy.UpdateStatus, policy.CreateChat, policy.ReadChat,
 		policy.GetManager, policy.GetAbsencePolicy, policy.ListAbsences,
 		policy.CreateAbsence, policy.CreateEscalation, policy.AnswerEscalation,
-		policy.SearchKnowledge, policy.ListBuddyInterns, policy.ListActions:
+		policy.SearchKnowledge, policy.ListBuddyInterns, policy.ListActions, policy.ReadEmployees:
 		return true
 	default:
 		return false

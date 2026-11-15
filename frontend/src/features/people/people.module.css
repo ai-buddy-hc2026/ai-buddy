@@ -199,6 +199,10 @@
   min-height: 320px;
 }
 
+.directorySearch {
+  grid-column: 1 / -1;
+}
+
 .askText {
   display: grid;
   gap: var(--theme-gap-14);

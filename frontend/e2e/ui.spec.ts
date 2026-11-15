@@ -2,6 +2,43 @@ import { expect, test, type Page } from '@playwright/test'
 
 const browserErrors = new WeakMap<Page, string[]>()
 
+test('коллеги загружаются из Go, находятся по теме и сохраняются после перезагрузки', async ({
+  page,
+}) => {
+  await signIn(page, 'intern_anya')
+  const loaded = page
+    .waitForResponse((response) => new URL(response.url()).pathname === '/api/employees')
+    .then(async (response) => ({ status: response.status(), directory: await response.json() }))
+  await page.goto('/people?tab=team')
+  const { status, directory } = await loaded
+  expect(status).toBe(200)
+  expect(directory.items.length).toBeGreaterThan(0)
+  const specialist = directory.items.find((employee: { tags: string[] }) =>
+    employee.tags.includes('мониторинг'),
+  )
+  expect(specialist).toBeDefined()
+  await expect(
+    page.getByRole('article', { name: specialist.display_name, exact: true }),
+  ).toBeVisible()
+  await page.getByRole('textbox', { name: 'Поиск коллег' }).fill('мониторинг')
+  const searched = page.waitForResponse(
+    (result) =>
+      new URL(result.url()).pathname === '/api/employees' &&
+      new URL(result.url()).searchParams.get('q') === 'мониторинг',
+  )
+  await page.getByRole('button', { name: 'Найти', exact: true }).click()
+  expect((await searched).status()).toBe(200)
+  await expect(
+    page.getByRole('article', { name: specialist.display_name, exact: true }),
+  ).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Написать', exact: true })).toHaveCount(0)
+  await page.reload()
+  await expect(
+    page.getByRole('article', { name: specialist.display_name, exact: true }),
+  ).toBeVisible()
+  await page.screenshot({ path: 'test-results/colleagues.png', fullPage: true })
+})
+
 test.beforeEach(({ page }) => {
   const errors: string[] = []
   browserErrors.set(page, errors)

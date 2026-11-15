@@ -14,6 +14,30 @@ type AcceptedChat = {
   stream_url: string
 }
 
+test('коллеги ограничены командой, а карточка не создаёт право входа', async ({ request }) => {
+  expect((await request.get('/employees')).status()).toBe(401)
+  const token = await login(request, 'intern_anya')
+  const headers = { Authorization: `Bearer ${token}` }
+  const response = await request.get('/employees?q=мониторинг', { headers })
+  expect(response.status()).toBe(200)
+  const page = await response.json()
+  expect(page.items.length).toBeGreaterThan(0)
+  for (const employee of page.items)
+    expect(employee.team_id).toBe('4496e76d-35da-5cf7-a3d5-c9a89d88c5a2')
+  expect(page.items.some((employee: { user_id: string | null }) => employee.user_id === null)).toBe(
+    true,
+  )
+  const foreignToken = await login(request, 'intern_petr')
+  const hidden = await request.get(`/employees/${page.items[0].id}`, {
+    headers: { Authorization: `Bearer ${foreignToken}` },
+  })
+  expect(hidden.status()).toBe(404)
+  expect((await request.get('/employees?team_id=other', { headers })).status()).toBe(400)
+  expect((await request.post('/auth/mock-login', { data: { login: 'oleg_demo' } })).status()).toBe(
+    401,
+  )
+})
+
 async function login(request: APIRequestContext, loginName: string): Promise<string> {
   const response = await request.post('/auth/mock-login', { data: { login: loginName } })
   expect(response.status(), await response.text()).toBe(200)

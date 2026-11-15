@@ -17,6 +17,7 @@ const (
 	SearchKnowledge  Operation = "knowledge.search"
 	ListBuddyInterns Operation = "buddy.list_interns"
 	ListActions      Operation = "actions.list"
+	ReadEmployees    Operation = "employees.read"
 )
 
 type Actor struct{ ID, TeamID, Role string }
@@ -76,7 +77,7 @@ func Check(actor Actor, operation Operation, resource Resource) string {
 		if actor.Role != "intern" {
 			return "role_denied"
 		}
-	case GetAbsencePolicy:
+	case GetAbsencePolicy, ReadEmployees:
 	default:
 		return "operation_denied"
 	}

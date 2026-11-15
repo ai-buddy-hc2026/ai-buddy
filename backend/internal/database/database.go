@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//go:embed migrations/*.sql seeds/*.sql
+//go:embed migrations/*.sql seeds/*.sql seeds/*.json
 var scripts embed.FS
 
 // Open проверяет соединение, не выводя реквизиты подключения в ошибках.
@@ -71,6 +71,9 @@ func prepare(ctx context.Context, pool *pgxpool.Pool, files fs.FS, checklist che
 	}
 	if _, err := tx.Exec(ctx, string(seed)); err != nil {
 		return fmt.Errorf("seed users: %w", err)
+	}
+	if err := seedEmployees(ctx, tx, files); err != nil {
+		return err
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO absence_policies(team_id,notice_period_days,allowed_types) SELECT id,3,'[{"code":"day_off","label":"Отгул"}]'::jsonb FROM teams ON CONFLICT(team_id) DO NOTHING`); err != nil {
 		return fmt.Errorf("seed absence policies: %w", err)

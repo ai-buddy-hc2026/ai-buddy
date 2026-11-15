@@ -12,16 +12,25 @@ import (
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/identifier"
 )
 
-type listScope struct{ Kind, Actor, Team, Status, Conversation, Role string }
+type listScope struct {
+	Kind, Actor, Team, Status, Conversation, Role string
+	Search                                        string
+	Limit                                         int
+}
 type listCursor struct {
 	Version   int
 	Scope     listScope
 	ID        string
 	CreatedAt time.Time
+	SortOrder int
 }
 
 func (s *Listings) encodeCursor(scope listScope, id string, created time.Time) string {
-	data, _ := json.Marshal(listCursor{Version: 1, Scope: scope, ID: id, CreatedAt: created.UTC()})
+	return s.encodeCursorValue(listCursor{Version: 1, Scope: scope, ID: id, CreatedAt: created.UTC()})
+}
+
+func (s *Listings) encodeCursorValue(cursor listCursor) string {
+	data, _ := json.Marshal(cursor)
 	mac := hmac.New(sha256.New, s.cursorKey[:])
 	_, _ = mac.Write(data)
 	return base64.RawURLEncoding.EncodeToString(data) + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))

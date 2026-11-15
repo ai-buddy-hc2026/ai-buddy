@@ -545,6 +545,60 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '503': {$ref: '#/components/responses/Unavailable'}
+  /employees:
+    get:
+      tags: [employees]
+      operationId: listEmployees
+      summary: Коллеги своей команды
+      description: Активные публичные карточки своей команды для intern/buddy/lead. Связанный неактивный пользователь скрывается. Поиск буквальный; сортировка sort_order ASC, id ASC. Курсор связан с пользователем, командой, q и limit. Неизвестные и повторные параметры запрещены.
+      parameters:
+        - name: q
+          in: query
+          schema: {type: string, maxLength: 200}
+          description: Подстрока имени, должности или тега; trim, без учёта регистра. Пустое значение означает весь список.
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+        - name: cursor
+          in: query
+          schema: {type: string, minLength: 1, maxLength: 2048}
+      responses:
+        '200':
+          description: Страница коллег; items всегда массив
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Employee'}}
+                  next_cursor: {type: string, nullable: true}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /employees/{id}:
+    get:
+      tags: [employees]
+      operationId: getEmployee
+      summary: Карточка коллеги своей команды
+      description: Чужая, неактивная и отсутствующая карточки дают одинаковый 404. Параметры query не принимаются.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Публичная карточка
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Employee'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
 x-planned-api:
   description: План сводки метрик; маршрут не реализован и исключён из paths. Методика - docs/metrics.md. Права и формы требуют отдельной реализации и согласования.
   paths:
@@ -657,6 +711,23 @@ components:
         application/json:
           schema: {$ref: '#/components/schemas/Error'}
   schemas:
+    Employee:
+      type: object
+      required: [id, team_id, team_name, user_id, display_name, short_name, job_title, kind, tags, ask_about, contact_handle, is_key_contact, sort_order]
+      properties:
+        id: {type: string, format: uuid}
+        team_id: {type: string, format: uuid}
+        team_name: {type: string}
+        user_id: {type: string, format: uuid, nullable: true}
+        display_name: {type: string, minLength: 1, maxLength: 120}
+        short_name: {type: string, minLength: 1, maxLength: 60}
+        job_title: {type: string, minLength: 1, maxLength: 160}
+        kind: {type: string, enum: [intern, mentor, lead, hr, colleague]}
+        tags: {type: array, maxItems: 12, items: {type: string, minLength: 1, maxLength: 60}}
+        ask_about: {type: string, maxLength: 1000}
+        contact_handle: {type: string, nullable: true, minLength: 1, maxLength: 120}
+        is_key_contact: {type: boolean}
+        sort_order: {type: integer, minimum: 0}
     UUID:
       type: string
       format: uuid

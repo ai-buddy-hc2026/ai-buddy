@@ -3,12 +3,14 @@ import { useState } from 'react'
 import { EMPLOYEES, findOwner } from '@/entities/employees'
 import { DEMO, useUser } from '@/entities/session'
 import { useT } from '@/shared/lib/i18n'
+import { IS_MOCK } from '@/shared/api/http'
 import { Button, Card, Chip, ChipRow, Eyebrow, Input, Note } from '@/shared/ui'
 import { Birthdays } from './Birthdays'
 import { keyPeople, matchedTag } from './logic'
 import { PeopleArt } from './PeopleArt'
 import { PersonCard } from './PersonCard'
 import s from './people.module.css'
+import { RemoteTeamTab } from './RemoteTeamTab'
 
 function AskWho({ onAsk }: { onAsk: (topic: string) => void }) {
   const t = useT()
@@ -97,7 +99,7 @@ function OwnerResult({ topic }: { topic: string }) {
 }
 
 /** Вкладка «Команда»: кого спросить, ключевые люди с ролями, дни рождения. */
-export function TeamTab() {
+function DemoTeamTab() {
   const t = useT()
   const user = useUser()
   const [topic, setTopic] = useState<string | null>(null)
@@ -116,4 +118,8 @@ export function TeamTab() {
       ))}
     </div>
   )
+}
+
+export function TeamTab() {
+  return IS_MOCK ? <DemoTeamTab /> : <RemoteTeamTab />
 }
