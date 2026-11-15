@@ -86,7 +86,7 @@ def test_high_confidence_uses_score_and_result_count(monkeypatch, embedder):
     ]
 
 
-def test_low_confidence_does_not_return_an_answer_from_weak_matches(monkeypatch, embedder):
+def test_confidence_does_not_return_an_answer_from_weak_matches(monkeypatch, embedder):
     import app.agent.knowledge_tool as knowledge_tool
 
     monkeypatch.setattr(
