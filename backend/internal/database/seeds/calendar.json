@@ -1,0 +1,28 @@
+{
+  "office_hours": [
+    {
+      "employee_id": "4a59a828-3b1a-55e4-bf9b-81db5ad6183a",
+      "weekdays": [2, 4],
+      "start_local": "15:00",
+      "minutes": 30
+    },
+    {
+      "employee_id": "10000000-0000-0000-0000-000000000003",
+      "weekdays": [1, 3, 5],
+      "start_local": "11:00",
+      "minutes": 30
+    },
+    {
+      "employee_id": "20000000-0000-4000-8000-000000000001",
+      "weekdays": [2, 4],
+      "start_local": "11:00",
+      "minutes": 30
+    },
+    {
+      "employee_id": "0f8153be-1c96-5e0f-aa4c-55b7ed7bf47a",
+      "weekdays": [2, 4],
+      "start_local": "15:00",
+      "minutes": 30
+    }
+  ]
+}

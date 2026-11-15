@@ -22,6 +22,8 @@ import { BookDialog } from './BookDialog'
 import { OFFICE_HOURS_HOSTS } from './data'
 import { sortSlots } from './logic'
 import s from './people.module.css'
+import { IS_MOCK } from '@/shared/api/http'
+import { RemoteHoursTab } from './RemoteHoursTab'
 
 const SKELETON_SLOTS = 3
 
@@ -132,7 +134,7 @@ function MyMeetings({ attendeeId }: { attendeeId: string }) {
 }
 
 /** Вкладка «Приёмные часы»: слоты наставника, лида и HR BP, бронь в один клик с подтверждением. */
-export function HoursTab() {
+function DemoHoursTab() {
   const t = useT()
   const user = useUser()
   const hosts = OFFICE_HOURS_HOSTS.filter((id) => id !== user.employee.id).map(mustEmployee)
@@ -195,4 +197,8 @@ export function HoursTab() {
       )}
     </div>
   )
+}
+
+export function HoursTab() {
+  return IS_MOCK ? <DemoHoursTab /> : <RemoteHoursTab />
 }

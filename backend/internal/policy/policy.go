@@ -18,6 +18,9 @@ const (
 	ListBuddyInterns Operation = "buddy.list_interns"
 	ListActions      Operation = "actions.list"
 	ReadEmployees    Operation = "employees.read"
+	ReadCalendar     Operation = "calendar.read"
+	BookCalendar     Operation = "calendar.book"
+	ReadBookings     Operation = "calendar.bookings"
 )
 
 type Actor struct{ ID, TeamID, Role string }
@@ -44,7 +47,7 @@ func Check(actor Actor, operation Operation, resource Resource) string {
 		if operation == UpdateStatus && resource.AssigneeID != actor.ID {
 			return "assignee_denied"
 		}
-	case CreateChat, ReadChat, GetManager, CreateAbsence, ListActions:
+	case CreateChat, ReadChat, GetManager, CreateAbsence, ListActions, BookCalendar, ReadBookings:
 		if resource.OwnerID != actor.ID {
 			return "owner_denied"
 		}
@@ -77,7 +80,7 @@ func Check(actor Actor, operation Operation, resource Resource) string {
 		if actor.Role != "intern" {
 			return "role_denied"
 		}
-	case GetAbsencePolicy, ReadEmployees:
+	case GetAbsencePolicy, ReadEmployees, ReadCalendar:
 	default:
 		return "operation_denied"
 	}

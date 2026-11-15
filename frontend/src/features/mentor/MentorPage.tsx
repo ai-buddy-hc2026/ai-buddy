@@ -5,6 +5,8 @@ import { countDone, pickNextStep, usePlan } from '@/entities/plan'
 import { DEMO } from '@/entities/session'
 import { IsoArt, IsoCity } from '@/shared/iso'
 import { useT } from '@/shared/lib/i18n'
+import { IS_MOCK } from '@/shared/api/http'
+import { CalendarBookings } from '@/features/people/RemoteHoursTab'
 import {
   Avatar,
   Badge,
@@ -184,6 +186,7 @@ export function MentorPage() {
       <div className={s.grid}>
         <ProgressCard internId={internId} />
         <QuestionsCard internId={internId} internName={short} />
+        {!IS_MOCK && <CalendarBookings className={s.calendar} />}
       </div>
     </Page>
   )

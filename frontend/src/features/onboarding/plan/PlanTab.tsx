@@ -32,6 +32,8 @@ import {
   type AttentionItem,
 } from './status'
 import s from './plan.module.css'
+import { IS_MOCK } from '@/shared/api/http'
+import { CalendarBookings } from '@/features/people/RemoteHoursTab'
 
 type ChangeStatus = (task: Task, status: TaskStatus) => void
 
@@ -198,6 +200,7 @@ export function PlanTab() {
       <NextStepCard task={next} onStatus={onStatus} />
       <StuckCard prompts={prompts} onSnooze={snooze} />
       <AttentionCard items={attention} />
+      {!IS_MOCK && <CalendarBookings className={s.stage} />}
 
       {stages.map((stage, i) => {
         const meta = STAGES[stage.index]

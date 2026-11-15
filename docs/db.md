@@ -1,6 +1,6 @@
 # Схема БД AI-buddy
 
-Статус: описание миграций 0001-0011 и направлений развития. PostgreSQL 16 с pgvector.
+Статус: описание миграций 0001-0012 и направлений развития. PostgreSQL 16 с pgvector.
 Источники: [миграции](../backend/internal/database/migrations), [пользователи](users.md).
 Реализованы команды, пользователи, коллеги, планы, задачи, история, события, чат, действия,
 отсутствия, эскалации, документы KB и чанки. 0010 добавляет answer_status и
@@ -54,6 +54,55 @@ question_category к сообщениям assistant. task_kb_documents и featur
 Не следует реализовывать межтабличные правила через `CHECK` с обращением к другим строкам. Для них нужны FK, транзакционная логика или отдельно обоснованный триггер. См. [ограничения PostgreSQL 16](https://www.postgresql.org/docs/16/ddl-constraints.html).
 
 ## 3. Таблицы
+
+### Календарь: `calendar_slots` и `calendar_bookings` (миграция 0012)
+
+Имитация корпоративных приёмных часов и результата подтверждённого действия.
+Поведение, HTTP, seed и границы: [calendar.md](calendar.md).
+
+`calendar_slots`:
+
+| Поле | Тип | Назначение |
+|------|-----|------------|
+| id | uuid | PK, постоянный ID слота. |
+| team_id | uuid | FK на teams. |
+| employee_id | uuid | Принимающий коллега; составной FK с team_id на employees. |
+| starts_at, ends_at | timestamptz | Интервал в UTC; конец позже начала, длительность <= 4 часов. |
+| active | boolean DEFAULT true | Доступен для новой брони. |
+| updated_at | timestamptz DEFAULT now() | Изменение записи; created_at применяется по общим правилам. |
+
+UNIQUE(employee_id,starts_at) сохраняет слот при повторном seed.
+UNIQUE(id,employee_id,team_id) позволяет ссылаться на согласованный слот и коллегу.
+Миграция также добавляет UNIQUE(id,team_id) в employees для составного FK.
+Индекс (team_id,employee_id,starts_at) WHERE active обслуживает доступность.
+
+`calendar_bookings`:
+
+| Поле | Тип | Назначение |
+|------|-----|------------|
+| id | uuid | PK, ID результата мока. |
+| team_id | uuid | FK на teams. |
+| slot_id, employee_id | uuid | Составной FK с team_id на calendar_slots. |
+| attendee_id | uuid | Гость, составной FK с team_id на users. |
+| idempotency_key | uuid | Устойчивый ключ подтверждённого запроса. |
+| topic | text | Непустая тема, 1-500 символов после btrim. |
+| status | text DEFAULT 'confirmed' | Единственное состояние первой версии. |
+| starts_at, ends_at | timestamptz | Неизменяемый снимок интервала; ends_at > starts_at. |
+| timezone | text | Снимок IANA-пояса коллеги, валидирует Go. |
+| host_name, attendee_name | text | Непустые снимки имён. |
+| confirmed_at | timestamptz DEFAULT now() | Факт подтверждения и создания брони. |
+
+Общий created_at применяется. Брони неизменяемы; updated_at не нужен.
+UNIQUE(slot_id) исключает две брони одного слота; UNIQUE(attendee_id,idempotency_key)
+фиксирует результат повтора. CHECK запрещает employee_id=attendee_id. FK имеют
+ON DELETE RESTRICT. Индексы (team_id,attendee_id,starts_at) и
+(team_id,employee_id,starts_at) обслуживают встречи участников и проверку пересечений.
+
+Go создаёт снимок из заблокированного слота и доверенного пользователя, не из
+параметров браузера. Пересечения проверяются под блокировками обоих участников;
+составные FK и UNIQUE не заменяют эту проверку. Модель описывает занятость только
+в пределах мока. Назначения наставников, JWT-роли и основной чек-лист не меняются;
+встречи показываются в плане отдельно и не увеличивают число выполненных задач.
 
 ### 3.0. `employees` - публичный справочник коллег (миграция 0011)
 

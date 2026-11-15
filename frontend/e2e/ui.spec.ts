@@ -2,6 +2,60 @@ import { expect, test, type Page } from '@playwright/test'
 
 const browserErrors = new WeakMap<Page, string[]>()
 
+test('календарь создаёт бронь после подтверждения, восстанавливает её и показывает наставнику', async ({
+  page,
+}) => {
+  await signIn(page, 'intern_anya')
+  await page.goto('/people?tab=hours')
+  const slots = page.getByRole('list', { name: 'Свободные слоты' })
+  await expect(slots).toBeVisible()
+  const posts: string[] = []
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && request.url().endsWith('/api/calendar/bookings'))
+      posts.push(request.url())
+  })
+  await slots.getByRole('button').first().click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  expect(posts).toHaveLength(0)
+  const topic = `Первая задача ${Date.now()}`
+  await dialog.getByRole('textbox', { name: 'Тема встречи' }).fill(topic)
+  const saved = page
+    .waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' && response.url().endsWith('/api/calendar/bookings'),
+    )
+    .then(async (response) => ({
+      status: response.status(),
+      booking: await response.json(),
+      key: response.request().headers()['idempotency-key'],
+    }))
+  await dialog.getByRole('button', { name: 'Записаться', exact: true }).click()
+  const { status, booking, key } = await saved
+  expect(status).toBe(200)
+  expect(booking.status).toBe('confirmed')
+  await expect(dialog.getByText('Бронь сохранена', { exact: true })).toBeVisible()
+  const token = await page.evaluate(() => sessionStorage.getItem('buddy.token'))
+  const replay = await page.request.post('/api/calendar/bookings', {
+    headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': key },
+    data: { slot_id: booking.slot_id, topic, confirmed: true },
+  })
+  expect(replay.status()).toBe(200)
+  expect((await replay.json()).id).toBe(booking.id)
+  await dialog.getByRole('button', { name: 'Готово', exact: true }).click()
+  await page.reload()
+  await expect(page.getByText(`ID: ${booking.id}`, { exact: true })).toBeVisible()
+  await page.goto('/onboarding')
+  await expect(page.getByText(`ID: ${booking.id}`, { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Меню профиля' }).click()
+  await page.getByText('Сменить пользователя', { exact: true }).click()
+  await signIn(page, 'buddy_ilya', false)
+  await page.goto('/mentor')
+  await expect(page.getByText(`ID: ${booking.id}`, { exact: true })).toBeVisible()
+  await expect(page.getByText(topic, { exact: false })).toBeVisible()
+  await page.screenshot({ path: 'test-results/calendar.png', fullPage: true })
+})
+
 test('коллеги загружаются из Go, находятся по теме и сохраняются после перезагрузки', async ({
   page,
 }) => {

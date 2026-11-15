@@ -599,6 +599,103 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '503': {$ref: '#/components/responses/Unavailable'}
+  /calendar/{employee_id}/office-hours:
+    get:
+      tags: [calendar]
+      operationId: listOfficeHours
+      summary: Свободные приёмные слоты коллеги своей команды
+      description: Только будущие активные слоты без пересечений участников по данным мока. Содержание чужих встреч не возвращается. from/to задаются вместе; по умолчанию сейчас и 14 дней, максимум 31*24 часов. Порядок starts_at,id; больше 200 результатов даёт 400, нужно сузить интервал.
+      parameters:
+        - name: employee_id
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/UUID'}
+        - name: from
+          in: query
+          schema: {type: string, format: date-time}
+        - name: to
+          in: query
+          schema: {type: string, format: date-time}
+      responses:
+        '200':
+          description: Доступные приёмные слоты
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, maxItems: 200, items: {$ref: '#/components/schemas/CalendarSlot'}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /calendar/bookings:
+    get:
+      tags: [calendar]
+      operationId: listMyBookings
+      summary: Встречи текущего пользователя как гостя или принимающего коллеги
+      description: Только свои встречи в своей команде. from/to задаются вместе; по умолчанию сейчас и 14 дней, максимум 31*24 часов. Отбираются пересечения с интервалом, порядок starts_at,id. Максимум 200 записей; превышение даёт 400 без усечения.
+      parameters:
+        - name: from
+          in: query
+          schema: {type: string, format: date-time}
+        - name: to
+          in: query
+          schema: {type: string, format: date-time}
+      responses:
+        '200':
+          description: Свои встречи, включая уже начавшиеся и ещё не завершённые
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, maxItems: 200, items: {$ref: '#/components/schemas/CalendarBooking'}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      tags: [calendar]
+      operationId: confirmCalendarBooking
+      summary: Забронировать слот за себя после подтверждения
+      description: Участник и команда берутся из актуального пользователя. Одинаковый ключ и нормализованная тема возвращают сохранённую бронь, включая повтор после начала встречи. Другой payload с тем же ключом даёт 409 IDEMPOTENCY_CONFLICT. Занятый, истёкший или пересекающийся слот даёт 409 SLOT_UNAVAILABLE. До явного подтверждения POST не отправляется. Самостоятельная запись к себе запрещена.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: {$ref: '#/components/schemas/UUID'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [slot_id, topic, confirmed]
+              properties:
+                slot_id: {$ref: '#/components/schemas/UUID'}
+                topic: {type: string, minLength: 1, maxLength: 500}
+                confirmed: {type: boolean, enum: [true]}
+      responses:
+        '200':
+          description: Подтверждённая бронь или сохранённый результат повтора
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CalendarBooking'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409':
+          description: SLOT_UNAVAILABLE или IDEMPOTENCY_CONFLICT
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '503': {$ref: '#/components/responses/Unavailable'}
 x-planned-api:
   description: План сводки метрик; маршрут не реализован и исключён из paths. Методика - docs/metrics.md. Права и формы требуют отдельной реализации и согласования.
   paths:
@@ -711,6 +808,32 @@ components:
         application/json:
           schema: {$ref: '#/components/schemas/Error'}
   schemas:
+    CalendarSlot:
+      type: object
+      required: [id, employee_id, host_name, starts_at, ends_at, timezone]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        employee_id: {$ref: '#/components/schemas/UUID'}
+        host_name: {type: string}
+        starts_at: {type: string, format: date-time}
+        ends_at: {type: string, format: date-time}
+        timezone: {type: string, description: IANA-пояс принимающего коллеги}
+    CalendarBooking:
+      allOf:
+        - {$ref: '#/components/schemas/CalendarSlot'}
+        - type: object
+          required: [slot_id, attendee_id, attendee_name, topic, status, confirmed_at]
+          properties:
+            id:
+              type: string
+              format: uuid
+              description: ID брони; отличается от slot_id.
+            slot_id: {$ref: '#/components/schemas/UUID'}
+            attendee_id: {$ref: '#/components/schemas/UUID'}
+            attendee_name: {type: string}
+            topic: {type: string, minLength: 1, maxLength: 500}
+            status: {type: string, enum: [confirmed]}
+            confirmed_at: {type: string, format: date-time}
     Employee:
       type: object
       required: [id, team_id, team_name, user_id, display_name, short_name, job_title, kind, tags, ask_about, contact_handle, is_key_contact, sort_order]

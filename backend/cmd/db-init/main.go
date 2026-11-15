@@ -18,7 +18,7 @@ func main() {
 		logger.Error("database preparation failed", "error", err)
 		os.Exit(1)
 	}
-	logger.Info("database migrations, user, employee and checklist seed completed; KB document links remain deferred")
+	logger.Info("database migrations, user, employee, calendar and checklist seed completed; KB document links remain deferred")
 }
 
 func run() error {

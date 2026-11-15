@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { randomUUID } from 'node:crypto'
 
 import { expect, test, type APIRequestContext } from '@playwright/test'
 
@@ -13,6 +14,59 @@ type AcceptedChat = {
   conversation_id: string
   stream_url: string
 }
+
+test('календарь скрывает чужие встречи и требует подтверждение своей брони', async ({
+  request,
+}) => {
+  expect((await request.get('/calendar/bookings')).status()).toBe(401)
+  const token = await login(request, 'intern_anya')
+  const headers = { Authorization: `Bearer ${token}` }
+  const response = await request.get(
+    '/calendar/4a59a828-3b1a-55e4-bf9b-81db5ad6183a/office-hours',
+    { headers },
+  )
+  expect(response.status()).toBe(200)
+  const { items } = await response.json()
+  expect(items.length).toBeGreaterThan(0)
+  for (const slot of items) {
+    expect(slot).not.toHaveProperty('attendee_id')
+    expect(slot).not.toHaveProperty('topic')
+    expect(Date.parse(slot.starts_at)).toBeGreaterThan(Date.now())
+  }
+  expect(
+    (
+      await request.get('/calendar/0f8153be-1c96-5e0f-aa4c-55b7ed7bf47a/office-hours', { headers })
+    ).status(),
+  ).toBe(404)
+  const payload = { slot_id: items[0].id, topic: 'Проверка', confirmed: true }
+  expect((await request.post('/calendar/bookings', { headers, data: payload })).status()).toBe(400)
+  const confirmedHeaders = { ...headers, 'Idempotency-Key': randomUUID() }
+  expect(
+    (
+      await request.post('/calendar/bookings', {
+        headers: confirmedHeaders,
+        data: { ...payload, confirmed: false },
+      })
+    ).status(),
+  ).toBe(400)
+  expect(
+    (
+      await request.post('/calendar/bookings', {
+        headers: confirmedHeaders,
+        data: { ...payload, attendee_id: '2db7cc77-4114-52d8-a833-f670ab60e4e0' },
+      })
+    ).status(),
+  ).toBe(400)
+  const foreignToken = await login(request, 'intern_petr')
+  expect(
+    (
+      await request.post('/calendar/bookings', {
+        headers: { Authorization: `Bearer ${foreignToken}`, 'Idempotency-Key': randomUUID() },
+        data: payload,
+      })
+    ).status(),
+  ).toBe(404)
+})
 
 test('коллеги ограничены командой, а карточка не создаёт право входа', async ({ request }) => {
   expect((await request.get('/employees')).status()).toBe(401)

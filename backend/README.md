@@ -59,6 +59,11 @@ Dockerfile собирает статический бинарник, запус�
 
 ## Проверки
 
+Приёмные часы: GET /calendar/{employee_id}/office-hours, GET /calendar/bookings,
+POST /calendar/bookings. Подтверждение и Idempotency-Key обязательны для POST.
+Миграция 0012, встроенный calendar.json и db-init создают будущие слоты на 21 день.
+Контракт, права и проверки: [calendar.md](../docs/calendar.md).
+
 Справочник: `GET /employees` и `GET /employees/{id}` требуют JWT и ограничены
 командой актуального пользователя. Реализация отделена интерфейсом EmployeeStore.
 Миграция 0011 и встроенный employees.json добавляют 8 технических карточек без

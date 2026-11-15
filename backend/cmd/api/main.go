@@ -93,6 +93,7 @@ func run() error {
 	}
 	handler = httpapi.WithListings(handler, service, listings)
 	handler = httpapi.WithEmployees(handler, service, listings)
+	handler = httpapi.WithCalendar(handler, service, database.NewCalendar(pool))
 	escalations, err := database.NewEscalations(pool, authCfg.SigningKey)
 	if err != nil {
 		return err
