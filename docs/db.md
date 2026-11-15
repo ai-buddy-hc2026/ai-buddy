@@ -1,6 +1,6 @@
 # Схема БД AI-buddy
 
-Статус: описание миграций 0001-0012 и направлений развития. PostgreSQL 16 с pgvector.
+Статус: описание миграций 0001-0013 и направлений развития. PostgreSQL 16 с pgvector.
 Источники: [миграции](../backend/internal/database/migrations), [пользователи](users.md).
 Реализованы команды, пользователи, коллеги, планы, задачи, история, события, чат, действия,
 отсутствия, эскалации, документы KB и чанки. 0010 добавляет answer_status и
@@ -54,6 +54,50 @@ question_category к сообщениям assistant. task_kb_documents и featur
 Не следует реализовывать межтабличные правила через `CHECK` с обращением к другим строкам. Для них нужны FK, транзакционная логика или отдельно обоснованный триггер. См. [ограничения PostgreSQL 16](https://www.postgresql.org/docs/16/ddl-constraints.html).
 
 ## 3. Таблицы
+
+### Уведомления и настройки (миграция 0013)
+
+Правила доставки и HTTP: [notifications.md](notifications.md). Таблица events
+сохраняет прежнее назначение журнала метрик; очередью служит notifications.
+
+`user_settings`:
+
+| Поле | Тип | Назначение |
+|------|-----|------------|
+| user_id | uuid | PK, вместе с team_id ссылается на users. |
+| team_id | uuid | FK на teams; владелец настроек принадлежит этой команде. |
+| notification_preferences | jsonb | Только boolean meeting_reminders; по умолчанию true. |
+| work_days | smallint[] | Дни 1-7, по умолчанию 1-5; БД проверяет диапазон, непустоту и отсутствие NULL, Go также уникальность. |
+| work_start, work_end | time | По умолчанию 10:00 и 19:00, начало раньше конца. Часовой пояс из users/teams. |
+| version | integer | Положительная версия для optimistic locking; увеличивается при сохранении. |
+| created_at, updated_at | timestamptz | Создание и последнее изменение. |
+
+Seed создаёт настройки активных пользователей через ON CONFLICT DO NOTHING.
+GET без строки возвращает defaults и version=0, без побочного создания записи.
+Поле режима дня отсутствует: решение продакта по нему пока не принято.
+
+`notifications`:
+
+| Поле | Тип | Назначение |
+|------|-----|------------|
+| id | uuid | PK с gen_random_uuid(). |
+| team_id, recipient_id | uuid | Команда и получатель, составной FK на users. |
+| kind | text | booking_confirmed, meeting_reminder или mentor_answer. |
+| booking_id, escalation_id | uuid nullable | Ровно один источник по kind; составные FK с team_id на calendar_bookings/escalations. |
+| dedup_key | text | Непустой ключ события; UNIQUE(recipient_id,dedup_key). |
+| status | text | pending, visible, suppressed или expired. |
+| available_at | timestamptz | Исходное либо перенесённое время доставки. |
+| expires_at | timestamptz nullable | Обязательно для напоминания, равно началу встречи. |
+| read_at | timestamptz nullable | Первая отметка прочтения. |
+| created_at, updated_at | timestamptz | Создание и изменение состояния. |
+
+0013 добавляет UNIQUE(id,team_id) для calendar_bookings. Частичные индексы покрывают
+ожидающие задания, видимые уведомления и непрочитанные; отдельные индексы нужны
+ссылкам booking_id/escalation_id и времени будущих броней для восстановления.
+Производители пишут уведомления в транзакции источника. Настройки и доставка
+сериализуются advisory-блокировкой получателя; worker дополнительно использует
+FOR UPDATE SKIP LOCKED. Содержимое источника читается с повторной проверкой прав,
+а не копируется в произвольный JSON или URL.
 
 ### Календарь: `calendar_slots` и `calendar_bookings` (миграция 0012)
 

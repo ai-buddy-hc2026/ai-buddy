@@ -202,6 +202,9 @@ func (s *Calendar) Book(ctx context.Context, actorID, key string, input calendar
 	if err != nil {
 		return empty, err
 	}
+	if err := enqueueBookingNotifications(ctx, tx, b); err != nil {
+		return empty, err
+	}
 	return b, tx.Commit(ctx)
 }
 

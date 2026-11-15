@@ -9,6 +9,8 @@ import { useResolvedTheme } from '@/shared/lib/theme'
 import { Avatar, BrandMark, Button, Dialog, Icon, Note, Row, toast } from '@/shared/ui'
 import { navFor, SECONDARY_NAV, type NavItem } from './nav'
 import s from './AppShell.module.css'
+import { IS_MOCK } from '@/shared/api/http'
+import { NotificationsBell } from '@/features/notifications/NotificationsBell'
 
 function isActive(pathname: string, to: string): boolean {
   return to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(to + '/')
@@ -224,6 +226,7 @@ function AuthenticatedShell() {
         </nav>
 
         <div className={s.actions}>
+          {!IS_MOCK && <NotificationsBell />}
           {user.role === 'intern' && (
             <button
               type="button"

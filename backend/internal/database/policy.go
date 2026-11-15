@@ -29,7 +29,7 @@ func validPolicyEventOperation(operation policy.Operation) bool {
 		policy.GetManager, policy.GetAbsencePolicy, policy.ListAbsences,
 		policy.CreateAbsence, policy.CreateEscalation, policy.AnswerEscalation,
 		policy.SearchKnowledge, policy.ListBuddyInterns, policy.ListActions, policy.ReadEmployees,
-		policy.ReadCalendar, policy.BookCalendar, policy.ReadBookings:
+		policy.ReadCalendar, policy.BookCalendar, policy.ReadBookings, policy.ReadNotifications, policy.NotificationSettings:
 		return true
 	default:
 		return false

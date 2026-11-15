@@ -59,6 +59,13 @@ Dockerfile собирает статический бинарник, запус�
 
 ## Проверки
 
+Уведомления: GET /notifications, PATCH /notifications/{id}/read,
+GET /notifications/{id}/resource, GET/PATCH /me/settings. Миграция 0013,
+транзакционные производители и worker Go с периодом 30 секунд. Redis не требуется.
+Правила доставки, версии настроек и ограничения: [notifications.md](../docs/notifications.md).
+Интеграционные тесты TestNotifications запускаются с TEST_DATABASE_URL на отдельной
+тестовой БД, доступной для создания и удаления изолированных схем.
+
 Приёмные часы: GET /calendar/{employee_id}/office-hours, GET /calendar/bookings,
 POST /calendar/bookings. Подтверждение и Idempotency-Key обязательны для POST.
 Миграция 0012, встроенный calendar.json и db-init создают будущие слоты на 21 день.

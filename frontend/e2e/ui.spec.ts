@@ -2,6 +2,77 @@ import { expect, test, type Page } from '@playwright/test'
 
 const browserErrors = new WeakMap<Page, string[]>()
 
+test('уведомления открывают бронь, сохраняют прочтение и настройки после перезагрузки', async ({
+  page,
+}) => {
+  await signIn(page, 'intern_anya')
+  await page.goto('/people?tab=hours')
+  await page.getByRole('list', { name: 'Свободные слоты' }).getByRole('button').first().click()
+  const dialog = page.getByRole('dialog')
+  const topic = `Уведомления ${Date.now()}`
+  await dialog.getByRole('textbox', { name: 'Тема встречи' }).fill(topic)
+  const saved = page
+    .waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' && response.url().endsWith('/api/calendar/bookings'),
+    )
+    .then((response) => response.json())
+  await dialog.getByRole('button', { name: 'Записаться', exact: true }).click()
+  const booking = await saved
+  await dialog.getByRole('button', { name: 'Готово', exact: true }).click()
+  await page.getByRole('button', { name: /^Уведомления/ }).click()
+  const token = await page.evaluate(() => sessionStorage.getItem('buddy.token'))
+  const headers = { Authorization: `Bearer ${token}` }
+  const list = await page.request.get('/api/notifications', { headers })
+  expect(list.status()).toBe(200)
+  const notification = (await list.json()).items.find(
+    (n: { booking_id: string; kind: string }) =>
+      n.booking_id === booking.id && n.kind === 'booking_confirmed',
+  )
+  expect(notification).toBeDefined()
+  const read = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'PATCH' &&
+      response.url().endsWith(`/notifications/${notification.id}/read`),
+  )
+  await page.getByTestId(`notification-${notification.id}`).click()
+  await expect(page.getByRole('dialog').getByText(topic, { exact: false })).toBeVisible()
+  expect((await read).status()).toBe(200)
+  await page.reload()
+  const persisted = await page.request.get('/api/notifications', { headers })
+  expect(
+    (await persisted.json()).items.find((n: { id: string }) => n.id === notification.id).read_at,
+  ).not.toBeNull()
+  await page.goto('/settings')
+  const start = page.getByLabel('Начало рабочего дня', { exact: true })
+  await expect(start).toBeVisible()
+  await start.fill('09:30')
+  const settingsSaved = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'PATCH' && response.url().endsWith('/api/me/settings'),
+  )
+  await page.getByRole('button', { name: 'Сохранить напоминания', exact: true }).click()
+  expect((await settingsSaved).status()).toBe(200)
+  await page.reload()
+  await expect(start).toHaveValue('09:30')
+  await page.getByRole('button', { name: 'Меню профиля' }).click()
+  await page.getByText('Сменить пользователя', { exact: true }).click()
+  await signIn(page, 'buddy_ilya', false)
+  await page.getByRole('button', { name: /^Уведомления/ }).click()
+  const hostList = await page.request.get('/api/notifications', {
+    headers: {
+      Authorization: `Bearer ${await page.evaluate(() => sessionStorage.getItem('buddy.token'))}`,
+    },
+  })
+  const hostNotification = (await hostList.json()).items.find(
+    (n: { booking_id: string; kind: string }) =>
+      n.booking_id === booking.id && n.kind === 'booking_confirmed',
+  )
+  await page.getByTestId(`notification-${hostNotification.id}`).click()
+  await expect(page.getByRole('dialog').getByText(topic, { exact: false })).toBeVisible()
+  await page.screenshot({ path: 'test-results/notifications.png', fullPage: true })
+})
+
 test('календарь создаёт бронь после подтверждения, восстанавливает её и показывает наставнику', async ({
   page,
 }) => {

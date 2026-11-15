@@ -15,6 +15,69 @@ type AcceptedChat = {
   stream_url: string
 }
 
+test('уведомления изолированы по получателю, повторы и версии настроек безопасны', async ({
+  request,
+}) => {
+  expect((await request.get('/notifications')).status()).toBe(401)
+  const headers = { Authorization: `Bearer ${await login(request, 'intern_anya')}` }
+  const host = { Authorization: `Bearer ${await login(request, 'buddy_ilya')}` }
+  const foreign = { Authorization: `Bearer ${await login(request, 'intern_petr')}` }
+  const slots = await request.get('/calendar/4a59a828-3b1a-55e4-bf9b-81db5ad6183a/office-hours', {
+    headers,
+  })
+  const slot = (await slots.json()).items[0]
+  const data = { slot_id: slot.id, topic: 'Проверка уведомления', confirmed: true }
+  const bookingHeaders = { ...headers, 'Idempotency-Key': randomUUID() }
+  const saved = await request.post('/calendar/bookings', { headers: bookingHeaders, data })
+  expect(saved.status()).toBe(200)
+  const booking = await saved.json()
+  expect(
+    (await request.post('/calendar/bookings', { headers: bookingHeaders, data })).status(),
+  ).toBe(200)
+  const ownList = await request.get('/notifications', { headers })
+  expect(ownList.headers()['cache-control']).toBe('no-store')
+  const own = (await ownList.json()).items.filter(
+    (n: { booking_id: string; kind: string }) =>
+      n.booking_id === booking.id && n.kind === 'booking_confirmed',
+  )
+  expect(own).toHaveLength(1)
+  const hostList = await request.get('/notifications', { headers: host })
+  expect(
+    (await hostList.json()).items.filter(
+      (n: { booking_id: string; kind: string }) =>
+        n.booking_id === booking.id && n.kind === 'booking_confirmed',
+    ),
+  ).toHaveLength(1)
+  expect(
+    (await request.get(`/notifications/${own[0].id}/resource`, { headers: foreign })).status(),
+  ).toBe(404)
+  expect(
+    (await request.patch(`/notifications/${own[0].id}/read`, { headers: foreign })).status(),
+  ).toBe(404)
+  expect((await request.get('/notifications?recipient_id=other', { headers })).status()).toBe(400)
+  const resource = await request.get(`/notifications/${own[0].id}/resource`, { headers })
+  expect((await resource.json()).booking.id).toBe(booking.id)
+  const read = await request.patch(`/notifications/${own[0].id}/read`, { headers })
+  const again = await request.patch(`/notifications/${own[0].id}/read`, { headers })
+  expect((await again.json()).read_at).toBe((await read.json()).read_at)
+  const settings = await request.get('/me/settings', { headers })
+  const current = await settings.json()
+  const input = {
+    version: current.version,
+    preferences: current.preferences,
+    work_days: current.work_days,
+    work_start: current.work_start,
+    work_end: current.work_end,
+  }
+  expect(
+    (
+      await request.patch('/me/settings', { headers, data: { ...input, mode: 'off_day' } })
+    ).status(),
+  ).toBe(400)
+  expect((await request.patch('/me/settings', { headers, data: input })).status()).toBe(200)
+  expect((await request.patch('/me/settings', { headers, data: input })).status()).toBe(409)
+})
+
 test('календарь скрывает чужие встречи и требует подтверждение своей брони', async ({
   request,
 }) => {

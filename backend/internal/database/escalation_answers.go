@@ -129,6 +129,11 @@ func (s *Escalations) Answer(ctx context.Context, actorID, escalationID string, 
 	if err != nil {
 		return result, err
 	}
+	if status != "answered" || answerText != request.AnswerText {
+		if err := enqueueMentorNotification(ctx, tx, teamID, internID, escalationID, updatedAt); err != nil {
+			return result, err
+		}
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return escalation.Answer{}, err
 	}

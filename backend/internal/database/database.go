@@ -72,6 +72,9 @@ func prepare(ctx context.Context, pool *pgxpool.Pool, files fs.FS, checklist che
 	if _, err := tx.Exec(ctx, string(seed)); err != nil {
 		return fmt.Errorf("seed users: %w", err)
 	}
+	if err := seedNotificationSettings(ctx, tx); err != nil {
+		return fmt.Errorf("seed notification settings: %w", err)
+	}
 	if err := seedEmployees(ctx, tx, files); err != nil {
 		return err
 	}

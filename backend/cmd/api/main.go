@@ -17,6 +17,7 @@ import (
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/database"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/httpapi"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/mcpserver"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/notifications"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/server"
 	"github.com/redis/go-redis/v9"
 )
@@ -94,6 +95,13 @@ func run() error {
 	handler = httpapi.WithListings(handler, service, listings)
 	handler = httpapi.WithEmployees(handler, service, listings)
 	handler = httpapi.WithCalendar(handler, service, database.NewCalendar(pool))
+	notices, err := database.NewNotifications(pool, authCfg.SigningKey)
+	if err != nil {
+		return err
+	}
+	stopNotifications := notifications.StartWorker(ctx, notices, logger, 30*time.Second)
+	defer stopNotifications()
+	handler = httpapi.WithNotifications(handler, service, notices)
 	escalations, err := database.NewEscalations(pool, authCfg.SigningKey)
 	if err != nil {
 		return err

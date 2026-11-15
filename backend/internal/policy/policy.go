@@ -4,23 +4,25 @@ package policy
 type Operation string
 
 const (
-	GetPlan          Operation = "checklist.get_plan"
-	UpdateStatus     Operation = "checklist.update_status"
-	CreateChat       Operation = "chat.create"
-	ReadChat         Operation = "chat.read"
-	GetManager       Operation = "employees.get_manager"
-	GetAbsencePolicy Operation = "absences.get_policy"
-	ListAbsences     Operation = "absences.list_for_employee"
-	CreateAbsence    Operation = "absences.create_request"
-	CreateEscalation Operation = "escalation.create"
-	AnswerEscalation Operation = "escalation.answer"
-	SearchKnowledge  Operation = "knowledge.search"
-	ListBuddyInterns Operation = "buddy.list_interns"
-	ListActions      Operation = "actions.list"
-	ReadEmployees    Operation = "employees.read"
-	ReadCalendar     Operation = "calendar.read"
-	BookCalendar     Operation = "calendar.book"
-	ReadBookings     Operation = "calendar.bookings"
+	GetPlan              Operation = "checklist.get_plan"
+	UpdateStatus         Operation = "checklist.update_status"
+	CreateChat           Operation = "chat.create"
+	ReadChat             Operation = "chat.read"
+	GetManager           Operation = "employees.get_manager"
+	GetAbsencePolicy     Operation = "absences.get_policy"
+	ListAbsences         Operation = "absences.list_for_employee"
+	CreateAbsence        Operation = "absences.create_request"
+	CreateEscalation     Operation = "escalation.create"
+	AnswerEscalation     Operation = "escalation.answer"
+	SearchKnowledge      Operation = "knowledge.search"
+	ListBuddyInterns     Operation = "buddy.list_interns"
+	ListActions          Operation = "actions.list"
+	ReadEmployees        Operation = "employees.read"
+	ReadCalendar         Operation = "calendar.read"
+	BookCalendar         Operation = "calendar.book"
+	ReadBookings         Operation = "calendar.bookings"
+	ReadNotifications    Operation = "notifications.read"
+	NotificationSettings Operation = "notifications.settings"
 )
 
 type Actor struct{ ID, TeamID, Role string }
@@ -47,7 +49,7 @@ func Check(actor Actor, operation Operation, resource Resource) string {
 		if operation == UpdateStatus && resource.AssigneeID != actor.ID {
 			return "assignee_denied"
 		}
-	case CreateChat, ReadChat, GetManager, CreateAbsence, ListActions, BookCalendar, ReadBookings:
+	case CreateChat, ReadChat, GetManager, CreateAbsence, ListActions, BookCalendar, ReadBookings, ReadNotifications, NotificationSettings:
 		if resource.OwnerID != actor.ID {
 			return "owner_denied"
 		}

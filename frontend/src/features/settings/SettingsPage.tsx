@@ -6,6 +6,8 @@ import { Card, Chip, ChipRow, Eyebrow, Input, Page, PageHeader, SwitchRow } from
 import { ResetDemo } from './ResetDemo'
 import { WEEKDAYS, isValidHours, toggleDay } from './logic'
 import s from './settings.module.css'
+import { IS_MOCK } from '@/shared/api/http'
+import { NotificationSettingsCard } from './NotificationSettingsCard'
 
 function Choice<T extends string>({
   label,
@@ -239,11 +241,18 @@ export function SettingsPage() {
     <Page>
       <PageHeader
         title={t('Настройки', 'Settings')}
-        subtitle={t('Всё сохраняется сразу', 'Changes save right away')}
+        subtitle={
+          IS_MOCK
+            ? t('Всё сохраняется сразу', 'Changes save right away')
+            : t(
+                'Напоминания сохраняются кнопкой, остальные настройки - сразу',
+                'Save reminder settings with the button; other settings save right away',
+              )
+        }
       />
       <div className={s.grid}>
         <AppearanceCard />
-        <HoursCard />
+        {IS_MOCK ? <HoursCard /> : <NotificationSettingsCard />}
         <NotificationsCard />
         <DemoCard />
       </div>
