@@ -212,7 +212,7 @@ MCP_SERVICE_TOKEN по .env.example; без него MCP выключен. ABSEN
 задает вероятность искусственного сбоя создания отсутствия, по умолчанию 0.
 
 Миграция 0005 создает actions_log и absence_requests и связывает events.action_id.
-Шесть инструментов и правила привязки к request_id описаны в [контракте MCP](../docs/mcp.md).
+Шесть инструментов и правила привязки к request_id описаны в [контракте MCP](../docs/mcp-contract.md).
 MCP возвращает inputSchema/outputSchema и конверт ok/data либо ok/error.
 Python передает action_proposal через Redis, Go проверяет параметры и сохраняет
 предложение до SSE. POST /actions/{id}/confirm без тела выполняет действие внутри
@@ -225,7 +225,7 @@ Go с повторной проверкой прав и сохраненным �
 MCP-курсоры отсутствий привязаны к пользователю, команде и роли; перезапуск Go
 делает их недействительными. При чтении страницы права проверяются заново.
 
-Действующий профиль описан в [MCP](../docs/mcp.md).
+Действующий профиль описан в [MCP](../docs/mcp-contract.md).
 Для проверки Python MCP SDK задайте MCP_PYTHON на Python с mcp==2.3.0 и httpx2
 и TEST_DATABASE_URL на синтетическую тестовую БД, затем запустите:
 `go test -v ./internal/database -run TestPythonSDKWithGo`. Тест проверяет реальный SDK: initialize/list/read и отказ прямой записи.

@@ -1,7 +1,7 @@
 # Списки стажеров, действий и эскалации
 
 Реализация в ветке `feat/escalations-actions-api`, база - открытый PR #83.
-HTTP-схемы: [openapi.yaml](openapi.yaml), инструменты: [mcp.md](mcp.md).
+HTTP-схемы: [openapi.yaml](openapi.yaml), инструменты: [mcp-contract.md](mcp-contract.md).
 Зависимости пока не означают наличие этих операций в main.
 
 ## Общие правила списков

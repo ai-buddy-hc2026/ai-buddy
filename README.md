@@ -85,7 +85,7 @@ docker compose down
 | Объём MVP и критерии | [MVP](docs/mvp.md), [сценарии](specs/agent.md) |
 | HTTP API | [OpenAPI](docs/openapi.yaml) |
 | Go/Python и SSE | [Контракт](docs/ai-contract.md) |
-| MCP, права и схемы | [MCP](docs/mcp.md), [инструменты](specs/tools/README.md) |
+| MCP, права и схемы | [MCP](docs/mcp-contract.md), [инструменты](specs/tools/README.md) |
 | Хранение | [БД](docs/db.md), [события](docs/events.md) |
 | Действия и помощь наставника | [Действия](docs/activity.md) |
 | Данные | [Пользователи](docs/users.md), [чек-лист](docs/checklist.md) |
