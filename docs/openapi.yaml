@@ -1,13 +1,11 @@
 openapi: 3.0.3
 info:
   title: AI-buddy - внешний Go API
-  version: 0.1.0-draft
+  version: 0.1.0
   description: |
-    Черновик для согласования Go, frontend и AI-service, а не описание готовой реализации.
-    Основа: docs/mvp.md и docs/db.md. Межсервисные события сверены с
-    docs/ai-contract.md, добавленным в main через PR #60:
-    https://github.com/ai-buddy-hc2026/ai-buddy/pull/60
-    (docs/ai-contract.md, 1.2-draft, blob 1a547cd06d821d1ae650cd8ff73a3477e5678c5b).
+    Описание действующего внешнего HTTP-профиля Go. Схемы сверены с обработчиками
+    и моделями backend. Основа: docs/mvp.md, docs/db.md, docs/activity.md,
+    docs/ai-contract.md и docs/mcp-contract.md. Это не отчёт о приёмке всего MVP.
     Внутренний POST /chat Python и MCP не входят во внешний API.
 
     Данные MVP синтетические. Mock-login без пароля предназначен для тестового
@@ -16,22 +14,15 @@ info:
     UUID непрозрачны и сами по себе не дают доступа. Для чужого объекта возвращается
     404 без раскрытия его существования; 403 используется для запрещённой операции.
     Время передаётся в RFC 3339 UTC, календарные даты в YYYY-MM-DD.
-    Все текстовые лимиты считаются в Unicode code points после обрезки крайних пробелов.
+    Лимиты текстов считаются в Unicode code points; нормализация зависит от поля.
+    login и message обрезаются по краям; answer_text сохраняется без такой обрезки.
 
-    Предложение черновика: GET /chat/messages,
-    ответы списков с курсором, восстановление беседы через GET /chat/messages
-    без conversation_id. У пользователя одна активная беседа в этом черновике:
-    GET возвращает её ID, первый POST без ID атомарно создаёт или выбирает её.
-    Создание нескольких бесед и их архивирование здесь не определены.
-    Остальные HTTP-схемы, TTL JWT и параметры лимитов также требуют ревью команды.
-    Матрица прав инструментов уточняется в specs/tools; контракт не расширяет её.
-    Метрики пока не имеют согласованных формул, см. issue #52.
-x-review-questions:
-  - Сверить поля с frontend (#16) и финализировать контракт в #22.
-  - Сверить реализацию SSE и обязательный revision с docs/ai-contract.md; не менять внутренний контракт молча.
-  - Уточнить схемы details/result действий по спецификациям инструментов (#49).
-  - Подтвердить области видимости и формулы метрик с аналитиком (#52).
-  - Согласовать единственную активную беседу, пагинацию истории и токен версии ответа наставника.
+    GET /chat/messages восстанавливает историю с курсором и карточками действий.
+    У пользователя одна активная беседа; GET возвращает её ID, первый POST без ID
+    атомарно создаёт или выбирает её. HTTP-управление несколькими беседами не реализовано.
+    Списки и подтверждения повторно проверяют актуальные права в Go.
+    Создание эскалации из Python не подключено; чтение и ответ доступны для существующих
+    эскалаций. HTTP-сводка метрик вынесена в x-planned-api и не является действующим API.
 servers:
   - url: http://localhost:8080
     description: Локальный Go API, без префикса /api
@@ -48,8 +39,6 @@ tags:
     description: Назначенные стажёры и переданные вопросы
   - name: knowledge
     description: Полнотекстовый поиск по опубликованным документам команды
-  - name: metrics
-    description: Черновой состав метрик
 security:
   - bearerAuth: []
 paths:
@@ -111,7 +100,6 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Error'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /me:
     get:
@@ -125,7 +113,6 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/User'}
         '401': {$ref: '#/components/responses/Unauthorized'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /onboarding/plan:
     get:
@@ -142,7 +129,7 @@ paths:
         При пустом плане или завершении всех задач next_task_id=null.
         current_stage читается из БД; PATCH задачи автоматически не меняет этап
         или статус плана. Это правило согласовано для #21.
-        Пока реальные материалы KB не загружены, tasks[].materials=[].
+        Связи материалов задач пока не загружены, tasks[].materials=[]. KB существует отдельно.
       parameters:
         - $ref: '#/components/parameters/InternId'
       responses:
@@ -155,7 +142,6 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /tasks/{id}:
     patch:
@@ -202,15 +188,12 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /chat/messages:
     get:
       tags: [chat]
       operationId: getChatMessages
       summary: Восстановить историю своей беседы после перезагрузки
-      x-draft-proposal: true
-      x-implementation: 'feat/mcp-contract-alignment: история, пагинация и сохраненные карточки действий'
       description: |
         Без conversation_id выбирает единственную активную беседу пользователя;
         если её ещё нет, возвращает conversation_id = null и пустые массивы.
@@ -242,13 +225,11 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
     post:
       tags: [chat]
       operationId: sendChatMessage
       summary: Сохранить сообщение и начать одну генерацию ответа
-      x-implementation: 'feat/mcp-contract-alignment: token/tool_call/action_proposal/done/error, без RAG-источников'
       description: |
         conversation_id можно не передавать: Go атомарно выбирает или создаёт единственную
         активную беседу пользователя. Существующая беседа должна принадлежать ему.
@@ -291,18 +272,16 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /chat/stream/{id}:
     get:
       tags: [chat]
       operationId: streamChatRequest
       summary: Читать или восстановить SSE одной генерации по request_id
-      x-implementation: '#24: token/done/error, heartbeat, Last-Event-ID; один процесс Go'
       description: |
-        Реализация #24 поддерживает token/done/error с пустыми sources.
-        tool_call/action_proposal и RAG-источники ниже остаются целевым контрактом.
-        После потери буфера сохраняется только терминальный итог. Для потерянной
+        Поддерживаются token/tool_call/action_proposal/done/error и проверенные RAG-источники.
+        После потери буфера восстанавливаются сохранённые карточки и терминальный итог,
+        но не промежуточные token/tool_call. Для потерянной
         running-генерации курсор выше восстановленного seq дает 400: нужно прочитать
         историю без Last-Event-ID; прозрачного продолжения генерации нет.
         id означает request_id, не ID беседы или сообщения. Доступ только владельцу.
@@ -352,11 +331,9 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /actions:
     get:
-      x-implementation: 'feat/escalations-actions-api: собственные действия, фильтры и подписанный курсор'
       tags: [actions]
       operationId: listActions
       summary: Получить свои предложения действий и результаты
@@ -387,13 +364,11 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /actions/{id}/confirm:
     post:
       tags: [actions]
       operationId: confirmAction
-      x-implementation: 'feat/mcp-contract-alignment: внутреннее выполнение Go с повторной проверкой прав'
       summary: Явно подтвердить сохранённое действие или повторить неудачную попытку
       description: |
         Вызывается только после нажатия подтверждения в UI. Тело и новый ключ от клиента
@@ -427,11 +402,9 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /buddy/interns:
     get:
-      x-implementation: 'feat/escalations-actions-api: активные назначенные стажеры текущего buddy'
       tags: [buddy]
       operationId: listBuddyInterns
       summary: Получить стажёров, явно назначенных текущему наставнику
@@ -455,7 +428,6 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /buddy/escalations:
     get:
@@ -465,6 +437,8 @@ paths:
       description: |
         Только buddy с актуальным назначением. Возвращает разрешённый снимок контекста,
         а не доступ ко всей беседе. Порядок created_at DESC, id DESC.
+        Чужой или неназначенный intern_id даёт пустой список. Курсор связан
+        с текущим пользователем, командой и фильтрами intern_id/status.
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
@@ -488,8 +462,6 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /buddy/escalations/{id}/answer:
     post:
@@ -506,12 +478,15 @@ paths:
         Повтор с тем же текстом возвращает существующий ответ/документ, не создаёт дублей.
         version обеспечивает проверку конкурентного изменения и вычисляется Go из updated_at
         эскалации как непрозрачная строка. При устаревшей version допускается только точный
-        повтор уже сохранённого текста и запрошенного состояния публикации, иначе 409.
+        повтор сохранённого текста при add_to_kb=false или уже существующей публикации, иначе 409.
         Изменение текста требует актуальной version. false не снимает старую публикацию
         и не обновляет её молча; true явно публикует новую revision при изменении текста.
+        add_to_kb в результате означает наличие публикации, а не копию входного флага.
         Результат содержит состояние документа KB. Полнотекстовая индексация выполняется
         локально в той же транзакции. Опубликованный ответ доступен стажерам той же команды
-        через GET /knowledge/search с источником. Чат пока не использует этот HTTP-поиск автоматически.
+        через GET /knowledge/search с источником. Чат использует отдельный векторный поиск Python после проверки доступа в Go.
+        ready полнотекстового индекса не означает наличие векторных чанков; Python
+        индексирует опубликованные ответы перед поиском.
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -525,7 +500,7 @@ paths:
               properties:
                 answer_text: {type: string, minLength: 1, maxLength: 20000}
                 add_to_kb: {type: boolean}
-                version: {type: string, minLength: 1}
+                version: {type: string, minLength: 1, maxLength: 64}
       responses:
         '200':
           description: Ответ сохранён, либо возвращён существующий результат публикации
@@ -537,7 +512,6 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /knowledge/search:
     get:
@@ -570,50 +544,51 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
-        '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
-  /metrics/summary:
-    get:
-      tags: [metrics]
-      operationId: getMetricsSummary
-      summary: Получить черновую сводку метрик в разрешённой области
-      description: |
-        Предложение прав для ревью: intern только свои данные; buddy только назначенные
-        стажёры; lead только своя команда. Произвольный team_id не принимается.
-        Интервал [from, to), UTC; без границ вся доступная история. from должен быть < to.
-        Формулы, знаменатели и дедупликация согласуются с аналитиком в issue #52.
-        Пока метрика не определена или недоступна, value = null и status = not_defined
-        или unavailable, а не выдуманный ноль. Тестовые данные не измеряют реальный эффект.
-      parameters:
-        - name: from
-          in: query
-          schema: {type: string, format: date-time}
-        - name: to
-          in: query
-          schema: {type: string, format: date-time}
-      responses:
-        '200':
-          description: Сводка с явным статусом согласования и происхождением данных
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [scope, from, to, generated_at, is_synthetic, definition_status, metrics]
-                properties:
-                  scope: {type: string, enum: [self, assigned_interns, team]}
-                  from: {type: string, format: date-time, nullable: true}
-                  to: {type: string, format: date-time, nullable: true}
-                  generated_at: {type: string, format: date-time}
-                  is_synthetic: {type: boolean, enum: [true]}
-                  definition_status: {type: string, enum: [draft]}
-                  metrics:
-                    type: array
-                    items: {$ref: '#/components/schemas/Metric'}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '500': {$ref: '#/components/responses/InternalError'}
-        '503': {$ref: '#/components/responses/Unavailable'}
+x-planned-api:
+  description: План сводки метрик; маршрут не реализован и исключён из paths. Методика - docs/metrics.md. Права и формы требуют отдельной реализации и согласования.
+  paths:
+    /metrics/summary:
+      get:
+        tags: [metrics]
+        operationId: getMetricsSummary
+        summary: План сводки метрик (не реализован)
+        description: |
+          Предложение прав для ревью: intern только свои данные; buddy только назначенные
+          стажёры; lead только своя команда. Произвольный team_id не принимается.
+          Интервал [from, to), UTC; без границ вся доступная история. from должен быть < to.
+          Формулы, знаменатели и дедупликация согласуются с аналитиком в issue #52.
+          Пока метрика не определена или недоступна, value = null и status = not_defined
+          или unavailable, а не выдуманный ноль. Тестовые данные не измеряют реальный эффект.
+        parameters:
+          - name: from
+            in: query
+            schema: {type: string, format: date-time}
+          - name: to
+            in: query
+            schema: {type: string, format: date-time}
+        responses:
+          '200':
+            description: Сводка с явным статусом согласования и происхождением данных
+            content:
+              application/json:
+                schema:
+                  type: object
+                  required: [scope, from, to, generated_at, is_synthetic, definition_status, metrics]
+                  properties:
+                    scope: {type: string, enum: [self, assigned_interns, team]}
+                    from: {type: string, format: date-time, nullable: true}
+                    to: {type: string, format: date-time, nullable: true}
+                    generated_at: {type: string, format: date-time}
+                    is_synthetic: {type: boolean, enum: [true]}
+                    definition_status: {type: string, enum: [draft]}
+                    metrics:
+                      type: array
+                      items: {$ref: '#/components/schemas/Metric'}
+          '400': {$ref: '#/components/responses/BadRequest'}
+          '401': {$ref: '#/components/responses/Unauthorized'}
+          '403': {$ref: '#/components/responses/Forbidden'}
+          '503': {$ref: '#/components/responses/Unavailable'}
 components:
   securitySchemes:
     bearerAuth:
@@ -630,7 +605,7 @@ components:
     InternId:
       name: intern_id
       in: query
-      description: Выбор стажёра не расширяет права; чужой или неназначенный объект даёт 404.
+      description: Выбор стажёра не расширяет права. Для плана недоступный объект даёт 404; для фильтра эскалаций - пустой список.
       schema: {$ref: '#/components/schemas/UUID'}
     ConversationId:
       name: conversation_id
@@ -672,7 +647,7 @@ components:
         application/json:
           schema: {$ref: '#/components/schemas/Error'}
     Conflict:
-      description: VERSION_CONFLICT, PLAN_NOT_ACTIVE, GENERATION_IN_PROGRESS, ACTION_NOT_CONFIRMABLE или ESCALATION_CLOSED
+      description: VERSION_CONFLICT (в том числе закрытая эскалация), PLAN_NOT_ACTIVE, GENERATION_IN_PROGRESS или ACTION_NOT_CONFIRMABLE
       content:
         application/json:
           schema: {$ref: '#/components/schemas/Error'}
@@ -830,6 +805,18 @@ components:
         code: {type: string}
         message: {type: string}
     ChatMessage:
+      allOf:
+        - $ref: '#/components/schemas/AnswerMetadata'
+        - oneOf:
+            - properties:
+                role: {type: string, enum: [assistant]}
+            - properties:
+                role: {type: string, enum: [user]}
+              not:
+                anyOf:
+                  - required: [answer_status]
+                  - required: [question_category]
+      description: Метаданные принадлежат assistant; оба поля присутствуют вместе или оба отсутствуют у старых ответов. У user их нет.
       type: object
       required: [id, role, content, sources, created_at]
       properties:
@@ -840,6 +827,8 @@ components:
           type: array
           description: Для user всегда []; для assistant сохраняется revision каждого источника.
           items: {$ref: '#/components/schemas/Source'}
+        answer_status: {$ref: '#/components/schemas/AnswerStatus'}
+        question_category: {$ref: '#/components/schemas/QuestionCategory'}
         created_at: {type: string, format: date-time}
     ChatTurn:
       type: object
@@ -862,6 +851,30 @@ components:
       type: string
       enum: [proposed, confirmed, executing, succeeded, failed, cancelled]
     Action:
+      allOf:
+        - oneOf:
+            - properties:
+                action_type: {type: string, enum: [absences.create_request]}
+                details: {$ref: '#/components/schemas/AbsenceDetails'}
+                result:
+                  oneOf:
+                    - {type: object, maxProperties: 0}
+                    - {$ref: '#/components/schemas/AbsenceResult'}
+            - properties:
+                action_type: {type: string, enum: [checklist.update_status]}
+                details: {$ref: '#/components/schemas/TaskDetails'}
+                result:
+                  oneOf:
+                    - {type: object, maxProperties: 0}
+                    - {$ref: '#/components/schemas/TaskResult'}
+            - properties:
+                action_type: {type: string, enum: [escalation.create]}
+                details: {$ref: '#/components/schemas/EscalationDetails'}
+                result:
+                  oneOf:
+                    - {type: object, maxProperties: 0}
+                    - {$ref: '#/components/schemas/EscalationResult'}
+      description: Форма details/result соответствует action_type; до выполнения result равен {}. escalation.create сохраняется для внутреннего исполнителя и истории, но не принимается как предложение Python.
       type: object
       required: [id, request_id, proposal_seq, action_type, details, status, result, last_error, attempt_count, created_at, updated_at]
       properties:
@@ -869,16 +882,9 @@ components:
         request_id: {$ref: '#/components/schemas/UUID'}
         proposal_seq: {type: integer, minimum: 1}
         action_type: {$ref: '#/components/schemas/ActionType'}
-        details:
-          type: object
-          additionalProperties: true
-          description: Проверенные Go поля для карточки; форма зависит от инструмента, см. specs/tools и PR #60.
+        details: {$ref: '#/components/schemas/ActionDetails'}
         status: {$ref: '#/components/schemas/ActionStatus'}
-        result:
-          type: object
-          additionalProperties: true
-          description: До результата {}; при успехе ID и корпоративный статус интеграции. Внешний ID не обязан быть UUID.
-          example: {id: ABS-1042, status: pending_approval}
+        result: {$ref: '#/components/schemas/ActionResult'}
         last_error: {$ref: '#/components/schemas/NullableErrorDetail'}
         attempt_count: {type: integer, minimum: 0}
         created_at: {type: string, format: date-time}
@@ -906,7 +912,7 @@ components:
         context_snapshot:
           type: array
           maxItems: 10
-          description: Только разрешённые сообщения и источники, явно переданные при подтверждении.
+          description: До 10 выбранных сообщений общей длиной до 20000 символов. В текущем исполнителе sources каждого сообщения пуст; обычный чат поддерживает непустые источники.
           items:
             type: object
             required: [message_id, role, content, sources]
@@ -916,6 +922,7 @@ components:
               content: {type: string, maxLength: 20000}
               sources:
                 type: array
+                maxItems: 0
                 items: {$ref: '#/components/schemas/Source'}
         status: {type: string, enum: [open, answered, closed]}
         answer_text: {type: string, nullable: true, maxLength: 20000}
@@ -936,7 +943,7 @@ components:
         answered_at: {type: string, format: date-time}
         add_to_kb: {type: boolean}
         kb_document_id: {$ref: '#/components/schemas/NullableUUID'}
-        kb_status: {type: string, enum: [not_added, ready]}
+        kb_status: {type: string, enum: [not_added, pending, ready, failed], description: Текущее состояние индекса существующей публикации; новая публикация Go получает ready для полнотекстового поиска.}
         version: {type: string, minLength: 1, description: Непрозрачная версия эскалации из updated_at.}
     Metric:
       type: object
@@ -993,7 +1000,7 @@ components:
               required: [tool_name, arguments]
               properties:
                 tool_name: {type: string}
-                arguments: {type: object, additionalProperties: true}
+                arguments: {type: object, maxProperties: 0, description: Go скрывает аргументы перед передачей в UI.}
     ActionProposalEvent:
       allOf:
         - $ref: '#/components/schemas/EventEnvelope'
@@ -1007,7 +1014,7 @@ components:
                 action_id: {$ref: '#/components/schemas/UUID'}
                 action_type: {$ref: '#/components/schemas/ActionType'}
                 status: {type: string, enum: [proposed]}
-                details: {type: object, additionalProperties: true}
+                details: {$ref: '#/components/schemas/ActionDetails'}
     DoneEvent:
       allOf:
         - $ref: '#/components/schemas/EventEnvelope'
@@ -1015,10 +1022,15 @@ components:
           properties:
             event: {type: string, enum: [done]}
             data:
+              allOf:
+                - $ref: '#/components/schemas/AnswerMetadata'
               type: object
+              description: answer_status и question_category передаются вместе; отсутствие обоих допустимо для совместимости.
               required: [full_text, sources]
               properties:
                 full_text: {type: string, maxLength: 20000, description: Пустой текст допустим только с сохранённым предложением действия.}
+                answer_status: {$ref: '#/components/schemas/AnswerStatus'}
+                question_category: {$ref: '#/components/schemas/QuestionCategory'}
                 sources:
                   type: array
                   items: {$ref: '#/components/schemas/Source'}
@@ -1036,3 +1048,103 @@ components:
                   type: string
                   enum: [LLM_TIMEOUT, LLM_UNAVAILABLE, TOOL_FAILED, INTERNAL_ERROR, AI_UNAVAILABLE, GENERATION_TIMEOUT, STREAM_INTERRUPTED, INVALID_AI_EVENT, BUFFER_LIMIT, PERSISTENCE_ERROR]
                 message: {type: string, minLength: 1}
+
+    AnswerStatus:
+      type: string
+      enum: [answered, unknown]
+    QuestionCategory:
+      type: string
+      enum: [task, process, access, technical, other]
+    ActionDetails:
+      oneOf:
+        - $ref: '#/components/schemas/AbsenceDetails'
+        - $ref: '#/components/schemas/TaskDetails'
+        - $ref: '#/components/schemas/EscalationDetails'
+    AbsenceDetails:
+      type: object
+      additionalProperties: false
+      required: [date, type, approver]
+      properties:
+        date: {type: string, format: date}
+        type: {type: string, example: day_off}
+        approver: {$ref: '#/components/schemas/UUID'}
+    TaskDetails:
+      type: object
+      additionalProperties: false
+      required: [task_id, status, version]
+      properties:
+        task_id: {$ref: '#/components/schemas/UUID'}
+        status: {$ref: '#/components/schemas/TaskStatus'}
+        version: {type: integer, minimum: 1}
+    EscalationDetails:
+      type: object
+      additionalProperties: false
+      required: [buddy_id, question, context_snapshot]
+      properties:
+        buddy_id: {$ref: '#/components/schemas/UUID'}
+        question: {type: string, minLength: 1, maxLength: 4000}
+        context_snapshot:
+          type: array
+          maxItems: 10
+          description: Суммарно до 20000 символов content; Go сверяет снимок с собственной беседой.
+          items: {$ref: '#/components/schemas/EscalationContextMessage'}
+    EscalationContextMessage:
+      type: object
+      additionalProperties: false
+      required: [message_id, role, content, sources]
+      properties:
+        message_id: {$ref: '#/components/schemas/UUID'}
+        role: {type: string, enum: [user, assistant]}
+        content: {type: string, maxLength: 20000}
+        sources: {type: array, maxItems: 0, items: {$ref: '#/components/schemas/Source'}}
+    ActionResult:
+      description: До результата пустой объект; после успеха форма соответствует action_type.
+      oneOf:
+        - type: object
+          maxProperties: 0
+        - $ref: '#/components/schemas/AbsenceResult'
+        - $ref: '#/components/schemas/TaskResult'
+        - $ref: '#/components/schemas/EscalationResult'
+    AbsenceResult:
+      type: object
+      additionalProperties: false
+      required: [action_id, external_id, status, approver]
+      properties:
+        action_id: {$ref: '#/components/schemas/UUID'}
+        external_id: {type: string, minLength: 1, example: ABS-1042}
+        status: {type: string, enum: [pending_approval]}
+        approver: {$ref: '#/components/schemas/UUID'}
+      example:
+        action_id: 30000000-0000-0000-0000-000000000001
+        external_id: ABS-1042
+        status: pending_approval
+        approver: 4a59a828-3b1a-55e4-bf9b-81db5ad6183a
+    TaskResult:
+      type: object
+      additionalProperties: false
+      required: [task_id, old_status, status, version, updated_at]
+      properties:
+        task_id: {$ref: '#/components/schemas/UUID'}
+        old_status: {$ref: '#/components/schemas/TaskStatus'}
+        status: {$ref: '#/components/schemas/TaskStatus'}
+        version: {type: integer, minimum: 1}
+        updated_at: {type: string, format: date-time}
+    EscalationResult:
+      type: object
+      additionalProperties: false
+      required: [id, status, buddy_id]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        status: {type: string, enum: [open]}
+        buddy_id: {$ref: '#/components/schemas/UUID'}
+    AnswerMetadata:
+      type: object
+      oneOf:
+        - required: [answer_status, question_category]
+          properties:
+            answer_status: {$ref: '#/components/schemas/AnswerStatus'}
+            question_category: {$ref: '#/components/schemas/QuestionCategory'}
+        - not:
+            anyOf:
+              - required: [answer_status]
+              - required: [question_category]
