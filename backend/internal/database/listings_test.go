@@ -51,7 +51,7 @@ func TestBuddyInternsHTTPAndPagination(t *testing.T) {
 	}
 	cursor := ""
 	seen := make(map[string]bool)
-	for range 3 {
+	for range 4 {
 		path := "/buddy/interns?limit=1"
 		if cursor != "" {
 			path += "&cursor=" + cursor
@@ -74,7 +74,7 @@ func TestBuddyInternsHTTPAndPagination(t *testing.T) {
 			cursor = *page.NextCursor
 		}
 	}
-	if cursor != "" || len(seen) != 3 {
+	if cursor != "" || len(seen) != 4 {
 		t.Fatal("invalid pagination")
 	}
 	first := onboardingRequest(handler, "GET", "/buddy/interns?limit=1", tokens["buddy_ilya"], "")
@@ -96,7 +96,7 @@ func TestBuddyInternsHTTPAndPagination(t *testing.T) {
 			t.Fatalf("%s %s: %d %s", tc.login, tc.path, w.Code, w.Body.String())
 		}
 	}
-	if _, err := s.pool.Exec(ctx, `UPDATE users SET buddy_id=NULL WHERE login IN ('intern_test_1','intern_anya'); UPDATE users SET active=false WHERE login='intern_test_2'`); err != nil {
+	if _, err := s.pool.Exec(ctx, `UPDATE users SET buddy_id=NULL WHERE login IN ('intern_test_1','intern_anya','intern_kostya'); UPDATE users SET active=false WHERE login='intern_test_2'`); err != nil {
 		t.Fatal(err)
 	}
 	w := onboardingRequest(handler, "GET", "/buddy/interns?cursor="+cursor, tokens["buddy_ilya"], "")

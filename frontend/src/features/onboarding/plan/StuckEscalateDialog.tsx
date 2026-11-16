@@ -19,7 +19,7 @@ type Props = {
   onSent: () => void
 }
 
-const MENTOR_START = '10:00'
+const MENTOR_START = '08:00'
 
 /** Черновик эскалации наставнику (идея 25). Уходит только по кнопке «Отправить». */
 export function StuckEscalateDialog({ task, days, isOpen, onClose, onSent }: Props) {

@@ -3,6 +3,8 @@
 INSERT INTO corp_employees (code, team_id, user_id, name, title, kind, tags, ask_about, birthday, desk_id, first_day) VALUES
     ('anya', '4496e76d-35da-5cf7-a3d5-c9a89d88c5a2', 'a24a3478-cf42-51b1-b05b-9833260247a5', 'Аня Тестова', 'Стажёр Backend', 'intern', '{}', '', '03-21', 'desk-anya',
      '{"time":"10:00","place_id":"lift","address":"Тестовый офис, 3 этаж","contact_code":"ilya","bring":["паспорт","ноутбук не нужен"]}'),
+    ('kostya', '4496e76d-35da-5cf7-a3d5-c9a89d88c5a2', '13fd1cfa-ba44-5254-8c73-76dd6193668b', 'Костя Новиков', 'Стажёр Backend', 'intern', '{}', '', '08-14', NULL,
+     '{"time":"10:00","place_id":"lift","address":"Тестовый офис, 3 этаж","contact_code":"ilya","bring":["паспорт","ноутбук не нужен"]}'),
     ('ilya', '4496e76d-35da-5cf7-a3d5-c9a89d88c5a2', '4a59a828-3b1a-55e4-bf9b-81db5ad6183a', 'Илья Наставников', 'Senior Backend, наставник', 'mentor',
      '{code review,архитектура,онбординг,go}', 'Code review, архитектура сервисов, любые вопросы по онбордингу', '06-02', 'desk-ilya', NULL),
     ('maria', '4496e76d-35da-5cf7-a3d5-c9a89d88c5a2', '10000000-0000-0000-0000-000000000003', 'Мария Руководова', 'Руководитель команды', 'lead',

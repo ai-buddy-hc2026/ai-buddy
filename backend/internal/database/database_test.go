@@ -72,11 +72,11 @@ func TestPrepareRepeatAndConstraints(t *testing.T) {
 	wg.Wait()
 	expectedCounts := map[string]int{
 		"teams":               2,
-		"users":               6,
+		"users":               7,
 		"schema_migrations":   len(migrations),
-		"onboarding_plans":    2,
-		"tasks":               30,
-		"task_status_history": 30,
+		"onboarding_plans":    3,
+		"tasks":               45,
+		"task_status_history": 45,
 		"actions_log":         0,
 		"absence_requests":    0,
 		"escalations":         0,

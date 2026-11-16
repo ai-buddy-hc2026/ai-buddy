@@ -160,6 +160,10 @@
   box-shadow: var(--theme-focusBoxShadow-default);
 }
 
+.askInput:focus-visible {
+  box-shadow: none;
+}
+
 .askInput {
   flex: 1;
   min-width: 0;

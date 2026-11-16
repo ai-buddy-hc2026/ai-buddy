@@ -38,7 +38,7 @@ export type Employee = z.infer<typeof employeeSchema>
 export const TEAM_ADS = 'team-ads'
 export const TEAM_DELIVERY = 'team-delivery'
 
-const base = { workHours: { start: '10:00', end: '19:00' }, online: true }
+const base = { workHours: { start: '08:00', end: '19:00' }, online: true }
 
 export const EMPLOYEES: readonly Employee[] = [
   {
@@ -56,6 +56,22 @@ export const EMPLOYEES: readonly Employee[] = [
     birthday: '03-21',
     interests: ['футбол', 'настолки'],
     deskId: 'desk-anya',
+  },
+  {
+    ...base,
+    id: 'kostya',
+    name: 'Костя Новиков',
+    short: 'Костя',
+    role: 'Стажёр Backend',
+    kind: 'intern',
+    teamId: TEAM_ADS,
+    teamName: 'Тестовая команда Объявлений',
+    color: 'orange',
+    tags: [],
+    askAbout: '',
+    birthday: '08-14',
+    interests: ['бег', 'футбол'],
+    deskId: null,
   },
   {
     ...base,

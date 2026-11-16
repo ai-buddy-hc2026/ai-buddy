@@ -175,7 +175,7 @@ type EscalateProps = {
   onSent: (meta: NotFoundMeta) => void
 }
 
-const MENTOR_START = '10:00'
+const MENTOR_START = '08:00'
 
 /** S-5: вопрос наставнику уходит только после подтверждения в диалоге. */
 function Escalate({ messageId, meta, context, onSent }: EscalateProps) {

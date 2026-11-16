@@ -28,7 +28,7 @@ func TestSettingsValidate(t *testing.T) {
 		{"bad theme", func(s *Settings) { s.Theme = "neon" }, false},
 		{"bad lang", func(s *Settings) { s.Lang = "de" }, false},
 		{"bad tone", func(s *Settings) { s.Tone = "loud" }, false},
-		{"end before start", func(s *Settings) { s.WorkHours.End = "09:00" }, false},
+		{"end before start", func(s *Settings) { s.WorkHours.End = "07:00" }, false},
 		{"bad clock", func(s *Settings) { s.WorkHours.Start = "25:00" }, false},
 		{"no days", func(s *Settings) { s.WorkHours.Days = nil }, false},
 		{"duplicate day", func(s *Settings) { s.WorkHours.Days = []int{1, 1} }, false},
@@ -62,10 +62,10 @@ func TestNextWindow(t *testing.T) {
 		name, now, want string
 	}{
 		{"inside window", "2026-11-12 12:00", "2026-11-12 12:00"},
-		{"before start", "2026-11-12 08:30", "2026-11-12 10:00"},
-		{"after end", "2026-11-12 19:00", "2026-11-13 10:00"},
-		{"friday evening", "2026-11-13 21:00", "2026-11-16 10:00"},
-		{"saturday", "2026-11-14 12:00", "2026-11-16 10:00"},
+		{"before start", "2026-11-12 07:30", "2026-11-12 08:00"},
+		{"after end", "2026-11-12 19:00", "2026-11-13 08:00"},
+		{"friday evening", "2026-11-13 21:00", "2026-11-16 08:00"},
+		{"saturday", "2026-11-14 12:00", "2026-11-16 08:00"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := hours.NextWindow(moscow(t, tc.now))
@@ -87,12 +87,12 @@ func TestGate(t *testing.T) {
 		want    string
 	}{
 		{"working hours", func(*Recipient) {}, FeatureBriefing, "2026-11-12 11:00", true, "2026-11-12 11:00"},
-		{"night deferred", func(*Recipient) {}, FeatureHints, "2026-11-12 23:00", true, "2026-11-13 10:00"},
+		{"night deferred", func(*Recipient) {}, FeatureHints, "2026-11-12 23:00", true, "2026-11-13 08:00"},
 		{"toggle off", func(r *Recipient) { r.Settings.Toggles.Briefing = false }, FeatureBriefing, "2026-11-12 11:00", false, ""},
 		{"coffee off by default", func(*Recipient) {}, FeatureCoffee, "2026-11-12 11:00", false, ""},
 		{"birthday on", func(r *Recipient) { r.Settings.Toggles.BirthdayReminders = true }, FeatureBirthday, "2026-11-12 11:00", true, "2026-11-12 11:00"},
 		{"stuck follows hints", func(r *Recipient) { r.Settings.Toggles.Hints = false }, FeatureStuck, "2026-11-12 11:00", false, ""},
-		{"not my day deferred", func(r *Recipient) { r.NotMyDayDate = "2026-11-12" }, FeatureHints, "2026-11-12 11:00", true, "2026-11-13 10:00"},
+		{"not my day deferred", func(r *Recipient) { r.NotMyDayDate = "2026-11-12" }, FeatureHints, "2026-11-12 11:00", true, "2026-11-13 08:00"},
 		{"not my day yesterday", func(r *Recipient) { r.NotMyDayDate = "2026-11-11" }, FeatureHints, "2026-11-12 11:00", true, "2026-11-12 11:00"},
 		{"control group silent", func(r *Recipient) { r.BuddyEnabled = false }, FeatureBriefing, "2026-11-12 11:00", false, ""},
 		{"control group gets system", func(r *Recipient) { r.BuddyEnabled = false }, FeatureSystem, "2026-11-12 11:00", true, "2026-11-12 11:00"},

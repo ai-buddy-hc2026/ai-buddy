@@ -32,6 +32,22 @@
   padding: var(--theme-gap-20) var(--theme-gap-12) var(--theme-gap-12);
 }
 
+.listHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--theme-gap-8);
+}
+
+.contacts {
+  display: grid;
+  gap: var(--theme-gap-4);
+  max-height: min(60vh, 520px);
+  margin: var(--theme-gap-12) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
 .listTitle {
   margin: 0;
   padding: 0 var(--theme-gap-8);
@@ -55,6 +71,10 @@
 
 .search:focus-within {
   box-shadow: var(--theme-focusBoxShadow-default);
+}
+
+.search input:focus-visible {
+  box-shadow: none;
 }
 
 .search input {

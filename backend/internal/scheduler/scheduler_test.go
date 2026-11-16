@@ -121,7 +121,7 @@ func TestPlanAppliesGate(t *testing.T) {
 	if len(got) != 1 || got[0].UserID != "on" || got[0].TeamID != "t" {
 		t.Fatalf("got %+v", got)
 	}
-	if want := at(t, "2026-11-17 10:00"); !got[0].DeliverAt.Equal(want) {
+	if want := at(t, "2026-11-17 08:00"); !got[0].DeliverAt.Equal(want) {
 		t.Fatalf("deliverAt = %v, want %v", got[0].DeliverAt, want)
 	}
 }

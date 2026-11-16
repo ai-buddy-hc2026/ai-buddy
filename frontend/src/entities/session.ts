@@ -27,6 +27,12 @@ export const TEST_USERS: readonly TestUser[] = [
     hint: { ru: 'Стажёр, неделя 2', en: 'Intern, week 2' },
   },
   {
+    login: 'intern_kostya',
+    role: 'intern',
+    employeeId: 'kostya',
+    hint: { ru: 'Второй стажёр Ильи', en: "Ilya's second intern" },
+  },
+  {
     login: 'buddy_ilya',
     role: 'buddy',
     employeeId: 'ilya',

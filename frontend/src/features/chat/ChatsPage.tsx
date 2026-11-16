@@ -7,7 +7,8 @@ import { useT } from '@/shared/lib/i18n'
 import { BuddyChat } from './BuddyChat'
 import { ChatList } from './ChatList'
 import { PeerChat } from './PeerChat'
-import { findThread, listThreads } from './threads'
+import { chatApi } from './model'
+import { contactsOf, findThread, listThreads } from './threads'
 import s from './Chat.module.css'
 
 /**
@@ -19,7 +20,8 @@ export function ChatsPage() {
   const user = useUser()
   const navigate = useNavigate()
   const { c, q } = useSearch({ strict: false })
-  const threads = listThreads(user.employee)
+  // Начатые переписки и открытый сейчас чат остаются в списке рядом с закреплёнными
+  const threads = listThreads(user.employee, [...chatApi.startedIds(), ...(c ? [c] : [])])
   const active = findThread(c, user.employee)
 
   const open = (id: string) => void navigate({ to: '/chats', search: { c: id } })
@@ -28,7 +30,12 @@ export function ChatsPage() {
   return (
     <div className={cn(s.layout, active && s.hasActive)}>
       <aside className={s.listPane}>
-        <ChatList threads={threads} activeId={active?.id ?? null} onSelect={open} />
+        <ChatList
+          threads={threads}
+          contacts={contactsOf(user.employee)}
+          activeId={active?.id ?? null}
+          onSelect={open}
+        />
       </aside>
       <section className={s.convPane} aria-label={t('Переписка', 'Conversation')}>
         {!active ? (
