@@ -19,6 +19,15 @@
       "start_date": "2026-11-09",
       "current_stage": "week_1",
       "status": "active"
+    },
+    {
+      "id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "intern_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "title": "План адаптации стажёра",
+      "start_date": "2026-11-09",
+      "current_stage": "week_1",
+      "status": "active"
     }
   ],
   "tasks": [
@@ -471,6 +480,231 @@
       "status": "todo",
       "version": 1,
       "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "2f3caf89-57ef-580d-93d0-22e0c28faebb",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "4a59a828-3b1a-55e4-bf9b-81db5ad6183a",
+      "seed_key": "week_1-01",
+      "stage": "week_1",
+      "title": "Подключиться к рабочим каналам",
+      "description": "Добавить стажёра во все необходимые чаты и каналы и проверить приглашения.",
+      "position": 0,
+      "due_date": "2026-11-09",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "2727da8f-83d6-5099-ac1a-f91bce201351",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "seed_key": "week_1-02",
+      "stage": "week_1",
+      "title": "Получить доступы к рабочим системам и репозиториям",
+      "description": "Проверить доступы к рабочим системам и репозиториям, запросить недостающие права.",
+      "position": 1,
+      "due_date": "2026-11-10",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "ec4b8076-9127-53f9-85b8-3b6f672290b1",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "4a59a828-3b1a-55e4-bf9b-81db5ad6183a",
+      "seed_key": "week_1-03",
+      "stage": "week_1",
+      "title": "Познакомиться с командой",
+      "description": "Познакомиться с участниками команды, ролями и правилами коммуникации.",
+      "position": 2,
+      "due_date": "2026-11-11",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "2fa82337-2936-5214-b396-8f98959476af",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "seed_key": "week_1-04",
+      "stage": "week_1",
+      "title": "Организовать работу с наставником",
+      "description": "Назначить регулярные 1:1 и завести конспект вопросов, обратной связи и договорённостей.",
+      "position": 3,
+      "due_date": "2026-11-13",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "abcb3a17-0ed7-5d96-a06b-713b483cfd3a",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "4a59a828-3b1a-55e4-bf9b-81db5ad6183a",
+      "seed_key": "week_1-05",
+      "stage": "week_1",
+      "title": "Согласовать цели и план адаптации",
+      "description": "Зафиксировать задачи, ожидания, критерии успеха и ближайшие командные цели.",
+      "position": 4,
+      "due_date": "2026-11-13",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "6399dcdd-4377-5b01-8a13-88280cd44f77",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "seed_key": "week_2-06",
+      "stage": "week_2",
+      "title": "Запросить методичку наставника",
+      "description": "Запросить, изучить и обсудить с наставником методичку наставника.",
+      "position": 5,
+      "due_date": "2026-11-20",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "f59d0a6c-f9df-5824-9129-61846a8e20be",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "seed_key": "week_2-07",
+      "stage": "week_2",
+      "title": "Получить доступ к пространству команды",
+      "description": "Найти основные регламенты, инструкции, контакты и рабочие документы команды.",
+      "position": 6,
+      "due_date": "2026-11-20",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "823a716a-e890-5447-bf24-24ac0e579d8f",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "seed_key": "week_2-08",
+      "stage": "week_2",
+      "title": "Изучить документы и мануалы команды",
+      "description": "Прочитать инструкции, составить список вопросов и обсудить его с наставником.",
+      "position": 7,
+      "due_date": "2026-11-20",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "e445261a-14bf-5e91-a034-a622bbfe89e9",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "seed_key": "week_2-09",
+      "stage": "week_2",
+      "title": "Настроить отслеживание прогресса",
+      "description": "Внести цели, задачи, сроки и ожидания в инструмент прогресса и согласовать их.",
+      "position": 8,
+      "due_date": "2026-11-20",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "02501cfe-8b8d-58ec-b3c6-0a516001c624",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "4a59a828-3b1a-55e4-bf9b-81db5ad6183a",
+      "seed_key": "week_2-10",
+      "stage": "week_2",
+      "title": "Провести контрольный 1:1",
+      "description": "Обсудить результаты, блокеры и вопросы, обновить план и зафиксировать обратную связь.",
+      "position": 9,
+      "due_date": "2026-11-20",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "1a8d9fe3-7f9e-57a7-bb96-3cbe1c839974",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "seed_key": "week_2-11",
+      "stage": "week_2",
+      "title": "Изучить порядок оформления отгула",
+      "description": "Изучить виды отсутствия, правила согласования и порядок подачи заявки.",
+      "position": 10,
+      "due_date": "2026-11-20",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "69b411a5-0495-5067-93d5-8c8d78f2ff2b",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "seed_key": "weeks_3_4-12",
+      "stage": "weeks_3_4",
+      "title": "Изучить защиту данных, этику и безопасность",
+      "description": "Изучить правила защиты данных, конфиденциальности и сообщения об инцидентах.",
+      "position": 11,
+      "due_date": "2026-11-27",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "e5a4330f-4072-581a-a53f-03ad72b6c3b5",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "seed_key": "weeks_3_4-13",
+      "stage": "weeks_3_4",
+      "title": "Разобраться с дежурствами, релизами и командными встречами",
+      "description": "Изучить дежурства, эскалацию, этапы релиза и правила командных встреч.",
+      "position": 12,
+      "due_date": "2026-11-27",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "5609bb0c-9313-5082-86f9-370b699bb832",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "seed_key": "weeks_3_4-14",
+      "stage": "weeks_3_4",
+      "title": "Выполнить первую задачу и пройти code review",
+      "description": "Завершить задачу, оформить Pull Request, пройти ревью и внести правки.",
+      "position": 13,
+      "due_date": "2026-12-04",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
+    },
+    {
+      "id": "b6518a1f-4c34-5991-aa56-290126d06a11",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "plan_id": "848c7dc9-10b8-5f9e-980b-5a7ac39115ee",
+      "assignee_id": "13fd1cfa-ba44-5254-8c73-76dd6193668b",
+      "seed_key": "weeks_3_4-15",
+      "stage": "weeks_3_4",
+      "title": "Составить план дальнейшего обучения",
+      "description": "Выбрать курсы и материалы, составить план и обсудить его с наставником.",
+      "position": 14,
+      "due_date": "2026-12-04",
+      "status": "todo",
+      "version": 1,
+      "updated_at": "2026-11-11T00:00:00Z"
     }
   ],
   "task_kb_documents": [
@@ -628,6 +862,84 @@
       "task_id": "41373605-58b3-5d71-850d-f8208e308624",
       "document_id": "2bcd0de3-0cc1-5377-b227-92f71328053d",
       "team_id": "e5aba0fd-91e6-59e4-a046-7960848af1a2",
+      "position": 1
+    },
+    {
+      "task_id": "2f3caf89-57ef-580d-93d0-22e0c28faebb",
+      "document_id": "bdfe7411-f08c-58c0-8e3f-7fea6b58239b",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "2727da8f-83d6-5099-ac1a-f91bce201351",
+      "document_id": "ad7bf0cb-74cd-5d0b-92bb-11fb596064b8",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "ec4b8076-9127-53f9-85b8-3b6f672290b1",
+      "document_id": "a29fa808-585a-57f7-a1c1-efcaa8b3eec0",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "2fa82337-2936-5214-b396-8f98959476af",
+      "document_id": "81881319-0c3f-5dd8-ba3e-e506e663d056",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "abcb3a17-0ed7-5d96-a06b-713b483cfd3a",
+      "document_id": "8a89d7f2-812c-52d7-a962-cc8f21b095c3",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "6399dcdd-4377-5b01-8a13-88280cd44f77",
+      "document_id": "bdfe7411-f08c-58c0-8e3f-7fea6b58239b",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "f59d0a6c-f9df-5824-9129-61846a8e20be",
+      "document_id": "ad7bf0cb-74cd-5d0b-92bb-11fb596064b8",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "823a716a-e890-5447-bf24-24ac0e579d8f",
+      "document_id": "bdfe7411-f08c-58c0-8e3f-7fea6b58239b",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "e445261a-14bf-5e91-a034-a622bbfe89e9",
+      "document_id": "8a89d7f2-812c-52d7-a962-cc8f21b095c3",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "02501cfe-8b8d-58ec-b3c6-0a516001c624",
+      "document_id": "81881319-0c3f-5dd8-ba3e-e506e663d056",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "1a8d9fe3-7f9e-57a7-bb96-3cbe1c839974",
+      "document_id": "54065964-5ccd-5bf3-b535-062e24a9fd83",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "5609bb0c-9313-5082-86f9-370b699bb832",
+      "document_id": "c24f0a12-93e9-5674-b956-50643403b267",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
+      "position": 0
+    },
+    {
+      "task_id": "5609bb0c-9313-5082-86f9-370b699bb832",
+      "document_id": "dcafd639-65c9-5880-8bc4-f82bd71385b2",
+      "team_id": "4496e76d-35da-5cf7-a3d5-c9a89d88c5a2",
       "position": 1
     }
   ],

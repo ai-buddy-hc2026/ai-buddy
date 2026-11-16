@@ -51,18 +51,38 @@ function EventList({ events, userId, tab, empty }: ListProps) {
   )
 }
 
-function FeedTab({ events, userId }: { events: EventItem[]; userId: string }) {
+/** Фильтры ленты стоят над прокруткой: при скролле списка они не уезжают под край. */
+function FeedFilters({
+  filter,
+  onChange,
+}: {
+  filter: FeedFilter
+  onChange: (next: FeedFilter) => void
+}) {
   const t = useT()
-  const [filter, setFilter] = useState<FeedFilter>('all')
+  return (
+    <ChipRow role="group" aria-label={t('Фильтр событий', 'Event filter')}>
+      {FEED_FILTERS.map((item) => (
+        <Chip key={item} isSelected={item === filter} onClick={() => onChange(item)}>
+          {filterLabel(item, t)}
+        </Chip>
+      ))}
+    </ChipRow>
+  )
+}
+
+function FeedTab({
+  events,
+  userId,
+  filter,
+}: {
+  events: EventItem[]
+  userId: string
+  filter: FeedFilter
+}) {
+  const t = useT()
   return (
     <>
-      <ChipRow role="group" aria-label={t('Фильтр событий', 'Event filter')}>
-        {FEED_FILTERS.map((item) => (
-          <Chip key={item} isSelected={item === filter} onClick={() => setFilter(item)}>
-            {filterLabel(item, t)}
-          </Chip>
-        ))}
-      </ChipRow>
       <EventList
         events={filterFeed(events, filter, DEMO_TODAY)}
         userId={userId}
@@ -85,6 +105,7 @@ export function EventsPage() {
   const navigate = useNavigate()
   const events = useEvents()
   const tab = toTab(search.tab)
+  const [filter, setFilter] = useState<FeedFilter>('all')
 
   const tabs: ReadonlyArray<TabItem<EventsTab>> = [
     { id: 'feed', label: t('Лента', 'Feed'), icon: 'events' },
@@ -134,7 +155,7 @@ export function EventsPage() {
         />
       )
     }
-    return <FeedTab events={list} userId={userId} />
+    return <FeedTab events={list} userId={userId} filter={filter} />
   }
 
   return (
@@ -157,7 +178,9 @@ export function EventsPage() {
           onChange={setTab}
           label={t('Разделы событий', 'Event sections')}
         />
-        <div className={`${s.scroller} scroll-area`}>
+        {tab === 'feed' && <FeedFilters filter={filter} onChange={setFilter} />}
+        {/* key: при смене вкладки прокрутка начинается сверху */}
+        <div key={tab} className={`${s.scroller} scroll-area`}>
           {events.isPending && (
             <div className={s.list}>
               {[0, 1, 2].map((i) => (

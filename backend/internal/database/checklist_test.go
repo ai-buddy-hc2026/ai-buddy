@@ -22,7 +22,7 @@ func checklistData(t *testing.T) []byte {
 func TestChecklistValidation(t *testing.T) {
 	data := checklistData(t)
 	seed, err := parseChecklist(data)
-	if err != nil || len(seed.Plans) != 2 || len(seed.Tasks) != 30 || len(seed.Links) != 26 {
+	if err != nil || len(seed.Plans) != 3 || len(seed.Tasks) != 45 || len(seed.Links) != 39 {
 		t.Fatalf("invalid repository seed: plans=%d tasks=%d links=%d err=%v", len(seed.Plans), len(seed.Tasks), len(seed.Links), err)
 	}
 	for name, mutate := range map[string]func(*checklistSeed){
@@ -97,7 +97,7 @@ func TestChecklistRepeatPreservesChanges(t *testing.T) {
 		t.Fatalf("plan overwritten: %v, %v", preserved, err)
 	}
 	var count int
-	if err := pool.QueryRow(ctx, "SELECT count(*) FROM task_status_history").Scan(&count); err != nil || count != 31 {
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM task_status_history").Scan(&count); err != nil || count != 46 {
 		t.Fatalf("history count=%d err=%v", count, err)
 	}
 	for _, query := range []string{

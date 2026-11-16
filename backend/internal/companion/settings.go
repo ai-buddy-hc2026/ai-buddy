@@ -61,7 +61,7 @@ func Defaults(zone string) Settings {
 		Theme:     "system",
 		Lang:      "ru",
 		Tone:      "short",
-		WorkHours: WorkHours{Start: "10:00", End: "19:00", Days: []int{1, 2, 3, 4, 5}, Timezone: zone},
+		WorkHours: WorkHours{Start: "08:00", End: "19:00", Days: []int{1, 2, 3, 4, 5}, Timezone: zone},
 		Toggles:   Toggles{Briefing: true, Hints: true},
 	}
 }

@@ -82,7 +82,7 @@ export type Message = z.infer<typeof messageSchema>
 const threadsSchema = z.record(z.string(), z.array(messageSchema))
 type Threads = z.infer<typeof threadsSchema>
 
-const threadsDb = createCollection<Threads>('chat.threads', () => SEED_THREADS)
+const threadsDb = createCollection<Threads>('chat.threads.v2', () => SEED_THREADS)
 
 function readThreads(): Threads {
   const parsed = threadsSchema.safeParse(threadsDb.read())
@@ -115,6 +115,11 @@ export const chatApi = {
     return readThreads()[threadId] ?? []
   },
   peek: (threadId: string): Message[] => readThreads()[threadId] ?? [],
+  /** Чаты, где уже есть сообщения: они остаются в списке. */
+  startedIds: (): string[] =>
+    Object.entries(readThreads())
+      .filter(([, list]) => list.length > 0)
+      .map(([id]) => id),
   append(threadId: string, messages: readonly Message[]): Message[] {
     const threads = readThreads()
     const next = [...(threads[threadId] ?? []), ...messages]

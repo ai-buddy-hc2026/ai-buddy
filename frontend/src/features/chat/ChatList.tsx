@@ -1,14 +1,17 @@
 import { useState, type ReactNode } from 'react'
-import { Avatar, BuddyAvatar, Icon } from '@/shared/ui'
+import type { Employee } from '@/entities/employees'
+import { Avatar, BuddyAvatar, Icon, IconButton } from '@/shared/ui'
 import { cn } from '@/shared/lib/cn'
 import { formatTime } from '@/shared/lib/date'
 import { useT } from '@/shared/lib/i18n'
 import { chatApi } from './model'
+import { NewChatDialog } from './NewChatDialog'
 import { BUDDY_ID, type ThreadInfo } from './threads'
 import s from './Chat.module.css'
 
 type Props = {
   threads: readonly ThreadInfo[]
+  contacts: readonly Employee[]
   activeId: string | null
   onSelect: (id: string) => void
 }
@@ -19,9 +22,10 @@ function threadName(thread: ThreadInfo, groupName: string): string {
   return thread.employee.name
 }
 
-export function ChatList({ threads, activeId, onSelect }: Props) {
+export function ChatList({ threads, contacts, activeId, onSelect }: Props) {
   const t = useT()
   const [query, setQuery] = useState('')
+  const [isPicking, setIsPicking] = useState(false)
   const groupName = t('Стажёры', 'Interns')
   const needle = query.trim().toLowerCase()
   const visible = threads.filter(
@@ -31,7 +35,15 @@ export function ChatList({ threads, activeId, onSelect }: Props) {
 
   return (
     <nav className={s.listNav} aria-label={t('Чаты', 'Chats')}>
-      <h1 className={s.listTitle}>{t('Чаты', 'Chats')}</h1>
+      <div className={s.listHead}>
+        <h1 className={s.listTitle}>{t('Чаты', 'Chats')}</h1>
+        <IconButton
+          icon="plus"
+          label={t('Новый чат', 'New chat')}
+          isRound
+          onClick={() => setIsPicking(true)}
+        />
+      </div>
       <label className={s.search}>
         <Icon name="search" size={18} />
         <span className="visually-hidden">{t('Поиск по чатам', 'Search chats')}</span>
@@ -92,6 +104,15 @@ export function ChatList({ threads, activeId, onSelect }: Props) {
           <li className={s.noResults}>{t('Никого не нашли', 'Nobody found')}</li>
         )}
       </ul>
+      <NewChatDialog
+        isOpen={isPicking}
+        contacts={contacts}
+        onClose={() => setIsPicking(false)}
+        onPick={(id) => {
+          setIsPicking(false)
+          onSelect(id)
+        }}
+      />
     </nav>
   )
 }

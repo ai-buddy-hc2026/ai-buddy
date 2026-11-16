@@ -107,7 +107,7 @@ interface SettingsState extends SettingsData {
   setSimulateNight: (on: boolean) => void
 }
 
-export const DEFAULT_WORK_HOURS: WorkHours = { start: '10:00', end: '19:00', days: [1, 2, 3, 4, 5] }
+export const DEFAULT_WORK_HOURS: WorkHours = { start: '08:00', end: '19:00', days: [1, 2, 3, 4, 5] }
 
 /** Ответ сервера в поля стора. Сервер возвращает дату режима только за сегодня. */
 export function fromRemote(remote: RemoteSettings): Partial<SettingsData> {

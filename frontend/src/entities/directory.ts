@@ -7,6 +7,7 @@ import { getEmployee } from './employees'
  */
 const SEED_LOGINS: Readonly<Record<string, string>> = {
   'a24a3478-cf42-51b1-b05b-9833260247a5': 'intern_anya',
+  '13fd1cfa-ba44-5254-8c73-76dd6193668b': 'intern_kostya',
   '4a59a828-3b1a-55e4-bf9b-81db5ad6183a': 'buddy_ilya',
   '10000000-0000-0000-0000-000000000003': 'lead_maria',
   '2db7cc77-4114-52d8-a833-f670ab60e4e0': 'intern_petr',
@@ -16,6 +17,7 @@ const SEED_LOGINS: Readonly<Record<string, string>> = {
 
 const LOGIN_TO_EMPLOYEE: Readonly<Record<string, string>> = {
   intern_anya: 'anya',
+  intern_kostya: 'kostya',
   buddy_ilya: 'ilya',
   lead_maria: 'maria',
 }
