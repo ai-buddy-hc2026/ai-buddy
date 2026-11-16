@@ -52,13 +52,11 @@ describe('growth remote adapters', () => {
   })
 
   it('keeps only requests the viewer sent', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        jsonResponse(200, {
-          items: [feedback(), feedback({ id: 'f2', fromId: OTHER_ID, toId: ANYA_ID })],
-        }),
-      )
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(200, {
+        items: [feedback(), feedback({ id: 'f2', fromId: OTHER_ID, toId: ANYA_ID })],
+      }),
+    )
     vi.stubGlobal('fetch', fetchMock)
     const list = await remoteFeedback.listSent(ANYA_ID)
     expect(list.map((item) => item.id)).toEqual(['f1'])
