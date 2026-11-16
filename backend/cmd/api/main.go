@@ -98,6 +98,7 @@ func run() error {
 	}
 	handler = httpapi.WithEscalations(handler, service, escalations)
 	handler = httpapi.WithKnowledge(handler, service, database.NewKnowledge(pool))
+	handler = httpapi.WithAnalytics(handler, service, database.NewAnalytics(pool))
 	handler = httpapi.WithConfirmation(handler, service, toolStore)
 	if mcpCfg.Token != "" {
 		toolsHandler, err := mcpserver.New(toolStore, mcpCfg.Token)

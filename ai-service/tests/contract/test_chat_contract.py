@@ -383,3 +383,88 @@ async def test_done_status_requires_explicit_unknown_answer(
 
     assert redis.events[-1]["event"] == "done"
     assert redis.events[-1]["data"]["answer_status"] == expected_status
+
+
+class ManagerMCP(SearchMCP):
+    def __init__(self, manager):
+        super().__init__([])
+        self.manager = manager
+        self.calls = []
+
+    async def call_tool(self, name, arguments):
+        self.calls.append(name)
+        if self.manager is None:
+            raise chat.MCPContractError("DEPENDENCY_UNAVAILABLE", "Go недоступен")
+        return {"ok": True, "data": {"manager": self.manager}}
+
+
+BUDDY = {
+    "id": "4a59a828-3b1a-55e4-bf9b-81db5ad6183a",
+    "name": "Илья",
+    "role": "buddy",
+}
+
+
+async def _unknown_answer_events(monkeypatch, manager, role="intern"):
+    async def no_answer(_arguments, _context):
+        return {"status": "no_answer", "who_to_ask": ["наставник"]}
+
+    mcp = ManagerMCP(manager)
+    monkeypatch.setattr(chat, "GenerationMCPClient", lambda **kwargs: mcp)
+    monkeypatch.setattr(chat, "_search_knowledge", no_answer)
+    redis = FakeRedis()
+    data = payload() | {"role": role, "message": "  Как получить доступ к стенду?  "}
+    await chat.pubsub_publish(ChatRequest.model_validate(data), SearchAI(), redis)
+    return redis.events, mcp
+
+
+async def test_unknown_answer_proposes_escalation_to_buddy(monkeypatch):
+    events, mcp = await _unknown_answer_events(monkeypatch, BUDDY)
+
+    proposals = [e for e in events if e["event"] == "action_proposal"]
+    assert mcp.calls == ["employees.get_manager"]
+    assert len(proposals) == 1
+    assert proposals[0]["data"] == {
+        "action_type": "escalation.create",
+        "details": {"question": "Как получить доступ к стенду?"},
+    }
+    assert events[-1]["event"] == "done"
+    assert events[-1]["data"]["answer_status"] == "unknown"
+    assert proposals[0]["seq"] < events[-1]["seq"]
+
+
+@pytest.mark.parametrize(
+    ("manager", "role"),
+    [
+        ({**BUDDY, "role": "lead"}, "intern"),
+        (None, "intern"),
+    ],
+)
+async def test_unknown_answer_without_buddy_skips_escalation(
+    manager,
+    role,
+    monkeypatch,
+):
+    events, _mcp = await _unknown_answer_events(monkeypatch, manager, role)
+
+    assert not [e for e in events if e["event"] == "action_proposal"]
+    assert events[-1]["event"] == "done"
+    assert events[-1]["data"]["answer_status"] == "unknown"
+
+
+async def test_propose_escalation_only_for_intern():
+    proposals = []
+
+    async def publish(action_type, details):
+        proposals.append((action_type, details))
+
+    ctx = chat.UserContext.from_payload(payload() | {"role": "buddy"})
+    proposed = await chat._propose_escalation(
+        ManagerMCP(BUDDY),
+        ctx,
+        "Вопрос",
+        publish,
+    )
+
+    assert proposed is False
+    assert proposals == []

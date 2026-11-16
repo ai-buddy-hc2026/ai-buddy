@@ -333,7 +333,9 @@ async def test_chat_returns_unknown_answer_without_calling_tools(
     assert client is not None
     assert len(model_calls) == 1
     assert model_calls[0][1] == client.get_tools_for_llm() + [chat._knowledge_tool()]
-    assert client.call_args == []
+    # S-5: на "не знаю" Python только проверяет наставника; fake не вернул buddy,
+    # поэтому предложения передать вопрос нет.
+    assert client.call_args == [(chat.MANAGER_TOOL_NAME, {})]
     assert client.proposal_args == []
     assert [event["event"] for event in events] == ["token", "done"]
     assert [event["seq"] for event in events] == [1, 2]
