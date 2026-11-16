@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/identifier"
 )
 
 // Actor - текущий пользователь. Все запросы ограничены его командой.
@@ -107,15 +109,21 @@ func (s *Store) ListFeedback(ctx context.Context, a Actor) ([]FeedbackRequest, e
 }
 
 // CreateFeedback держит не больше MaxOpenPerPerson открытых запросов одному адресату.
+// Адресата можно передать UUID пользователя или кодом сотрудника из моков (oleg).
 func (s *Store) CreateFeedback(ctx context.Context, a Actor, in FeedbackInput) (FeedbackRequest, error) {
-	if in.ToID == a.ID {
-		return FeedbackRequest{}, ErrInvalid
-	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return FeedbackRequest{}, fmt.Errorf("begin feedback: %w", err)
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	toID, err := resolveRecipient(ctx, tx, a.TeamID, in.ToID)
+	if err != nil {
+		return FeedbackRequest{}, err
+	}
+	in.ToID = toID
+	if in.ToID == a.ID {
+		return FeedbackRequest{}, ErrInvalid
+	}
 	var recipient string
 	err = tx.QueryRow(ctx, `SELECT id::text FROM users WHERE id=$1 AND team_id=$2 AND active FOR SHARE`, in.ToID, a.TeamID).Scan(&recipient)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -478,4 +486,22 @@ func mapConstraint(err error) error {
 		return ErrInvalid
 	}
 	return err
+}
+
+// resolveRecipient переводит код сотрудника в UUID пользователя своей команды или общих.
+// Сотрудник без учётной записи в AI-buddy не может получить запрос: ErrNotFound.
+func resolveRecipient(ctx context.Context, tx pgx.Tx, teamID, to string) (string, error) {
+	if identifier.ValidUUID(to) {
+		return to, nil
+	}
+	var userID string
+	err := tx.QueryRow(ctx, `SELECT user_id::text FROM corp_employees
+ WHERE code=$1 AND (team_id=$2 OR team_id IS NULL) AND user_id IS NOT NULL`, to, teamID).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("resolve feedback recipient: %w", err)
+	}
+	return userID, nil
 }

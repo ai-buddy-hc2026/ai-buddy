@@ -93,6 +93,31 @@ func TestStoreFlows(t *testing.T) {
 		}
 	})
 
+	t.Run("feedback recipient by employee code", func(t *testing.T) {
+		in := FeedbackInput{ToID: "maria", ArtifactURL: "https://gitlab.test/10", ArtifactTitle: "MR 10", Question: "Глянешь?"}
+		f, err := s.CreateFeedback(ctx, anya, in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if f.ToID != mariaID {
+			t.Fatalf("code resolved to %q, want %q", f.ToID, mariaID)
+		}
+		in.ToID = mariaID
+		if _, err := s.CreateFeedback(ctx, anya, in); err != nil {
+			t.Fatalf("uuid recipient: %v", err)
+		}
+		for _, code := range []string{"oleg", "petr", "nobody"} {
+			in.ToID = code
+			if _, err := s.CreateFeedback(ctx, anya, in); !errors.Is(err, ErrNotFound) {
+				t.Fatalf("%s: want not found, got %v", code, err)
+			}
+		}
+		in.ToID = "anya"
+		if _, err := s.CreateFeedback(ctx, anya, in); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("self by code: want invalid, got %v", err)
+		}
+	})
+
 	t.Run("feedback limit and answer", func(t *testing.T) {
 		in := FeedbackInput{ToID: ilyaID, ArtifactURL: "https://gitlab.test/9", ArtifactTitle: "MR 9", Question: "Ок?"}
 		var first FeedbackRequest

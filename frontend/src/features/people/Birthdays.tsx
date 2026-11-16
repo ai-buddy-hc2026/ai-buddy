@@ -1,10 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { EMPLOYEES } from '@/entities/employees'
+import { useEmployees } from '@/entities/employees'
 import { useUser } from '@/entities/session'
 import { canNotifyNow, useSettings } from '@/entities/settings'
 import { DEMO_TODAY, formatShort } from '@/shared/lib/date'
 import { plural, useT } from '@/shared/lib/i18n'
-import { Avatar, Badge, Card, Icon, Note, SwitchRow } from '@/shared/ui'
+import { Avatar, Badge, Card, Icon, Note, Skeleton, SwitchRow } from '@/shared/ui'
 import { upcomingBirthdays } from './logic'
 import s from './people.module.css'
 
@@ -16,7 +16,8 @@ export function Birthdays({ index }: { index?: number }) {
   const setToggle = useSettings((state) => state.setToggle)
   const canNotify = useSettings(canNotifyNow)
   const user = useUser()
-  const list = upcomingBirthdays(EMPLOYEES, user.employee, DEMO_TODAY)
+  const employees = useEmployees()
+  const list = upcomingBirthdays(employees.data ?? [], user.employee, DEMO_TODAY)
   const today = list.filter((b) => b.inDays === 0)
 
   const when = (inDays: number, date: string) => {
@@ -60,7 +61,9 @@ export function Birthdays({ index }: { index?: number }) {
         </div>
       )}
 
-      {list.length === 0 ? (
+      {employees.isPending ? (
+        <Skeleton height={120} radius="var(--radius-inner)" />
+      ) : list.length === 0 ? (
         <p className="t-s t-muted">
           {t('В ближайший месяц дней рождения нет', 'No birthdays in the next month')}
         </p>

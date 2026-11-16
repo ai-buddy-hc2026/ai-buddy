@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/auth"
@@ -97,7 +98,7 @@ func (h handlers) routes() []route {
 		}},
 		{"POST /growth/feedback", func(w http.ResponseWriter, r *http.Request, a Actor) (any, error) {
 			var in FeedbackInput
-			if err := decode(w, r, &in); err != nil || !identifier.ValidUUID(in.ToID) || in.Validate() != nil {
+			if err := decode(w, r, &in); err != nil || !validRecipient(in.ToID) || in.Validate() != nil {
 				return nil, ErrInvalid
 			}
 			return b.CreateFeedback(r.Context(), a, in)
@@ -281,4 +282,11 @@ func writeError(w http.ResponseWriter, err error) {
 	}
 	w.WriteHeader(e.status)
 	_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": e.code, "message": e.message}})
+}
+
+var employeeCode = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
+
+// validRecipient - UUID пользователя или код сотрудника (как в GET /employees).
+func validRecipient(to string) bool {
+	return identifier.ValidUUID(to) || employeeCode.MatchString(to)
 }

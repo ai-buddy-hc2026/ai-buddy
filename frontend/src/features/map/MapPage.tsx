@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { getEmployee } from '@/entities/employees'
-import { FLOOR, getPlace } from '@/entities/places'
+import { FLOOR, getPlace, usePlaces } from '@/entities/places'
 import { DEMO, useUser } from '@/entities/session'
 import { useSettings } from '@/entities/settings'
 import { useT } from '@/shared/lib/i18n'
-import { Card, Chip, ChipRow, Dialog, Eyebrow, Icon, Note } from '@/shared/ui'
+import { Card, Chip, ChipRow, Dialog, Eyebrow, Icon, Note, Skeleton } from '@/shared/ui'
 import { FloorScene, type ScenePin } from './FloorScene'
 import { TYPE_META, TYPE_ORDER } from './floorLayout'
 import { MapPanel } from './MapPanel'
@@ -47,6 +47,7 @@ export function MapPage() {
   const [query, setQuery] = useState(() => search.q ?? '')
   const [filter, setFilter] = useState<PlaceFilter>('all')
   const [start, setStart] = useState<RouteStart>('lift')
+  const places = usePlaces()
 
   const viewer = user.employee
   const target = resolveTarget(search.to)
@@ -134,17 +135,22 @@ export function MapPage() {
         )}
 
         <div className={s.scene}>
-          <FloorScene
-            label={t(
-              'План этажа. Нажми на место, чтобы узнать о нём',
-              'Floor plan. Tap a place to learn more',
-            )}
-            selectedId={selected?.id ?? null}
-            path={plan ? routePath(plan) : null}
-            filter={filter}
-            pins={scenePins}
-            onSelect={select}
-          />
+          {places.isPending ? (
+            <Skeleton height={360} radius="var(--radius-inner)" />
+          ) : (
+            <FloorScene
+              places={places.data ?? []}
+              label={t(
+                'План этажа. Нажми на место, чтобы узнать о нём',
+                'Floor plan. Tap a place to learn more',
+              )}
+              selectedId={selected?.id ?? null}
+              path={plan ? routePath(plan) : null}
+              filter={filter}
+              pins={scenePins}
+              onSelect={select}
+            />
+          )}
         </div>
 
         {plan && (

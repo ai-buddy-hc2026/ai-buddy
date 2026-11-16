@@ -1,4 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import { z } from 'zod'
+import { IS_MOCK, request } from '@/shared/api/http'
+import { mockDelay } from '@/shared/lib/storage'
 
 /**
  * Карта офиса (идеи 1 и 2): точки этажа и граф проходов. Данные тестовые.
@@ -313,4 +316,56 @@ export function routeToPlace(placeId: string, fromPlaceId = 'lift'): Route | nul
   const to = getPlace(placeId)
   if (!from || !to) return null
   return findRoute(from.nodeId, to.nodeId)
+}
+
+/* ---------- загрузка: мок или GET /map ---------- */
+
+const apiPlaceSchema = z.object({
+  id: z.string(),
+  floor: z.number().int(),
+  kind: placeTypeSchema,
+  name: z.string(),
+  aliases: z.array(z.string()).nullable(),
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  d: z.number(),
+  employee_code: z.string().nullable(),
+  node_id: z.string(),
+})
+const apiMapSchema = z.object({ places: z.array(apiPlaceSchema) })
+
+export function toPlace(item: z.infer<typeof apiPlaceSchema>): Place {
+  return {
+    id: item.id,
+    floor: item.floor,
+    type: item.kind,
+    name: item.name,
+    aliases: item.aliases ?? [],
+    x: item.x,
+    y: item.y,
+    w: item.w,
+    d: item.d,
+    employeeId: item.employee_code,
+    nodeId: item.node_id,
+  }
+}
+
+export const remotePlaces = {
+  async list(): Promise<Place[]> {
+    const map = await request('/map', apiMapSchema)
+    return map.places.map(toPlace)
+  },
+}
+
+export async function loadPlaces(): Promise<readonly Place[]> {
+  if (!IS_MOCK) return remotePlaces.list()
+  await mockDelay(150)
+  return PLACES
+}
+
+export const PLACES_KEY = ['places'] as const
+
+export function usePlaces() {
+  return useQuery({ queryKey: PLACES_KEY, queryFn: loadPlaces })
 }

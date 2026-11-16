@@ -1,9 +1,9 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
-import { EMPLOYEES, findOwner } from '@/entities/employees'
+import { findOwner, useEmployees } from '@/entities/employees'
 import { DEMO, useUser } from '@/entities/session'
 import { useT } from '@/shared/lib/i18n'
-import { Button, Card, Chip, ChipRow, Eyebrow, Input, Note } from '@/shared/ui'
+import { Button, Card, Chip, ChipRow, Eyebrow, Input, Note, Skeleton } from '@/shared/ui'
 import { Birthdays } from './Birthdays'
 import { keyPeople, matchedTag } from './logic'
 import { PeopleArt } from './PeopleArt'
@@ -101,7 +101,8 @@ export function TeamTab() {
   const t = useT()
   const user = useUser()
   const [topic, setTopic] = useState<string | null>(null)
-  const people = keyPeople(EMPLOYEES, user.employee)
+  const employees = useEmployees()
+  const people = keyPeople(employees.data ?? [], user.employee)
 
   return (
     <div className={s.grid}>
@@ -111,6 +112,11 @@ export function TeamTab() {
       <h2 className={s.sectionTitle}>
         {t('Твоя команда', 'Your team')} <span className="t-muted">{user.employee.teamName}</span>
       </h2>
+      {employees.isPending && (
+        <div className={s.span4}>
+          <Skeleton height={160} radius="var(--radius-card)" />
+        </div>
+      )}
       {people.map((employee, i) => (
         <PersonCard key={employee.id} employee={employee} index={i + 2} className={s.span4} />
       ))}

@@ -1,0 +1,8 @@
+-- Синтетические дни рождения для напоминаний планировщика (идея 15). Даты совпадают
+-- с профилями в corp_employees. Скрытые в профиле даты сюда не попадают.
+INSERT INTO user_birthdays (user_id, month, day) VALUES
+    ('a24a3478-cf42-51b1-b05b-9833260247a5', 3, 21),
+    ('4a59a828-3b1a-55e4-bf9b-81db5ad6183a', 6, 2),
+    ('2db7cc77-4114-52d8-a833-f670ab60e4e0', 4, 4),
+    ('0f8153be-1c96-5e0f-aa4c-55b7ed7bf47a', 2, 14)
+ON CONFLICT (user_id) DO NOTHING;
