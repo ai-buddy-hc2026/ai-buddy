@@ -43,7 +43,22 @@ type Payload struct {
 	Timezone       string           `json:"timezone"`
 	Message        string           `json:"message"`
 	History        []HistoryMessage `json:"history"`
+	// Tone и Language берутся из личных настроек (идеи 31, 41), пустые не отправляются.
+	Tone     string `json:"tone,omitempty"`
+	Language string `json:"language,omitempty"`
 }
+
+// Preferences переводит личные настройки (tone short|detailed, lang ru|en)
+// в значения, которые принимает ai-service. Неизвестное значение не передаётся.
+func Preferences(tone, lang string) (string, string) {
+	tones := map[string]string{"short": "short", "detailed": "friendly"}
+	language := ""
+	if lang == "ru" || lang == "en" {
+		language = lang
+	}
+	return tones[tone], language
+}
+
 type Request struct {
 	RequestID  string     `json:"request_id"`
 	Status     string     `json:"status"`

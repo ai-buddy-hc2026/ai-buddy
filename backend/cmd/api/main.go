@@ -110,6 +110,7 @@ func run() error {
 	handler = companion.WithRoutes(handler, service, companionStore)
 	go scheduler.New(scheduler.NewPostgresSource(pool, companionStore), companionStore, time.Now, logger).Run(ctx, scheduler.DefaultInterval)
 	handler = growth.Register(handler, service, growth.NewStore(pool))
+	handler = httpapi.WithAIProxy(handler, service, httpapi.NewAIClient(chatCfg.Enabled, chatCfg.ServiceURL, chatCfg.ServiceToken), companionStore)
 	flags, err := features.Parse(os.Getenv("FEATURES_DISABLED"))
 	if err != nil {
 		return err

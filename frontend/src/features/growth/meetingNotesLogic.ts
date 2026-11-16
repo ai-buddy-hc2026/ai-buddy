@@ -114,7 +114,7 @@ export function parseDue(text: string, today: string = DEMO_TODAY): DueMatch | n
   return matchRelative(text, today)
 }
 
-function detectOwner(clause: string, people: readonly Person[]): AgreementOwner {
+export function detectOwner(clause: string, people: readonly Person[]): AgreementOwner {
   const hits: Array<{ index: number; owner: AgreementOwner }> = []
   const push = (re: RegExp, owner: AgreementOwner) => {
     const m = clause.match(re)

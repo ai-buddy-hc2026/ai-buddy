@@ -79,6 +79,13 @@ func prepare(ctx context.Context, pool *pgxpool.Pool, files fs.FS, checklist che
 	if _, err := tx.Exec(ctx, string(growthSeed)); err != nil {
 		return fmt.Errorf("seed growth: %w", err)
 	}
+	if birthdays, err := fs.ReadFile(files, "seeds/birthdays.sql"); err == nil {
+		if _, err := tx.Exec(ctx, string(birthdays)); err != nil {
+			return fmt.Errorf("seed birthdays: %w", err)
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("read birthday seed: %w", err)
+	}
 	if _, err := tx.Exec(ctx, `INSERT INTO absence_policies(team_id,notice_period_days,allowed_types) SELECT id,3,'[{"code":"day_off","label":"Отгул"}]'::jsonb FROM teams ON CONFLICT(team_id) DO NOTHING`); err != nil {
 		return fmt.Errorf("seed absence policies: %w", err)
 	}

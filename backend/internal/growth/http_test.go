@@ -87,6 +87,8 @@ func TestRoutes(t *testing.T) {
 		{name: "delete brag bad id", method: "DELETE", path: "/growth/brag/nope", authed: true, status: 400},
 		{name: "delete brag missing", method: "DELETE", path: "/growth/brag/" + testUUID, backendErr: ErrNotFound, authed: true, status: 404, call: "DeleteBrag"},
 		{name: "create feedback", method: "POST", path: "/growth/feedback", body: `{"toId":"` + testUUID + `","artifactUrl":"https://gitlab.test/1","artifactTitle":"MR","question":"Что улучшить?","externalId":null}`, authed: true, status: 200, call: "CreateFeedback"},
+		{name: "create feedback by employee code", method: "POST", path: "/growth/feedback", body: `{"toId":"oleg","artifactUrl":"https://gitlab.test/1","artifactTitle":"MR","question":"?"}`, authed: true, status: 200, call: "CreateFeedback"},
+		{name: "feedback bad recipient", method: "POST", path: "/growth/feedback", body: `{"toId":"Oleg Deploev","artifactUrl":"https://gitlab.test/1","artifactTitle":"MR","question":"?"}`, authed: true, status: 400},
 		{name: "feedback limit", method: "POST", path: "/growth/feedback", body: `{"toId":"` + testUUID + `","artifactUrl":"https://gitlab.test/1","artifactTitle":"MR","question":"?"}`, backendErr: ErrLimit, authed: true, status: 409, call: "CreateFeedback", contains: "LIMIT_REACHED"},
 		{name: "answer feedback empty", method: "POST", path: "/growth/feedback/" + testUUID + "/answer", body: `{"answer":" "}`, authed: true, status: 400},
 		{name: "answer feedback", method: "POST", path: "/growth/feedback/" + testUUID + "/answer", body: `{"answer":"Хорошо"}`, authed: true, status: 200, call: "AnswerFeedback"},

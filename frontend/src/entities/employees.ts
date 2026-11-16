@@ -1,4 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import { z } from 'zod'
+import { IS_MOCK, request } from '@/shared/api/http'
+import { mockDelay } from '@/shared/lib/storage'
 
 /** Мок сервиса сотрудников. Все имена выдуманы, данные тестовые. */
 export const brandColorSchema = z.enum(['green', 'blue', 'red', 'violet', 'yellow', 'orange'])
@@ -232,4 +235,67 @@ export function findOwner(topic: string, teamId: string, mentorId: string): Empl
   const query = topic.toLowerCase()
   const owner = teamOf(teamId).find((e) => e.tags.some((tag) => query.includes(tag)))
   return owner ?? mustEmployee(mentorId)
+}
+
+/* ---------- загрузка: мок или GET /employees ---------- */
+
+const apiEmployeeSchema = z.object({
+  code: z.string(),
+  team_id: z.string().nullable(),
+  name: z.string(),
+  title: z.string(),
+  kind: employeeSchema.shape.kind,
+  tags: z.array(z.string()).nullable(),
+  ask_about: z.string(),
+  birthday: z.string().nullable(),
+  desk_id: z.string().nullable(),
+})
+const apiEmployeePageSchema = z.object({ items: z.array(apiEmployeeSchema) })
+type ApiEmployee = z.infer<typeof apiEmployeeSchema>
+
+const COLORS = brandColorSchema.options
+
+/**
+ * Бэкенд отдаёт справочные поля. Оформление (цвет, часы, увлечения) берём из
+ * фикстуры с тем же кодом, для нового сотрудника - значения по умолчанию.
+ */
+export function toEmployee(item: ApiEmployee, index: number): Employee {
+  const known = getEmployee(item.code)
+  return {
+    ...base,
+    color: COLORS[index % COLORS.length] ?? 'green',
+    interests: [],
+    teamName: '',
+    ...known,
+    id: item.code,
+    name: item.name,
+    short: known?.short ?? item.name.split(' ')[0] ?? item.name,
+    role: item.title,
+    kind: item.kind,
+    teamId: known?.teamId ?? item.team_id ?? 'shared',
+    tags: item.tags ?? [],
+    askAbout: item.ask_about,
+    birthday: item.birthday,
+    deskId: item.desk_id,
+  }
+}
+
+export const remoteEmployees = {
+  /** Бэкенд отдаёт сотрудников своей команды и общих (HR) */
+  async list(): Promise<Employee[]> {
+    const page = await request('/employees', apiEmployeePageSchema)
+    return page.items.map(toEmployee)
+  },
+}
+
+export async function loadEmployees(): Promise<readonly Employee[]> {
+  if (!IS_MOCK) return remoteEmployees.list()
+  await mockDelay(150)
+  return EMPLOYEES
+}
+
+export const EMPLOYEES_KEY = ['employees'] as const
+
+export function useEmployees() {
+  return useQuery({ queryKey: EMPLOYEES_KEY, queryFn: loadEmployees })
 }

@@ -20,6 +20,7 @@ import {
   Skeleton,
 } from '@/shared/ui'
 import { QuestionCard } from './QuestionCard'
+import { QuestionClustersCard } from './QuestionClustersCard'
 import { answeredQuestions, openQuestions, resolveInternId, tasksNeedingHelp } from './logic'
 import s from './mentor.module.css'
 
@@ -184,6 +185,7 @@ export function MentorPage() {
       <div className={s.grid}>
         <ProgressCard internId={internId} />
         <QuestionsCard internId={internId} internName={short} />
+        <QuestionClustersCard />
       </div>
     </Page>
   )

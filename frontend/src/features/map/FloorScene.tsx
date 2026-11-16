@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from 'react'
-import { FLOOR, PLACES, type Place } from '@/entities/places'
+import { FLOOR, type Place } from '@/entities/places'
 import { IsoBox, IsoScene, IsoTile, sortByDepth, toPoints, useIsoGrid } from '@/shared/iso'
 import { cn } from '@/shared/lib/cn'
 import {
@@ -21,6 +21,8 @@ export type ScenePin = { placeId: string; label: string; tone: PinTone }
 
 type Props = {
   label: string
+  /** Точки карты из usePlaces: мок или GET /map */
+  places: readonly Place[]
   selectedId: string | null
   /** Линия маршрута в координатах сетки */
   path: ReadonlyArray<readonly [number, number]> | null
@@ -90,7 +92,7 @@ function PlaceBox({
 }
 
 /** Изометрический план этажа: пол, коридоры, маршрут, кликабельные места и метки. */
-export function FloorScene({ label, selectedId, path, filter, pins, onSelect }: Props) {
+export function FloorScene({ label, places, selectedId, path, filter, pins, onSelect }: Props) {
   return (
     <IsoScene
       width={SCENE_WIDTH}
@@ -113,7 +115,7 @@ export function FloorScene({ label, selectedId, path, filter, pins, onSelect }: 
         <IsoTile key={i} {...rect} className={s.corridor} />
       ))}
       {path && <RouteLine path={path} />}
-      {sortByDepth(PLACES).map((place) => (
+      {sortByDepth(places).map((place) => (
         <PlaceBox
           key={place.id}
           place={place}
@@ -123,7 +125,7 @@ export function FloorScene({ label, selectedId, path, filter, pins, onSelect }: 
         />
       ))}
       {pins.map((pin) => {
-        const place = PLACES.find((p) => p.id === pin.placeId)
+        const place = places.find((p) => p.id === pin.placeId)
         return place ? (
           <MapPin
             key={pin.placeId}

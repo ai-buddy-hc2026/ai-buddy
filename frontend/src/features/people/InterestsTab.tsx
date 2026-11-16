@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { EMPLOYEES } from '@/entities/employees'
+import { EMPLOYEES, useEmployees } from '@/entities/employees'
 import { useUser } from '@/entities/session'
 import { useSettings } from '@/entities/settings'
 import { errorMessage } from '@/shared/api/http'
@@ -186,14 +186,17 @@ function Chats({ tags }: { tags: string[] }) {
 
 function Matches({ tags, selfId }: { tags: string[]; selfId: string }) {
   const t = useT()
-  const matches = interestMatches(tags, EMPLOYEES, selfId)
+  const employees = useEmployees()
+  const matches = interestMatches(tags, employees.data ?? [], selfId)
 
   return (
     <Card className={s.matches} index={2} aria-labelledby="people-matches">
       <h2 id="people-matches" className={s.cardTitle}>
         {t('У кого такие же увлечения', 'Same interests')}
       </h2>
-      {matches.length === 0 ? (
+      {employees.isPending ? (
+        <Skeleton height={160} radius="var(--radius-inner)" />
+      ) : matches.length === 0 ? (
         <EmptyState
           art={<IsoArt name="plot" />}
           title={t('Пока никого', 'Nobody yet')}
