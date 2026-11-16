@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -104,7 +105,13 @@ func TestPythonClientUnreachableIsDefinite(t *testing.T) {
 // Неизвестный хост (контейнер ai-service остановлен): тоже точный отказ.
 func TestPythonClientUnknownHostIsDefinite(t *testing.T) {
 	id, _ := identifier.NewUUID()
-	err := (&PythonClient{URL: "http://ai-service.invalid:8000", Token: "synthetic-token"}).Send(context.Background(), Payload{RequestID: id})
+	// DNS подменяем, чтобы тест не зависел от резолвера машины: часть провайдеров
+	// отвечает на несуществующие имена своим адресом.
+	notFound := &http.Transport{DialContext: func(context.Context, string, string) (net.Conn, error) {
+		return nil, &net.OpError{Op: "dial", Net: "tcp", Err: &net.DNSError{Err: "no such host", Name: "ai-service", IsNotFound: true}}
+	}}
+	client := &http.Client{Transport: notFound}
+	err := (&PythonClient{URL: "http://ai-service:8000", Token: "synthetic-token", Client: client}).Send(context.Background(), Payload{RequestID: id})
 	if err == nil || !definiteDispatch(err) {
 		t.Fatalf("unknown host must be definite, got %v", err)
 	}
