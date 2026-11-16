@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/auth"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/chat"
@@ -47,8 +49,14 @@ func postChat(service *chat.Service) http.HandlerFunc {
 			chatError(w, chat.ErrInvalid)
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 65536)
-		decoder := json.NewDecoder(r.Body)
+		raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 65536))
+		// encoding/json молча меняет неверные байты на U+FFFD: вопрос в cp1251
+		// дошел бы до LLM как «??? ???». Такое тело отклоняем явно.
+		if err != nil || !utf8.Valid(raw) {
+			chatError(w, chat.ErrInvalid)
+			return
+		}
+		decoder := json.NewDecoder(bytes.NewReader(raw))
 		decoder.DisallowUnknownFields()
 		var input chat.Input
 		if err := decoder.Decode(&input); err != nil || decoder.Decode(&struct{}{}) != io.EOF || !chat.ValidateInput(&input) {
