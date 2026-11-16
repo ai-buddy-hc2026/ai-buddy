@@ -171,7 +171,7 @@ export function courseReminders(
     .map((c): BuddyNote => ({
       id: `remind-${c.id}-${daysUntil(c.deadline, today)}`,
       kind: 'reminder',
-      time: '10:00',
+      time: '08:00',
       title: t(
         `Курс «${c.title}»: дедлайн ${formatDue(c.deadline, 'ru', today)}`,
         `«${c.title}» is due ${formatDue(c.deadline, 'en', today)}`,
@@ -203,7 +203,7 @@ export function eventHints(
     .map((e): BuddyNote => ({
       id: `hint-${e.id}`,
       kind: 'hint',
-      time: '10:00',
+      time: '08:00',
       title: t(
         `Завтра «${e.title}» в ${eventTime(e)}`,
         `Tomorrow: «${e.title}» at ${eventTime(e)}`,
@@ -269,7 +269,7 @@ export function buildDigest(input: DigestInput, t: Translate, lang: Lang): Buddy
   return {
     id: `digest-${input.today}`,
     kind: 'digest',
-    time: '10:00',
+    time: '08:00',
     title: t('Доброе утро! Вот твой день', 'Good morning! Here is your day'),
     lines: [
       ...(today.length > 0
