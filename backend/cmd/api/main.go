@@ -13,10 +13,14 @@ import (
 
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/auth"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/chat"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/companion"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/config"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/database"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/growth"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/httpapi"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/mcpserver"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/mocks"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/scheduler"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/server"
 	"github.com/redis/go-redis/v9"
 )
@@ -99,7 +103,12 @@ func run() error {
 	handler = httpapi.WithEscalations(handler, service, escalations)
 	handler = httpapi.WithKnowledge(handler, service, database.NewKnowledge(pool))
 	handler = httpapi.WithAnalytics(handler, service, database.NewAnalytics(pool))
+	handler = mocks.Register(handler, service, pool)
 	handler = httpapi.WithConfirmation(handler, service, toolStore)
+	companionStore := companion.NewStore(pool, time.Now)
+	handler = companion.WithRoutes(handler, service, companionStore)
+	go scheduler.New(scheduler.NewPostgresSource(pool, companionStore), companionStore, time.Now, logger).Run(ctx, scheduler.DefaultInterval)
+	handler = growth.Register(handler, service, growth.NewStore(pool))
 	if mcpCfg.Token != "" {
 		toolsHandler, err := mcpserver.New(toolStore, mcpCfg.Token)
 		if err != nil {

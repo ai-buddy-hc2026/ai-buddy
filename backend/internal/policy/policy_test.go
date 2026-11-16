@@ -47,10 +47,10 @@ func TestAccessMatrix(t *testing.T) {
 
 func TestCorporateToolsAccess(t *testing.T) {
 	for _, role := range []string{"intern", "buddy", "lead", "admin", ""} {
-		for _, op := range []Operation{GetManager, GetAbsencePolicy, ListAbsences, CreateAbsence} {
+		for _, op := range []Operation{GetManager, GetAbsencePolicy, ListAbsences, CreateAbsence, ListSlots, BookSlot, FindOwner, RequestAccess, FindPlace} {
 			for _, team := range []string{"team", "other", ""} {
 				for _, owner := range []string{"actor", "other"} {
-					want := (role == "intern" || role == "buddy" || role == "lead") && team == "team" && (op == GetAbsencePolicy || owner == "actor")
+					want := (role == "intern" || role == "buddy" || role == "lead") && team == "team" && (op == GetAbsencePolicy || op == ListSlots || op == FindOwner || op == FindPlace || owner == "actor")
 					resource := Resource{TeamID: team, OwnerID: owner, BuddyID: "actor"}
 					if op == ListAbsences {
 						want = (role == "buddy" || role == "lead") && team == "team"

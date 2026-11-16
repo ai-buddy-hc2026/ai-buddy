@@ -16,7 +16,12 @@ logger = logging.getLogger(__name__)
 PROTOCOL_VERSION = "2025-06-18"
 MAX_CALL_TIMEOUT_SEC = 10.0
 RETRY_DELAY_SEC = 0.2
-WRITE_TOOLS = {"checklist.update_status", "absences.create_request"}
+WRITE_TOOLS = {
+    "checklist.update_status",
+    "absences.create_request",
+    "calendar.book_slot",
+    "access.request_access",
+}
 HTTP_ERROR_CODES = {
     400: "INVALID_REQUEST_ID",
     401: "UNAUTHORIZED",

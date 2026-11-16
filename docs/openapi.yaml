@@ -39,6 +39,8 @@ tags:
     description: Назначенные стажёры и переданные вопросы
   - name: knowledge
     description: Полнотекстовый поиск по опубликованным документам команды
+  - name: companion
+    description: Личные настройки, «Не мой день», входящие проактивного бота, флаг пилота
 security:
   - bearerAuth: []
 paths:
@@ -544,6 +546,159 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /settings:
+    get:
+      tags: [companion]
+      operationId: getSettings
+      summary: Настройки текущего пользователя
+      description: Без сохранённой записи возвращаются значения по умолчанию. notMyDayDate заполнен, только если режим включён на сегодняшнюю локальную дату.
+      responses:
+        '200': {description: Настройки, content: {application/json: {schema: {$ref: '#/components/schemas/CompanionSettings'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    patch:
+      tags: [companion]
+      operationId: saveSettings
+      summary: Сохранить настройки целиком
+      description: Тело полностью заменяет сохранённые настройки. Вычисляемые поля (notMyDayDate, telegramLinked, buddyEnabled) не принимаются.
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CompanionSettingsInput'}}}
+      responses:
+        '200': {description: Сохранённые настройки, content: {application/json: {schema: {$ref: '#/components/schemas/CompanionSettings'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /day-mode:
+    post:
+      tags: [companion]
+      operationId: setDayMode
+      summary: Включить или снять «Не мой день» на сегодня
+      description: Только стажёр. Проактив откладывается до следующего рабочего окна. В аналитике хранится только счётчик за день без автора.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, required: [enabled], properties: {enabled: {type: boolean}}}
+      responses:
+        '200': {description: Настройки после изменения, content: {application/json: {schema: {$ref: '#/components/schemas/CompanionSettings'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /notifications:
+    get:
+      tags: [companion]
+      operationId: listNotifications
+      summary: Входящие проактивного бота
+      description: Только свои записи с наступившим deliver_at, до 50 новых сверху. Очередь заполняет планировщик Go с учётом тумблеров, рабочих часов, «Не мой день» и флага пилота.
+      parameters:
+        - name: unread
+          in: query
+          required: false
+          schema: {type: string, enum: ['true', 'false']}
+      responses:
+        '200':
+          description: Страница уведомлений
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, unread_count]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Notification'}}
+                  unread_count: {type: integer, minimum: 0}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /notifications/{id}/read:
+    post:
+      tags: [companion]
+      operationId: markNotificationRead
+      summary: Отметить уведомление прочитанным
+      description: Идемпотентно. Чужое или ещё не доставленное уведомление - 404.
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      responses:
+        '200': {description: Уведомление, content: {application/json: {schema: {$ref: '#/components/schemas/Notification'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /companion/pilot:
+    get:
+      tags: [companion]
+      operationId: getPilotReport
+      summary: Сравнение стажёров с buddy и контрольной группы
+      description: Только lead, только своя команда. Контрольная группа - стажёры с buddy_enabled=false в pilot_assignments.
+      responses:
+        '200':
+          description: Отчёт пилота
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [with_buddy, control, not_my_day_presses]
+                properties:
+                  with_buddy: {$ref: '#/components/schemas/PilotGroup'}
+                  control: {$ref: '#/components/schemas/PilotGroup'}
+                  not_my_day_presses: {type: integer, minimum: 0}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /companion/unanswered:
+    get:
+      tags: [companion]
+      operationId: getUnansweredCounter
+      summary: Вопросы без ответа по категориям
+      description: Только buddy и lead, только своя команда. Считаются ответы ассистента с answer_status=unknown; автор и текст вопроса не раскрываются.
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 365, default: 30}
+      responses:
+        '200':
+          description: Счётчик
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [days, total, items]
+                properties:
+                  days: {type: integer}
+                  total: {type: integer, minimum: 0}
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [category, count]
+                      properties:
+                        category: {$ref: '#/components/schemas/QuestionCategory'}
+                        count: {type: integer, minimum: 1}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /channels/telegram/link:
+    post:
+      tags: [companion]
+      operationId: linkTelegram
+      summary: Привязать Telegram (заглушка)
+      description: Реального бота нет. Аккаунт сразу считается привязанным, возвращается синтетический код.
+      responses:
+        '200': {description: Статус привязки, content: {application/json: {schema: {$ref: '#/components/schemas/TelegramLink'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /channels/telegram:
+    delete:
+      tags: [companion]
+      operationId: unlinkTelegram
+      summary: Отвязать Telegram (заглушка)
+      responses:
+        '200': {description: Статус привязки, content: {application/json: {schema: {$ref: '#/components/schemas/TelegramLink'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
         '503': {$ref: '#/components/responses/Unavailable'}
 x-planned-api:
   description: План сводки метрик; маршрут не реализован и исключён из paths. Методика - docs/metrics.md. Права и формы требуют отдельной реализации и согласования.
@@ -1055,6 +1210,66 @@ components:
     QuestionCategory:
       type: string
       enum: [task, process, access, technical, other]
+    CompanionSettingsInput:
+      type: object
+      additionalProperties: false
+      required: [theme, lang, tone, workHours, toggles]
+      properties:
+        theme: {type: string, enum: [system, light, dark]}
+        lang: {type: string, enum: [ru, en]}
+        tone: {type: string, enum: [short, detailed]}
+        workHours:
+          type: object
+          required: [start, end, days, timezone]
+          properties:
+            start: {type: string, pattern: '^\d{2}:\d{2}$', example: '10:00'}
+            end: {type: string, pattern: '^\d{2}:\d{2}$', example: '19:00', description: Позже start}
+            days: {type: array, minItems: 1, maxItems: 7, uniqueItems: true, items: {type: integer, minimum: 1, maximum: 7}, description: '1 - понедельник, 7 - воскресенье'}
+            timezone: {type: string, example: Europe/Moscow, description: IANA-пояс}
+        toggles:
+          type: object
+          required: [briefing, hints, birthdayReminders, randomCoffee, showInterests]
+          properties:
+            briefing: {type: boolean}
+            hints: {type: boolean, description: Также подсказки при застревании и напоминания о сроках}
+            birthdayReminders: {type: boolean}
+            randomCoffee: {type: boolean}
+            showInterests: {type: boolean}
+    CompanionSettings:
+      allOf:
+        - {$ref: '#/components/schemas/CompanionSettingsInput'}
+        - type: object
+          required: [notMyDayDate, telegramLinked, buddyEnabled]
+          properties:
+            notMyDayDate: {type: string, format: date, nullable: true}
+            telegramLinked: {type: boolean}
+            buddyEnabled: {type: boolean, description: 'false - контрольная группа пилота, проактив не приходит'}
+    Notification:
+      type: object
+      required: [id, feature, title, body, deliver_at, read_at, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        feature: {type: string, enum: [briefing, hints, stuck, reminders, coffee, birthday, system]}
+        title: {type: string}
+        body: {type: string}
+        deliver_at: {type: string, format: date-time}
+        read_at: {type: string, format: date-time, nullable: true}
+        created_at: {type: string, format: date-time}
+    PilotGroup:
+      type: object
+      required: [interns, tasks_done, tasks_total, completion_pct]
+      properties:
+        interns: {type: integer, minimum: 0}
+        tasks_done: {type: integer, minimum: 0}
+        tasks_total: {type: integer, minimum: 0}
+        completion_pct: {type: number, minimum: 0, maximum: 100}
+    TelegramLink:
+      type: object
+      required: [linked, code]
+      properties:
+        linked: {type: boolean}
+        code: {type: string, nullable: true}
+        deep_link: {type: string, nullable: true}
     ActionDetails:
       oneOf:
         - $ref: '#/components/schemas/AbsenceDetails'

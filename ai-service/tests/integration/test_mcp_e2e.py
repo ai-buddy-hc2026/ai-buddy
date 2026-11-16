@@ -18,10 +18,15 @@ BACKEND_URL = os.getenv("TEST_BACKEND_URL", "http://backend:8080")
 EXPECTED_INTERN_TOOLS = {
     "absences.create_request",
     "absences.get_policy",
+    "access.request_access",
+    "calendar.book_slot",
+    "calendar.list_slots",
     "checklist.get_plan",
     "checklist.update_status",
+    "employees.find_owner",
     "employees.get_manager",
     "knowledge_search",
+    "map.find_place",
 }
 EXPECTED_BUDDY_TOOLS = EXPECTED_INTERN_TOOLS | {"absences.list_for_employee"}
 

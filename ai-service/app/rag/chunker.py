@@ -4,9 +4,38 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 BANNER_MARK = "Тестовая инструкция"
+# Строка свежести в шапке документа:
+# > Владелец: наставник команды. Проверено: 2026-10-20.
+_OWNER = re.compile(r"Владелец:\s*([^.\n]+)")
+_REVIEWED = re.compile(r"Проверено:\s*(\d{4}-\d{2}-\d{2})")
+
+
+def _is_meta_line(stripped: str) -> bool:
+    return stripped.startswith(">") and (
+        BANNER_MARK in stripped or "Владелец:" in stripped or "Проверено:" in stripped
+    )
+
+
+def parse_freshness(markdown: str) -> tuple[str | None, date | None]:
+    """Владелец и дата последней проверки документа из шапки (идея 32)."""
+    owner: str | None = None
+    reviewed: date | None = None
+    for line in markdown.splitlines():
+        stripped = line.strip()
+        if not _is_meta_line(stripped):
+            continue
+        if owner is None and (m := _OWNER.search(stripped)):
+            owner = m.group(1).strip()[:200] or None
+        if reviewed is None and (m := _REVIEWED.search(stripped)):
+            try:
+                reviewed = date.fromisoformat(m.group(1))
+            except ValueError:
+                reviewed = None
+    return owner, reviewed
 
 
 @dataclass(frozen=True)
@@ -29,7 +58,7 @@ def parse_document(markdown: str, fallback_title: str = "Без названия
     current: list = ["Введение", []]
     for line in markdown.splitlines():
         stripped = line.strip()
-        if stripped.startswith(">") and BANNER_MARK in stripped:
+        if _is_meta_line(stripped):
             continue
         if re.match(r"^#\s+", stripped):
             title = stripped[1:].strip()

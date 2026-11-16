@@ -138,6 +138,8 @@ func (s *Tools) execute(ctx context.Context, tx pgx.Tx, actor planActor, request
 		result, err = s.createEscalation(ctx, tx, actor, requestID, actionID, action)
 	case policy.CreateAbsence:
 		result, err = s.createAbsence(ctx, tx, actor, actionID, action)
+	case policy.BookSlot, policy.RequestAccess:
+		result, err = s.executeCorpAction(ctx, tx, actor, operation, actionID, action)
 	}
 	if err != nil {
 		// Ошибки policy уже откатили транзакцию и записали отказ отдельно.

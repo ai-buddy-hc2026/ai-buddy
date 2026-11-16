@@ -10,14 +10,15 @@
 
 Основа в репозитории: `docs/ai-contract.md` версии `1.2-draft`, `docs/mvp.md`, `docs/db.md` и черновик `docs/openapi.yaml`. Эти документы сами содержат несогласованные части; данная редакция не меняет их статус. До слияния необходимо синхронизировать расхождения из раздела 12.
 
-Профиль этой поставки содержит шесть Go-инструментов:
+Профиль этой поставки содержит одиннадцать Go-инструментов:
 
 - `checklist.get_plan`;
 - `checklist.update_status`;
 - `employees.get_manager`;
 - `absences.get_policy`;
 - `absences.create_request`;
-- `absences.list_for_employee`.
+- `absences.list_for_employee`;
+- `calendar.list_slots`, `calendar.book_slot`, `employees.find_owner`, `access.request_access`, `map.find_place` - моки корпоративных систем, раздел 5.6.1.
 
 Это этап интеграции, а не весь MVP. `knowledge.search` относится к RAG в Python и описывается отдельно с обязательной фильтрацией доступа. `escalation.create` нужен для сценария помощи наставника в MVP, но не входит в этот профиль. Его исключение из этой поставки не означает исключения из MVP.
 
@@ -119,6 +120,11 @@ X-Request-ID не является разрешением на запись и �
 | absences.get_policy | Правила своей команды | Правила своей команды | Правила своей команды |
 | absences.create_request | Предложение только за себя | Предложение только за себя | Предложение только за себя |
 | absences.list_for_employee | Запрещено | Заявки только назначенных стажеров своей команды | Заявки сотрудников своей команды |
+| calendar.list_slots | Слоты сотрудников своей команды и HR | То же | То же |
+| calendar.book_slot | Предложение только за себя | Предложение только за себя | Предложение только за себя |
+| employees.find_owner | Своя команда и HR, иначе свой наставник | То же | То же |
+| access.request_access | Предложение за себя по пакету своей роли | То же | То же |
+| map.find_place | Карта офиса | Карта офиса | Карта офиса |
 
 Для write-инструментов предложение означает action_proposal, а не изменение через MCP. Прямой вызов через Python отклоняется по разделу 8 даже при допустимой роли.
 
@@ -752,6 +758,427 @@ JSON кодируется в UTF-8. Внутренние ID являются н�
         }
       ],
       "type": "object"
+    },
+    "Code": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+    },
+    "ListSlotsInput": {
+      "type": "object",
+      "properties": {
+        "employee_code": {
+          "$ref": "#/$defs/Code"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "SlotHost": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/Code"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "title"
+      ],
+      "additionalProperties": false
+    },
+    "Slot": {
+      "type": "object",
+      "properties": {
+        "slot_id": {
+          "$ref": "#/$defs/UUID"
+        },
+        "starts_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "minutes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "slot_id",
+        "starts_at",
+        "minutes"
+      ],
+      "additionalProperties": false
+    },
+    "ListSlotsData": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "$ref": "#/$defs/SlotHost"
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Slot"
+          }
+        }
+      },
+      "required": [
+        "host",
+        "slots"
+      ],
+      "additionalProperties": false
+    },
+    "BookSlotInput": {
+      "type": "object",
+      "properties": {
+        "slot_id": {
+          "$ref": "#/$defs/UUID"
+        },
+        "topic": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "slot_id"
+      ],
+      "additionalProperties": false
+    },
+    "BookSlotData": {
+      "type": "object",
+      "properties": {
+        "action_id": {
+          "$ref": "#/$defs/UUID"
+        },
+        "booking_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "slot_id": {
+          "$ref": "#/$defs/UUID"
+        },
+        "host_code": {
+          "$ref": "#/$defs/Code"
+        },
+        "starts_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      },
+      "required": [
+        "action_id",
+        "booking_id",
+        "slot_id",
+        "host_code",
+        "starts_at"
+      ],
+      "additionalProperties": false
+    },
+    "FindOwnerInput": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "topic"
+      ],
+      "additionalProperties": false
+    },
+    "Owner": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/Code"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ask_about": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "title",
+        "ask_about"
+      ],
+      "additionalProperties": false
+    },
+    "FindOwnerData": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Owner"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "matched_tag": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fallback": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "owner",
+        "matched_tag",
+        "fallback"
+      ],
+      "additionalProperties": false
+    },
+    "RequestAccessInput": {
+      "type": "object",
+      "properties": {
+        "system": {
+          "$ref": "#/$defs/Code"
+        }
+      },
+      "required": [
+        "system"
+      ],
+      "additionalProperties": false
+    },
+    "AccessStatus": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "granted"
+      ]
+    },
+    "RequestAccessData": {
+      "type": "object",
+      "properties": {
+        "action_id": {
+          "$ref": "#/$defs/UUID"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "system": {
+          "$ref": "#/$defs/Code"
+        },
+        "status": {
+          "$ref": "#/$defs/AccessStatus"
+        },
+        "ready_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "action_id",
+        "request_id",
+        "system",
+        "status",
+        "ready_at"
+      ],
+      "additionalProperties": false
+    },
+    "FindPlaceInput": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "Place": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Code"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "desk",
+            "kitchen",
+            "room",
+            "lift",
+            "medical"
+          ]
+        },
+        "floor": {
+          "type": "integer"
+        },
+        "node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "employee_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Code"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "floor",
+        "node_id",
+        "employee_code"
+      ],
+      "additionalProperties": false
+    },
+    "FindPlaceData": {
+      "type": "object",
+      "properties": {
+        "match": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Place"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "similar": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/Place"
+          }
+        }
+      },
+      "required": [
+        "match",
+        "similar"
+      ],
+      "additionalProperties": false
+    },
+    "ListSlotsSuccess": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "data": {
+          "$ref": "#/$defs/ListSlotsData"
+        }
+      },
+      "required": [
+        "ok",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "ListSlotsOutput": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ListSlotsSuccess"
+        },
+        {
+          "$ref": "#/$defs/Failure"
+        }
+      ],
+      "type": "object"
+    },
+    "FindOwnerSuccess": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "data": {
+          "$ref": "#/$defs/FindOwnerData"
+        }
+      },
+      "required": [
+        "ok",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "FindOwnerOutput": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/FindOwnerSuccess"
+        },
+        {
+          "$ref": "#/$defs/Failure"
+        }
+      ],
+      "type": "object"
+    },
+    "FindPlaceSuccess": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "data": {
+          "$ref": "#/$defs/FindPlaceData"
+        }
+      },
+      "required": [
+        "ok",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "FindPlaceOutput": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/FindPlaceSuccess"
+        },
+        {
+          "$ref": "#/$defs/Failure"
+        }
+      ],
+      "type": "object"
     }
   }
 }
@@ -767,6 +1194,11 @@ JSON кодируется в UTF-8. Внутренние ID являются н�
 | absences.get_policy | EmptyInput | GetPolicyOutput | Получить актуальные структурированные правила однодневного отсутствия своей команды. |
 | absences.create_request | CreateAbsenceInput | Failure | Для заявки сформируй action_proposal с этими аргументами. Прямой вызов не создает заявку и возвращает CONFIRMATION_REQUIRED. |
 | absences.list_for_employee | ListAbsencesInput | ListAbsencesOutput | Получить страницу заявок: назначенные стажеры для buddy, своя команда для lead. |
+| calendar.list_slots | ListSlotsInput | ListSlotsOutput | Свободные приёмные часы сотрудника своей команды или HR; без employee_code - наставника. |
+| calendar.book_slot | BookSlotInput | Failure | Для брони сформируй action_proposal. Прямой вызов возвращает CONFIRMATION_REQUIRED. |
+| employees.find_owner | FindOwnerInput | FindOwnerOutput | Кого спросить по теме: совпадение тега или наставник с fallback=true. |
+| access.request_access | RequestAccessInput | Failure | Для заявки на доступ сформируй action_proposal. Прямой вызов возвращает CONFIRMATION_REQUIRED. |
+| map.find_place | FindPlaceInput | FindPlaceOutput | Место в офисе: match или до трех похожих в similar. |
 
 Каждое определение tools/list обязательно содержит name, указанное description, inputSchema и outputSchema. Title и annotations необязательны и не участвуют в авторизации. Два write-имени сохранены для реестра и action_type; фактическое выполнение после confirm идет внутри Go, без повторного вызова Python MCP Client.
 
@@ -819,6 +1251,14 @@ Go выбирает согласующего по правилу buddy, зате
 Сортировка: date DESC, затем external_id ASC. Внешний ID уникален в пределах адаптера. next_cursor: null означает конец. Пустая разрешенная выборка возвращает items: [], next_cursor: null. employee_id в каждой записи нужен для отличения заявок нескольких стажеров.
 
 Cursor непрозрачен для Python, защищен от подмены и связан с пользователем, областью выборки и limit. Некорректный cursor или использование с другим limit дает -32602, data.code: INVALID_ARGUMENT. На каждой странице Go заново вычисляет текущие права и применяет фильтр; cursor не дает доступ к прежней области. Чтение страниц не обещает snapshot при одновременном изменении заявок.
+
+### 5.6.1. Моки корпоративных систем
+
+Данные синтетические: таблицы из миграции 0012_mocks.sql, заполнение seeds/mocks.sql, код в backend/internal/mocks. Коды сотрудников (employee_code) совпадают с id карточек фронта. Слоты создаются на две недели вперед при каждом запуске инициализации.
+
+- calendar.book_slot: Go проверяет при предложении и при выполнении, что слот виден команде, в будущем и свободен. Занятый слот дает CONFLICT. Результат после confirm - BookSlotData.
+- access.request_access: система должна входить в пакет роли (role_access_templates) и еще не быть запрошена, иначе NOT_FOUND или CONFLICT. Статус считается по таймеру мока grant_after_sec; без таймера заявка остается pending. Результат после confirm - RequestAccessData.
+- В actions_log сохраняются только аргументы модели, без производных полей: повтор события сравнивает их как есть.
 
 ### 5.7. Синтетические примеры для проверки схем
 

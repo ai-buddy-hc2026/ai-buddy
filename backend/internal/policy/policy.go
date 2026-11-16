@@ -17,6 +17,11 @@ const (
 	SearchKnowledge  Operation = "knowledge.search"
 	ListBuddyInterns Operation = "buddy.list_interns"
 	ListActions      Operation = "actions.list"
+	ListSlots        Operation = "calendar.list_slots"
+	BookSlot         Operation = "calendar.book_slot"
+	FindOwner        Operation = "employees.find_owner"
+	RequestAccess    Operation = "access.request_access"
+	FindPlace        Operation = "map.find_place"
 )
 
 type Actor struct{ ID, TeamID, Role string }
@@ -43,7 +48,7 @@ func Check(actor Actor, operation Operation, resource Resource) string {
 		if operation == UpdateStatus && resource.AssigneeID != actor.ID {
 			return "assignee_denied"
 		}
-	case CreateChat, ReadChat, GetManager, CreateAbsence, ListActions:
+	case CreateChat, ReadChat, GetManager, CreateAbsence, ListActions, BookSlot, RequestAccess:
 		if resource.OwnerID != actor.ID {
 			return "owner_denied"
 		}
@@ -76,7 +81,8 @@ func Check(actor Actor, operation Operation, resource Resource) string {
 		if actor.Role != "intern" {
 			return "role_denied"
 		}
-	case GetAbsencePolicy:
+	// Справочные моки: команда уже проверена выше, данные чужих команд отсекает запрос.
+	case GetAbsencePolicy, ListSlots, FindOwner, FindPlace:
 	default:
 		return "operation_denied"
 	}

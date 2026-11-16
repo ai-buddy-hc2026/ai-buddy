@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { EMPLOYEES } from '@/entities/employees'
 import { PLAN_KEY, planApi } from '@/entities/plan'
 import { DEMO } from '@/entities/session'
+import { remoteMeetings } from '@/entities/growthRemote'
+import { IS_MOCK } from '@/shared/api/http'
 import { createCollection, mockDelay } from '@/shared/lib/storage'
 import {
   agreementsToTasks,
@@ -23,12 +25,15 @@ export const MEETING_PEOPLE: readonly Person[] = EMPLOYEES.filter(
 
 export const meetingNotesApi = {
   async list(): Promise<MeetingRecords> {
+    if (!IS_MOCK) return remoteMeetings.list(meetingRecordsSchema)
     await mockDelay(100)
     const parsed = meetingRecordsSchema.safeParse(notesDb.read())
     return parsed.success ? parsed.data : {}
   },
   /** POST /api/checklist/items для договорённостей, потом сохраняем саммари. */
   async save(meetingId: string, draft: MeetingDraft): Promise<MeetingRecord> {
+    // Реальный API сам добавляет договорённости в план и не дублирует их при повторе
+    if (!IS_MOCK) return remoteMeetings.save(meetingRecordSchema, meetingId, draft)
     const plan = await planApi.get()
     const items = agreementsToTasks(draft.agreements, meetingId, plan.tasks)
     if (items.length > 0) await planApi.add(items)

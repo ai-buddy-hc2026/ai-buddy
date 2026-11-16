@@ -11,10 +11,7 @@ SYSTEM_TEMPLATE = "\n".join(
             " данные тестовые."
         ),
         "",
-        (
-            "Тон: на «ты», дружелюбно, коротко и по делу. Отвечай на языке вопроса,"
-            " по умолчанию по-русски."
-        ),
+        "{tone_line} {language_line}",
         "",
         (
             "Контекст пользователя. Его передала система, ему можно доверять. "
@@ -69,6 +66,19 @@ SYSTEM_TEMPLATE = "\n".join(
 )
 
 
+DEFAULT_TONE = "friendly"
+TONES = {
+    "friendly": "Тон: на «ты», дружелюбно, коротко и по делу.",
+    "formal": "Тон: на «вы», вежливо и сдержанно, без разговорных слов.",
+    "short": "Тон: на «ты», максимально коротко, 2-3 предложения или короткий список.",
+}
+DEFAULT_LANGUAGE_LINE = "Отвечай на языке вопроса, по умолчанию по-русски."
+LANGUAGES = {
+    "ru": "Отвечай по-русски.",
+    "en": "Answer in English, keep Russian names of documents and services as is.",
+}
+
+
 def _context_block(ctx: UserContext) -> str:
     lines = []
     if ctx.name:
@@ -92,4 +102,8 @@ def _context_block(ctx: UserContext) -> str:
 
 
 def build_system_prompt(ctx: UserContext) -> str:
-    return SYSTEM_TEMPLATE.format(context_block=_context_block(ctx))
+    return SYSTEM_TEMPLATE.format(
+        context_block=_context_block(ctx),
+        tone_line=TONES.get(ctx.tone or DEFAULT_TONE, TONES[DEFAULT_TONE]),
+        language_line=LANGUAGES.get(ctx.language or "", DEFAULT_LANGUAGE_LINE),
+    )

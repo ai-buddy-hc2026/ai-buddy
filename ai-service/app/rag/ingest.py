@@ -11,7 +11,7 @@ import sys
 import time
 from pathlib import Path
 
-from app.rag.chunker import build_chunks, chunk_document
+from app.rag.chunker import build_chunks, chunk_document, parse_freshness
 from app.rag.embeddings import Embedder, get_embedder
 from app.rag.settings import get_settings
 from app.rag.store import ChunkRow, PgStore, Store
@@ -57,6 +57,7 @@ def ingest_seed_documents(
         if not chunks:
             continue
         title = chunks[0].doc_title
+        owner, reviewed_at = parse_freshness(content)
         vectors = embedder.embed_passages([chunk.embed_text for chunk in chunks])
         for team_id in teams:
             document_id, revision = store.prepare_seed_document(
@@ -64,6 +65,8 @@ def ingest_seed_documents(
                 path.stem,
                 title,
                 content,
+                reviewed_at=reviewed_at,
+                owner=owner,
             )
             rows = [
                 ChunkRow(
@@ -74,6 +77,9 @@ def ingest_seed_documents(
                     team_id,
                     document_id,
                     revision,
+                    path.stem,
+                    reviewed_at,
+                    owner,
                 )
                 for chunk, vector in zip(chunks, vectors, strict=True)
             ]

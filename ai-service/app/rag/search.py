@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 from app.rag.embeddings import Embedder
 from app.rag.settings import get_settings
@@ -20,6 +21,8 @@ class SearchResult:
     document_id: str | None = None
     revision: int | None = None
     slug: str | None = None
+    reviewed_at: date | None = None
+    owner: str | None = None
 
     @property
     def source_label(self) -> str:
@@ -54,6 +57,8 @@ def search(
             h.document_id,
             h.revision,
             h.slug,
+            h.reviewed_at,
+            h.owner,
         )
         for h in hits
         if h.score >= min_score

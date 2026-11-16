@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Protocol
 
 
@@ -15,6 +16,9 @@ class ChunkRow:
     team_id: str | None = None  # None: общий документ, виден всем командам
     document_id: str | None = None
     revision: int | None = None
+    slug: str | None = None
+    reviewed_at: date | None = None  # когда владелец последний раз проверял документ
+    owner: str | None = None  # кто отвечает за актуальность документа
 
 
 @dataclass(frozen=True)
@@ -28,6 +32,8 @@ class Hit:
     document_id: str | None = None
     revision: int | None = None
     slug: str | None = None
+    reviewed_at: date | None = None
+    owner: str | None = None
 
 
 class Store(Protocol):
@@ -72,6 +78,9 @@ class MemoryStore:
                     source,
                     r.document_id,
                     r.revision,
+                    r.slug,
+                    r.reviewed_at,
+                    r.owner,
                 ),
             )
         hits.sort(key=lambda h: h.score, reverse=True)
@@ -122,16 +131,21 @@ class PgStore:
         slug: str,
         title: str,
         content: str,
+        reviewed_at: date | None = None,
+        owner: str | None = None,
     ) -> tuple[str, int]:
         with self._connect() as conn, conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO kb_documents
-                    (team_id, slug, title, content, source_type, status, index_status)
-                VALUES (%s, %s, %s, %s, 'seed', 'published', 'pending')
+                    (team_id, slug, title, content, source_type, status, index_status,
+                     reviewed_at, owner)
+                VALUES (%s, %s, %s, %s, 'seed', 'published', 'pending', %s, %s)
                 ON CONFLICT (team_id, slug) DO UPDATE SET
                     title = EXCLUDED.title,
                     content = EXCLUDED.content,
+                    reviewed_at = EXCLUDED.reviewed_at,
+                    owner = EXCLUDED.owner,
                     revision = kb_documents.revision +
                         CASE WHEN kb_documents.title IS DISTINCT FROM EXCLUDED.title
                                   OR kb_documents.content IS DISTINCT
@@ -144,7 +158,7 @@ class PgStore:
                     updated_at = now()
                 RETURNING id::text, revision
                 """,
-                (team_id, slug, title, content),
+                (team_id, slug, title, content, reviewed_at, owner),
             )
             document_id, revision = cur.fetchone()
             return str(document_id), int(revision)
@@ -218,7 +232,7 @@ class PgStore:
         sql = (
             "SELECT c.doc_title, c.section, c.content, c.team_id::text, c.source, "
             "1 - (c.embedding <=> %s::vector) AS score, c.document_id::text, "
-            "c.revision, d.slug "
+            "c.revision, d.slug, d.reviewed_at, d.owner "
             "FROM kb_chunks c JOIN kb_documents d "
             "ON d.id = c.document_id AND d.team_id = c.team_id "
             "WHERE c.team_id = %s AND d.status = 'published' "
@@ -228,6 +242,18 @@ class PgStore:
         with self._connect() as conn, conn.cursor() as cur:
             cur.execute(sql, (vec, str(team_id), vec, limit))
             return [
-                Hit(r[0], r[1], r[2], float(r[5]), r[3], r[4], r[6], r[7], r[8])
+                Hit(
+                    r[0],
+                    r[1],
+                    r[2],
+                    float(r[5]),
+                    r[3],
+                    r[4],
+                    r[6],
+                    r[7],
+                    r[8],
+                    r[9],
+                    r[10],
+                )
                 for r in cur.fetchall()
             ]

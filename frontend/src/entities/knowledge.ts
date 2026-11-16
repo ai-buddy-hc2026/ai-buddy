@@ -13,6 +13,13 @@ export const knowledgeSourceSchema = z.object({
   title: z.string(),
   section: z.string(),
   url: z.string(),
+  /** Фрагмент документа, на который опирался ответ. */
+  quote: z.string().optional(),
+  /** Насколько уверенно найден фрагмент: считает AI-сервис. */
+  confidence: z.enum(['high', 'medium', 'low']).optional(),
+  /** Дата последней проверки документа владельцем, YYYY-MM-DD. */
+  reviewedAt: z.string().optional(),
+  owner: z.string().optional(),
 })
 export type KnowledgeSource = z.infer<typeof knowledgeSourceSchema>
 

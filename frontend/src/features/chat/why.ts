@@ -1,3 +1,4 @@
+import { isStale } from './kb'
 import type { Message } from './model'
 
 /**
@@ -88,17 +89,29 @@ export function explain(message: Message): Explanation | null {
       return {
         sources: meta.sources.map((s) => ({
           title: s.title,
-          detail: s.section || null,
-          isStale: false,
+          detail: [s.section, s.owner].filter(Boolean).join(', ') || null,
+          isStale: s.reviewedAt ? isStale({ reviewedAt: s.reviewedAt }, todayIso()) : false,
         })),
         tools: (meta.tools ?? []).map((name) => ({ kind: 'remote' as const, name })),
-        // Уверенность API пока не присылает: не выдумываем её
-        confidence: null,
+        // Уверенность считает AI-сервис по источникам; если её нет, не выдумываем
+        confidence: bestConfidence(meta.sources.map((s) => s.confidence)),
         action: remoteAction(meta.actions.map((a) => a.status)),
       }
     case 'error':
       return null
   }
+}
+
+const CONFIDENCE_ORDER: readonly Confidence[] = ['low', 'medium', 'high']
+
+function bestConfidence(levels: ReadonlyArray<Confidence | undefined>): Confidence | null {
+  const known = levels.filter((l): l is Confidence => l !== undefined)
+  if (known.length === 0) return null
+  return known.reduce((a, b) => (CONFIDENCE_ORDER.indexOf(b) > CONFIDENCE_ORDER.indexOf(a) ? b : a))
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
 }
 
 function remoteAction(statuses: readonly string[]): ActionNote {

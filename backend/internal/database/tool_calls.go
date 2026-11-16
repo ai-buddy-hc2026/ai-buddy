@@ -64,7 +64,9 @@ func (s *Tools) Call(ctx context.Context, requestID string, operation policy.Ope
 			return nil, tools.ErrInvalid
 		}
 		result, err = s.absences(ctx, tx, actor, input)
-	case policy.UpdateStatus, policy.CreateAbsence:
+	case policy.ListSlots, policy.FindOwner, policy.FindPlace:
+		result, err = s.corpRead(ctx, tx, actor, operation, raw)
+	case policy.UpdateStatus, policy.CreateAbsence, policy.BookSlot, policy.RequestAccess:
 		_, err = s.prepareAction(ctx, tx, actor, operation, raw)
 		if err == nil {
 			err = tools.ErrConfirmation
@@ -164,6 +166,8 @@ func (s *Tools) prepareAction(ctx context.Context, tx pgx.Tx, actor planActor, o
 		}
 		params.Approver = m.ID
 		return json.Marshal(params)
+	case policy.BookSlot, policy.RequestAccess:
+		return s.prepareCorpAction(ctx, tx, actor, operation, raw)
 	default:
 		return nil, tools.ErrDenied
 	}

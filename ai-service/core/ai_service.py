@@ -92,6 +92,25 @@ class AIService:
         except (json.JSONDecodeError, AttributeError, IndexError, TypeError):
             return "other"
 
+    async def complete_json(self, messages: list[dict], max_tokens: int = 800) -> str:
+        """Один ответ модели в режиме JSON. Проверку схемы делает вызывающий код."""
+        if self.llm_client is None:
+            raise LLMUnavailableError("LLM_API_KEY is not configured")
+        try:
+            response = await self.llm_client.chat.completions.create(
+                model=self.settings.LLM_MODEL,
+                messages=messages,
+                response_format={"type": "json_object"},
+                max_tokens=max_tokens,
+            )
+        except APITimeoutError as e:
+            _log_failure("complete_json", e)
+            raise LLMTimeoutError("LLM timeout") from e
+        except (APIConnectionError, APIStatusError) as e:
+            _log_failure("complete_json", e)
+            raise LLMUnavailableError("LLM unavailable") from e
+        return response.choices[0].message.content or ""
+
     async def stream_step(
         self,
         messages: list[dict],

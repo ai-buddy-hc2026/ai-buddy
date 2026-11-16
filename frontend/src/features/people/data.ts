@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { getEmployee } from '@/entities/employees'
+import { remoteInterests } from '@/entities/growthRemote'
+import { IS_MOCK } from '@/shared/api/http'
 import { createCollection, mockDelay } from '@/shared/lib/storage'
 
 /* ---------- Тематические чаты (идея 22, таблица interest_chats) ---------- */
@@ -32,11 +34,14 @@ function readInterests(): Record<string, string[]> {
 }
 
 export const interestsApi = {
+  /** В реальном API теги только свои: userId нужен мок-режиму. */
   async get(userId: string): Promise<string[]> {
+    if (!IS_MOCK) return remoteInterests.get()
     await mockDelay(150)
     return readInterests()[userId] ?? getEmployee(userId)?.interests ?? []
   },
   async save(userId: string, tags: readonly string[]): Promise<string[]> {
+    if (!IS_MOCK) return remoteInterests.save(tags)
     await mockDelay(250)
     interestsDb.write({ ...readInterests(), [userId]: [...tags] })
     return [...tags]

@@ -78,6 +78,7 @@ async def http_error_handler(_request, error: HTTPException):
         400: ("INVALID_REQUEST", "Некорректный запрос."),
         401: ("UNAUTHORIZED", "Требуется служебная авторизация."),
         409: ("REQUEST_ID_CONFLICT", "Идентификатор использован с другими данными."),
+        502: ("LLM_INVALID_OUTPUT", "Модель вернула некорректный ответ."),
         503: ("SERVICE_UNAVAILABLE", "AI-сервис временно недоступен."),
     }
     code, message = codes.get(error.status_code, ("INTERNAL_ERROR", "Ошибка AI-сервиса."))

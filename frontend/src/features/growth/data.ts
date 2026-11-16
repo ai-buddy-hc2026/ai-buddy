@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { BRAG_KEY, bragApi, bragItemSchema, type BragItem } from '@/entities/brag'
+import { remoteFeedback } from '@/entities/growthRemote'
+import { currentRemoteUser } from '@/entities/session'
+import { IS_MOCK } from '@/shared/api/http'
 import { DEMO_TODAY } from '@/shared/lib/date'
 import { createCollection, mockDelay, newId } from '@/shared/lib/storage'
 import { agendaPointSchema, agendasSchema, type AgendaPoint, type Agendas } from './agendaLogic'
@@ -126,16 +129,35 @@ export const growthApi = {
     return skillsDb.write(setLevel(skillLevelsSchema.parse(skillsDb.read()), id, level))
   },
   async feedback(): Promise<FeedbackRequest[]> {
+    if (!IS_MOCK) {
+      const me = currentRemoteUser()
+      return me ? z.array(feedbackRequestSchema).parse(await remoteFeedback.listSent(me.id)) : []
+    }
     await mockDelay(150)
     return z.array(feedbackRequestSchema).parse(feedbackDb.read())
   },
   async createFeedback(draft: FeedbackDraft, externalId: string | null): Promise<void> {
+    if (!IS_MOCK) {
+      const url = draft.artifactUrl.trim()
+      await remoteFeedback.create({
+        toId: draft.toId,
+        artifactUrl: url,
+        artifactTitle: draft.artifactTitle.trim() || url,
+        question: draft.question.trim(),
+        externalId,
+      })
+      return
+    }
     await mockDelay(80)
     feedbackDb.update((list) =>
       createRequest(list, draft, { id: newId('fb'), externalId }, DEMO_TODAY),
     )
   },
   async markFeedbackSaved(id: string): Promise<void> {
+    if (!IS_MOCK) {
+      await remoteFeedback.markSaved(id)
+      return
+    }
     await mockDelay(50)
     feedbackDb.update((list) => markSaved(list, id))
   },
@@ -152,6 +174,12 @@ export const growthApi = {
     await mockDelay(150)
     const current = await bragApi.list()
     if (!current.some((item) => item.id === id)) throw new Error('Запись не найдена')
+    if (!IS_MOCK) {
+      // PATCH в API нет: правка - новая запись вместо старой
+      await bragApi.add(patch)
+      await bragApi.remove(id)
+      return
+    }
     bragStore.write(z.array(bragItemSchema).parse(updateBragItem(current, id, patch)))
   },
 }

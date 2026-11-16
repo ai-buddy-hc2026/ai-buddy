@@ -90,12 +90,16 @@ export const ACTION_KIND: Record<ActionType, ActionKind> = {
   'absences.create_request': 'absence',
   'escalation.create': 'escalation',
   'checklist.update_status': 'task',
+  'calendar.book_slot': 'booking',
+  'access.request_access': 'access',
 }
 
 const ACTION_TITLE: Record<ActionType, string> = {
   'absences.create_request': 'Отгул',
   'escalation.create': 'Вопрос наставнику',
   'checklist.update_status': 'Статус задачи',
+  'calendar.book_slot': 'Встреча в приёмные часы',
+  'access.request_access': 'Заявка на доступ',
 }
 
 const ABSENCE_TYPE_LABEL: Readonly<Record<string, string>> = { day_off: 'Отгул' }
@@ -159,7 +163,11 @@ export function toAction(action: ApiAction): Action {
     title: ACTION_TITLE[action.action_type],
     details: toActionDetails(action.details),
     status: toActionStatus(action),
-    externalId: readString(action.result, 'external_id') ?? readString(action.result, 'id'),
+    externalId:
+      readString(action.result, 'external_id') ??
+      readString(action.result, 'booking_id') ??
+      readString(action.result, 'request_id') ??
+      readString(action.result, 'id'),
     idempotencyKey: action.id,
     createdAt: action.created_at,
     serverId: action.id,
@@ -222,5 +230,9 @@ export function toKnowledgeSource(source: ApiSource): KnowledgeSource {
     title: source.title,
     section: source.section,
     url: source.url,
+    ...(source.quote ? { quote: source.quote } : {}),
+    ...(source.confidence ? { confidence: source.confidence } : {}),
+    ...(source.reviewed_at ? { reviewedAt: source.reviewed_at } : {}),
+    ...(source.owner ? { owner: source.owner } : {}),
   }
 }

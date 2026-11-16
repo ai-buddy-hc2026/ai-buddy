@@ -33,6 +33,9 @@ class ChatRequest(BaseModel):
         StringConstraints(strip_whitespace=True, min_length=1, max_length=4000),
     ]
     history: list[ChatHistoryMessage] = Field(max_length=10)
+    # Необязательные настройки ответа (идеи 31, 41). Go может их не передавать.
+    tone: Literal["friendly", "formal", "short"] | None = None
+    language: Literal["ru", "en"] | None = None
 
     @field_validator("timestamp", mode="before")
     @classmethod

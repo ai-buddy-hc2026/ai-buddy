@@ -7,7 +7,8 @@ import re
 from app.agent.context import UserContext
 from app.agent.unknown import can_escalate, who_to_ask
 from app.rag.embeddings import Embedder
-from app.rag.search import search
+from app.rag.search import SearchResult, search
+from app.rag.settings import get_settings
 from app.rag.store import Store
 
 MCP_NAME = "knowledge.search"  # имя в контракте MCP
@@ -47,6 +48,43 @@ NO_ANSWER_INSTRUCTION = (
 )
 
 
+QUOTE_MAX_CHARS = 280
+# Насколько лучший фрагмент выше порога поиска. Пороги относительные: порог
+# KB_MIN_SCORE калибруется под модель, а запас над ним показывает уверенность.
+HIGH_MARGIN = 0.06
+MEDIUM_MARGIN = 0.02
+
+
+def confidence_level(score: float, min_score: float) -> str:
+    margin = score - min_score
+    if margin >= HIGH_MARGIN:
+        return "high"
+    if margin >= MEDIUM_MARGIN:
+        return "medium"
+    return "low"
+
+
+def _quote(text: str) -> str:
+    text = " ".join(str(text).split())
+    if len(text) <= QUOTE_MAX_CHARS:
+        return text
+    return text[: QUOTE_MAX_CHARS - 1].rstrip() + "…"
+
+
+def _source(r: SearchResult) -> dict | None:
+    if not (r.document_id and r.revision and r.slug):
+        return None
+    return {
+        "document_id": r.document_id,
+        "revision": r.revision,
+        "title": r.doc_title,
+        "section": r.section,
+        "url": f"kb/{r.slug}",
+        "reviewed_at": r.reviewed_at.isoformat() if r.reviewed_at else None,
+        "owner": r.owner,
+    }
+
+
 def run_knowledge_search(
     args: dict,
     ctx: UserContext,
@@ -60,6 +98,7 @@ def run_knowledge_search(
     query = str(args.get("query", "")).strip()
     if not query:
         return {"status": "error", "error": "empty_query"}
+    min_score = get_settings().min_score if min_score is None else min_score
     results = search(
         query,
         ctx.team_id,
@@ -84,20 +123,11 @@ def run_knowledge_search(
                 "section": r.section,
                 "text": r.text,
                 "score": round(r.score, 3),
-                "source": (
-                    {
-                        "document_id": r.document_id,
-                        "revision": r.revision,
-                        "title": r.doc_title,
-                        "section": r.section,
-                        "url": f"kb/{r.slug}",
-                    }
-                    if r.document_id and r.revision and r.slug
-                    else None
-                ),
+                "source": _source(r),
             }
             for i, r in enumerate(results, 1)
         ],
+        "min_score": min_score,
         "instruction": FOUND_INSTRUCTION,
     }
 
@@ -114,12 +144,20 @@ def extract_citations(text: str, tool_result: dict) -> tuple[str, list[dict]]:
     ids: list[int] = []
     for m in _CITATION.finditer(text):
         ids += [int(x) for x in re.findall(r"\d+", m.group(1))]
-    chosen = [i for i in dict.fromkeys(ids) if i in by_id] or [min(by_id)]
+    chosen = [i for i in dict.fromkeys(ids) if i in by_id]
+    cited = bool(chosen)
+    chosen = chosen or [min(by_id)]
     clean_text = _CITATION.sub("", text).strip()
+    min_score = float(tool_result.get("min_score", get_settings().min_score))
     sources = []
     for i in chosen:
         r = by_id[i]
         source = r.get("source")
-        if source is not None:
-            sources.append(source)
+        if source is None:
+            continue
+        level = confidence_level(float(r.get("score", 0.0)), min_score)
+        if not cited and level == "high":
+            level = "medium"  # модель не сослалась на фрагмент, опора не подтверждена
+        quote = _quote(r.get("text", ""))
+        sources.append({**source, "quote": quote, "confidence": level})
     return clean_text, sources

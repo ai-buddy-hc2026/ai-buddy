@@ -1,8 +1,26 @@
-import { useState } from 'react'
-import { useSettings, type FeatureToggles, type ThemeChoice, type Tone } from '@/entities/settings'
+import { useEffect, useState } from 'react'
+import { useMarkNotificationRead, useNotifications } from '@/entities/notifications'
+import {
+  loadRemoteSettings,
+  useSettings,
+  type FeatureToggles,
+  type ThemeChoice,
+  type Tone,
+} from '@/entities/settings'
+import { IS_MOCK } from '@/shared/api/http'
 import { IsoArt } from '@/shared/iso'
 import { useT, type Translate } from '@/shared/lib/i18n'
-import { Card, Chip, ChipRow, Eyebrow, Input, Page, PageHeader, SwitchRow } from '@/shared/ui'
+import {
+  Button,
+  Card,
+  Chip,
+  ChipRow,
+  Eyebrow,
+  Input,
+  Page,
+  PageHeader,
+  SwitchRow,
+} from '@/shared/ui'
 import { ResetDemo } from './ResetDemo'
 import { WEEKDAYS, isValidHours, toggleDay } from './logic'
 import s from './settings.module.css'
@@ -232,20 +250,56 @@ function DemoCard() {
   )
 }
 
+/** Входящие от планировщика Go. Только в режиме реального API. */
+function InboxCard() {
+  const t = useT()
+  const { data, isError } = useNotifications()
+  const markRead = useMarkNotificationRead()
+  const items = data?.items ?? []
+  return (
+    <Card className={s.card} index={4}>
+      <Eyebrow>
+        {t('Сообщения бота', 'Bot messages')}
+        {data && data.unread_count > 0 ? ` (${data.unread_count})` : ''}
+      </Eyebrow>
+      {isError && <p className="t-s t-muted">{t('Не удалось загрузить', 'Failed to load')}</p>}
+      {!isError && items.length === 0 && (
+        <p className="t-s t-muted">{t('Пока пусто', 'Nothing yet')}</p>
+      )}
+      {items.map((item) => (
+        <div key={item.id} className={s.field}>
+          <span className={s.fieldLabel}>{item.title}</span>
+          {item.body && <span className="t-s t-muted">{item.body}</span>}
+          {item.read_at === null && (
+            <Button variant="ghost" onClick={() => markRead.mutate(item.id)}>
+              {t('Прочитано', 'Mark read')}
+            </Button>
+          )}
+        </div>
+      ))}
+    </Card>
+  )
+}
+
 /** Настройки: тема, язык, тон, рабочие часы, тумблеры, инструменты демо. */
 export function SettingsPage() {
   const t = useT()
+  const syncError = useSettings((state) => state.syncError)
+  useEffect(() => {
+    void loadRemoteSettings()
+  }, [])
   return (
     <Page>
       <PageHeader
         title={t('Настройки', 'Settings')}
-        subtitle={t('Всё сохраняется сразу', 'Changes save right away')}
+        subtitle={syncError ?? t('Всё сохраняется сразу', 'Changes save right away')}
       />
       <div className={s.grid}>
         <AppearanceCard />
         <HoursCard />
         <NotificationsCard />
         <DemoCard />
+        {!IS_MOCK && <InboxCard />}
       </div>
     </Page>
   )

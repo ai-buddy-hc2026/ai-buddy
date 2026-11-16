@@ -80,12 +80,17 @@ func TestMCPListAndCall(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]bool{"checklist.get_plan": true, "checklist.update_status": true, "employees.get_manager": true, "absences.get_policy": true, "absences.create_request": true}
+	want := map[string]bool{"checklist.get_plan": true, "checklist.update_status": true, "employees.get_manager": true, "absences.get_policy": true, "absences.create_request": true,
+		"calendar.list_slots": true, "calendar.book_slot": true, "employees.find_owner": true, "access.request_access": true, "map.find_place": true}
+	listedOnly := map[string]bool{"calendar.list_slots": true, "calendar.book_slot": true, "employees.find_owner": true, "access.request_access": true, "map.find_place": true}
 	for _, tool := range list.Tools {
 		if !want[tool.Name] {
 			t.Fatal("unexpected tool", tool.Name)
 		}
 		delete(want, tool.Name)
+		if listedOnly[tool.Name] {
+			continue
+		}
 		args := map[string]any{}
 		isWrite := tool.Name == "checklist.update_status" || tool.Name == "absences.create_request"
 		if tool.Name == "checklist.update_status" {
