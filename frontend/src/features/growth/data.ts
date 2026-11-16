@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { BRAG_KEY, bragApi, bragItemSchema, type BragItem } from '@/entities/brag'
-import { remoteFeedback } from '@/entities/growthRemote'
+import { remoteCompetencies, remoteFeedback } from '@/entities/growthRemote'
 import { currentRemoteUser } from '@/entities/session'
 import { IS_MOCK } from '@/shared/api/http'
 import { DEMO_TODAY } from '@/shared/lib/date'
@@ -16,9 +16,11 @@ import {
   type FeedbackRequest,
 } from './feedbackLogic'
 import {
+  BACKEND_COMPETENCIES,
   mergeRequestSchema,
   setLevel,
   skillLevelsSchema,
+  type CompetencyMatrix,
   type MergeRequest,
   type SkillLevels,
 } from './skillsLogic'
@@ -113,6 +115,12 @@ const agendasDb = createCollection<Agendas>('growth.agendas', () => ({}))
 /** Тот же ключ, что у entities/brag: там нет update, правку пишем сюда поверх прочитанного списка. */
 const bragStore = createCollection<BragItem[] | null>('brag', () => null)
 
+const mockMatrix = (levels: SkillLevels): CompetencyMatrix => ({
+  track: 'backend',
+  competencies: BACKEND_COMPETENCIES,
+  levels,
+})
+
 /* ---------- API ---------- */
 
 export const growthApi = {
@@ -120,13 +128,16 @@ export const growthApi = {
     await mockDelay(150)
     return z.array(mergeRequestSchema).parse(MR_SEED)
   },
-  async skills(): Promise<SkillLevels> {
+  /** Матрица компетенций и своя самооценка. В моке трек Backend и localStorage. */
+  async competencies(): Promise<CompetencyMatrix> {
+    if (!IS_MOCK) return remoteCompetencies.matrix()
     await mockDelay(100)
-    return skillLevelsSchema.parse(skillsDb.read())
+    return mockMatrix(skillLevelsSchema.parse(skillsDb.read()))
   },
-  async setSkill(id: string, level: number): Promise<SkillLevels> {
+  async setSkill(id: string, level: number): Promise<CompetencyMatrix> {
+    if (!IS_MOCK) return remoteCompetencies.setLevel(id, level)
     await mockDelay(80)
-    return skillsDb.write(setLevel(skillLevelsSchema.parse(skillsDb.read()), id, level))
+    return mockMatrix(skillsDb.write(setLevel(skillLevelsSchema.parse(skillsDb.read()), id, level)))
   },
   async feedback(): Promise<FeedbackRequest[]> {
     if (!IS_MOCK) {
@@ -196,15 +207,15 @@ export function useMergeRequests() {
   return useQuery({ queryKey: MR_KEY, queryFn: growthApi.mergeRequests })
 }
 
-export function useSkillLevels() {
-  return useQuery({ queryKey: SKILLS_KEY, queryFn: growthApi.skills })
+export function useCompetencyMatrix() {
+  return useQuery({ queryKey: SKILLS_KEY, queryFn: growthApi.competencies })
 }
 
 export function useSetSkillLevel() {
   const client = useQueryClient()
   return useMutation({
     mutationFn: ({ id, level }: { id: string; level: number }) => growthApi.setSkill(id, level),
-    onSuccess: (levels) => client.setQueryData(SKILLS_KEY, levels),
+    onSuccess: (matrix) => client.setQueryData(SKILLS_KEY, matrix),
   })
 }
 

@@ -1,18 +1,17 @@
 import { Link } from '@tanstack/react-router'
 import { useSettings } from '@/entities/settings'
 import { useT, type Translate } from '@/shared/lib/i18n'
-import { Button, Card, ErrorState, Eyebrow, Icon, Meter, Note, Skeleton, toast } from '@/shared/ui'
-import { useMergeRequests, useSetSkillLevel, useSkillLevels } from './data'
+import { Button, Card, ErrorState, Eyebrow, Icon, Note, Skeleton, toast } from '@/shared/ui'
+import { useCompetencyMatrix, useMergeRequests, useSetSkillLevel } from './data'
 import {
   averageLevel,
-  BACKEND_COMPETENCIES,
   levelOf,
   MAX_LEVEL,
   skillHints,
   weakestSkill,
   type Competency,
+  type CompetencyMatrix,
   type SkillHint,
-  type SkillLevels,
 } from './skillsLogic'
 import s from './growth.module.css'
 
@@ -48,7 +47,17 @@ function hintText(hint: SkillHint, t: Translate): string {
   }
 }
 
-function LevelPicker({ competency, level }: { competency: Competency; level: number }) {
+const TRACK_LABELS: Record<string, string> = { backend: 'Backend', frontend: 'Frontend' }
+
+function MatrixRow({
+  competency,
+  level,
+  hint,
+}: {
+  competency: Competency
+  level: number
+  hint: SkillHint | undefined
+}) {
   const t = useT()
   const lang = useSettings((state) => state.lang)
   const setLevel = useSetSkillLevel()
@@ -61,36 +70,78 @@ function LevelPicker({ competency, level }: { competency: Competency; level: num
     )
 
   return (
-    <div
-      className={s.levels}
-      role="radiogroup"
-      aria-label={`${t('Мой уровень', 'My level')}: ${competency.name[lang]}`}
-    >
-      {LEVELS.map((value) => (
-        <button
-          key={value}
-          type="button"
-          role="radio"
-          aria-checked={value === level}
-          className={s.level}
-          onClick={() => choose(value)}
-        >
-          <span className={s.levelDots} aria-hidden>
-            {LEVELS.map((dot) => (
-              <i key={dot} data-on={dot <= value} />
-            ))}
+    <tr>
+      <th scope="row" className={s.matrixName}>
+        <b>{competency.name[lang]}</b>
+        {hint && (
+          <span className={s.hint}>
+            <Icon name="sparkle" size={16} />
+            {hintText(hint, t)}
           </span>
-          {levelName(value, t)}
-        </button>
-      ))}
+        )}
+      </th>
+      {LEVELS.map((value) => {
+        const isCurrent = value === level
+        return (
+          <td key={value}>
+            <button
+              type="button"
+              className={s.matrixCell}
+              aria-pressed={isCurrent}
+              aria-label={`${competency.name[lang]}: ${t('уровень', 'level')} ${value}, ${levelName(value, t)}`}
+              onClick={() => choose(value)}
+            >
+              <span className={s.levelDots} aria-hidden>
+                {LEVELS.map((dot) => (
+                  <i key={dot} data-on={dot <= value} />
+                ))}
+              </span>
+              {competency.levels[value - 1]?.[lang] ?? levelName(value, t)}
+            </button>
+          </td>
+        )
+      })}
+    </tr>
+  )
+}
+
+function Matrix({ matrix, hints }: { matrix: CompetencyMatrix; hints: readonly SkillHint[] }) {
+  const t = useT()
+  return (
+    <div className={s.matrixScroll}>
+      <table className={s.matrix}>
+        <caption className="visually-hidden">
+          {t('Матрица компетенций: уровни 1-4', 'Competency matrix: levels 1-4')}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">{t('Компетенция', 'Competency')}</th>
+            {LEVELS.map((value) => (
+              <th key={value} scope="col">
+                {value}. {levelName(value, t)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.competencies.map((competency) => (
+            <MatrixRow
+              key={competency.id}
+              competency={competency}
+              level={levelOf(matrix.levels, competency.id)}
+              hint={hints.find((h) => h.skillId === competency.id)}
+            />
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
 
-function Focus({ levels, hints }: { levels: SkillLevels; hints: readonly SkillHint[] }) {
+function Focus({ matrix, hints }: { matrix: CompetencyMatrix; hints: readonly SkillHint[] }) {
   const t = useT()
   const lang = useSettings((state) => state.lang)
-  const weakest = weakestSkill(BACKEND_COMPETENCIES, levels, hints)
+  const weakest = weakestSkill(matrix.competencies, matrix.levels, hints)
   if (!weakest) return null
   const hint = hints.find((h) => h.skillId === weakest.id)
   const question = t(
@@ -121,11 +172,10 @@ function Focus({ levels, hints }: { levels: SkillLevels; hints: readonly SkillHi
   )
 }
 
-/** Карта компетенций (идея 29): самооценка + подсказки по фактам. Видит только стажёр. */
+/** Матрица компетенций (идея 29): самооценка + подсказки по фактам. Видит только стажёр. */
 export function SkillsTab() {
   const t = useT()
-  const lang = useSettings((state) => state.lang)
-  const levels = useSkillLevels()
+  const levels = useCompetencyMatrix()
   const mrs = useMergeRequests()
 
   if (levels.isError || mrs.isError) {
@@ -145,14 +195,18 @@ export function SkillsTab() {
   }
 
   const hints = skillHints(mrs.data)
-  const average = averageLevel(BACKEND_COMPETENCIES, levels.data)
+  const matrix = levels.data
+  const average = averageLevel(matrix.competencies, matrix.levels)
+  const track = TRACK_LABELS[matrix.track] ?? matrix.track
 
   return (
     <div className={s.split}>
       <Card className={s.main} index={0}>
         <div className={s.cardHead}>
           <div>
-            <h2 className={s.cardTitle}>{t('Карта навыков Backend', 'Backend skill map')}</h2>
+            <h2 className={s.cardTitle}>
+              {t(`Матрица компетенций ${track}`, `${track} competency matrix`)}
+            </h2>
             <p className="t-s t-muted">
               {t(
                 'Оцени себя честно, это только для тебя',
@@ -171,37 +225,10 @@ export function SkillsTab() {
             'Nobody sees your weak spots: the map is not in the mentor summary',
           )}
         </Note>
-        <ul className={s.skillList}>
-          {BACKEND_COMPETENCIES.map((competency) => {
-            const level = levelOf(levels.data, competency.id)
-            const hint = hints.find((h) => h.skillId === competency.id)
-            return (
-              <li key={competency.id} className={s.skill}>
-                <div className={s.skillHead}>
-                  <b>{competency.name[lang]}</b>
-                  <span className="t-s t-muted">{levelName(level, t)}</span>
-                </div>
-                <Meter
-                  value={level}
-                  max={MAX_LEVEL}
-                  color="var(--brand-violet)"
-                  label={competency.name[lang]}
-                  isOnSunken
-                />
-                <LevelPicker competency={competency} level={level} />
-                {hint && (
-                  <p className={s.hint}>
-                    <Icon name="sparkle" size={16} />
-                    {hintText(hint, t)}
-                  </p>
-                )}
-              </li>
-            )
-          })}
-        </ul>
+        <Matrix matrix={matrix} hints={hints} />
       </Card>
       <div className={s.side}>
-        <Focus levels={levels.data} hints={hints} />
+        <Focus matrix={matrix} hints={hints} />
         <Card index={2}>
           <p className="t-s t-muted">
             {t(

@@ -2,6 +2,7 @@ import { tokenStore } from '@/shared/api/http'
 import { ANYA_ID, jsonResponse } from './fixtures.test-data'
 import {
   remoteBrag,
+  remoteCompetencies,
   remoteEvents,
   remoteFeedback,
   toFeedbackRequest,
@@ -91,5 +92,44 @@ describe('growth remote adapters', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, { items: [event] })))
     const [first] = await remoteEvents.list()
     expect(first?.start).toBe('2026-11-18T12:00')
+  })
+})
+
+describe('competency matrix remote', () => {
+  const level = (n: number) => ({ level: n, description: { ru: `ур ${n}`, en: `lvl ${n}` } })
+  const matrix = {
+    track: 'backend',
+    items: [
+      {
+        code: 'tests',
+        name: { ru: 'Тесты', en: 'Testing' },
+        levels: [level(2), level(1), level(4), level(3)],
+        myLevel: 3,
+      },
+      { code: 'api', name: { ru: 'API', en: 'API' }, levels: [level(1)], myLevel: null },
+    ],
+  }
+
+  it('orders level descriptions and keeps only rated levels', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, matrix)))
+    const result = await remoteCompetencies.matrix()
+    expect(result.track).toBe('backend')
+    expect(result.competencies[0]?.levels.map((l) => l.en)).toEqual([
+      'lvl 1',
+      'lvl 2',
+      'lvl 3',
+      'lvl 4',
+    ])
+    expect(result.levels).toEqual({ tests: 3 })
+  })
+
+  it('saves own level with PUT by competency code', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, matrix))
+    vi.stubGlobal('fetch', fetchMock)
+    await remoteCompetencies.setLevel('tests', 3)
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain('/growth/competencies/tests')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(String(init.body))).toEqual({ level: 3 })
   })
 })

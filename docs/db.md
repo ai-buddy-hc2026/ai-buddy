@@ -475,6 +475,17 @@ Runtime-флаги по приложению, команде и пользова
 | `meeting_notes` | Итоги встречи. | Договорённости становятся задачами активного плана в текущем этапе с `seed_key = meeting:<key>:<id>`; повтор не дублирует задачи. Задача `mentor` назначается наставнику. |
 | `coffee_pairs` | Пары random coffee на неделю. | `user_a < user_b`, `week_start` - понедельник. Подбор (`growth.PlanPairs`) и запись (`Store.SaveCoffeePairs`) вызывает планировщик. |
 
+### 3.17. Матрица компетенций (`0015_competencies.sql`)
+
+Идея 29. Код: `backend/internal/growth/competencies.go`, маршруты `GET /growth/competencies` (матрица трека и своя самооценка `myLevel`) и `PUT /growth/competencies/{code}` с телом `{"level": 1-4}`. Демо-данные: `backend/internal/database/seeds/competencies.sql` (треки backend и frontend, по 7 компетенций и 4 описания уровня).
+
+| Таблица | Назначение | Ключевые правила |
+|---------|------------|------------------|
+| `competencies` | Каталог компетенций трека. | `(track, code)` и `(track, position)` уникальны. Каталог общий для команд. |
+| `competency_levels` | Что значит каждый уровень 1-4: сама матрица. | Описание на RU и EN, ключ `(competency_id, level)`. |
+| `competency_profiles` | Трек карты пользователя. | Нет записи - трек `backend`. |
+| `competency_self_assessments` | Самооценка по компетенции. | Уровень 1-4, ключ `(user_id, competency_id)`. Видит только сам пользователь: запросы идут по `Actor.ID`, маршрута для чужих оценок нет, в сводку наставнику и аналитику не попадает. Тест `TestSelfAssessmentsReadOnlyHere` запрещает читать таблицу вне `growth/competencies.go`. |
+
 ## 4. Карта основных связей
 
 | Родитель | Дочерняя сущность | Связь |

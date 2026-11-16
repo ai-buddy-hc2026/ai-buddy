@@ -82,6 +82,8 @@ func TestPrepareRepeatAndConstraints(t *testing.T) {
 		"escalations":         0,
 		"kb_documents":        0,
 		"user_birthdays":      5,
+		"competencies":        14,
+		"competency_levels":   56,
 	}
 	for table, want := range expectedCounts {
 		var got int

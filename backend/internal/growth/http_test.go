@@ -66,6 +66,13 @@ func (f *fakeBackend) CoffeePairs(context.Context, Actor) ([]CoffeePair, error) 
 	return nil, f.rec("CoffeePairs")
 }
 
+func (f *fakeBackend) CompetencyMatrix(context.Context, Actor) (CompetencyMatrix, error) {
+	return CompetencyMatrix{Track: "backend", Items: []Competency{}}, f.rec("CompetencyMatrix")
+}
+func (f *fakeBackend) SetCompetencyLevel(context.Context, Actor, string, int) (CompetencyMatrix, error) {
+	return CompetencyMatrix{Track: "backend", Items: []Competency{}}, f.rec("SetCompetencyLevel")
+}
+
 func testMux(backend Backend, authed bool) http.Handler {
 	base := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTeapot) })
 	actorOf := func(*http.Request) (Actor, bool) { return Actor{ID: testUUID, TeamID: "t"}, authed }
@@ -100,6 +107,14 @@ func TestRoutes(t *testing.T) {
 		{name: "save meeting", method: "PUT", path: "/growth/meetings/slot-1", body: `{"summary":"Итоги","agreements":[{"id":"a1","owner":"intern","what":"MR","due_date":null}]}`, authed: true, status: 200, call: "SaveMeeting"},
 		{name: "save meeting bad key", method: "PUT", path: "/growth/meetings/a%20b", body: `{"summary":"Итоги","agreements":[]}`, authed: true, status: 400},
 		{name: "coffee", method: "GET", path: "/growth/coffee", authed: true, status: 200, call: "CoffeePairs"},
+		{name: "competency matrix", method: "GET", path: "/growth/competencies", authed: true, status: 200, call: "CompetencyMatrix", contains: `"track":"backend"`},
+		{name: "set competency level", method: "PUT", path: "/growth/competencies/tests", body: `{"level":3}`, authed: true, status: 200, call: "SetCompetencyLevel"},
+		{name: "competency level out of range", method: "PUT", path: "/growth/competencies/tests", body: `{"level":5}`, authed: true, status: 400},
+		{name: "competency bad code", method: "PUT", path: "/growth/competencies/Tests", body: `{"level":2}`, authed: true, status: 400},
+		{name: "competency unknown code", method: "PUT", path: "/growth/competencies/nope", body: `{"level":2}`, backendErr: ErrNotFound, authed: true, status: 404, call: "SetCompetencyLevel"},
+		{name: "competency other user in body rejected", method: "PUT", path: "/growth/competencies/tests", body: `{"level":2,"userId":"` + testUUID + `"}`, authed: true, status: 400},
+		{name: "competency other user in query rejected", method: "GET", path: "/growth/competencies?userId=" + testUUID, authed: true, status: 400},
+		{name: "competency other user path not routed", method: "GET", path: "/growth/competencies/" + testUUID, authed: true, status: http.StatusTeapot},
 		{name: "query rejected", method: "GET", path: "/growth/events?x=1", authed: true, status: 400},
 		{name: "db failure", method: "GET", path: "/growth/events", backendErr: context.DeadlineExceeded, authed: true, status: 503, call: "ListEvents"},
 		{name: "no user", method: "GET", path: "/growth/brag", authed: false, status: 401},
