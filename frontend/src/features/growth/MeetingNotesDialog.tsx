@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useSummarizeMeeting } from '@/entities/meetings'
+import { errorMessage, IS_MOCK } from '@/shared/api/http'
 import { plural, useT } from '@/shared/lib/i18n'
 import { newId } from '@/shared/lib/storage'
 import { Button, Dialog, Note, Textarea, toast } from '@/shared/ui'
@@ -16,6 +18,7 @@ import {
   type MeetingDraft,
   type MeetingRecord,
 } from './meetingNotesLogic'
+import { summaryToDraft } from './meetingSummaryLogic'
 import s from './meetingNotes.module.css'
 
 type Props = {
@@ -90,25 +93,52 @@ function DraftEditor({
 export function MeetingNotesDialog({ meetingId, label, saved, onClose }: Props) {
   const t = useT()
   const save = useSaveMeetingNotes()
+  const summarize = useSummarizeMeeting()
   const [notes, setNotes] = useState('')
   const [draft, setDraft] = useState<MeetingDraft | null>(() =>
     saved ? { summary: saved.summary, agreements: saved.agreements } : null,
   )
   const [error, setError] = useState<string | null>(null)
 
-  const analyze = () => {
+  const parseError = t(
+    'Не получилось разобрать заметки. Допиши пару фраз и попробуй ещё раз',
+    'Could not parse the notes. Add a few phrases and try again',
+  )
+
+  const analyzeLocally = () => {
     const result = extractWithRetry(() => extractMeeting(notes, MEETING_PEOPLE))
     if (!result.ok) {
-      setError(
-        t(
-          'Не получилось разобрать заметки. Допиши пару фраз и попробуй ещё раз',
-          'Could not parse the notes. Add a few phrases and try again',
-        ),
-      )
+      setError(parseError)
       return
     }
     setError(null)
     setDraft(result.draft)
+  }
+
+  // В демо разбирает мок-экстрактор, в реальном режиме - AI через POST /meetings/summary
+  const analyze = () => {
+    if (IS_MOCK) {
+      analyzeLocally()
+      return
+    }
+    summarize.mutate(notes, {
+      onSuccess: (summary) => {
+        const next = summaryToDraft(summary, MEETING_PEOPLE)
+        if (!next) {
+          setError(parseError)
+          return
+        }
+        setError(null)
+        setDraft(next)
+      },
+      onError: (cause) =>
+        setError(
+          t(
+            `Не получилось разобрать встречу: ${errorMessage(cause)}`,
+            `Could not parse the meeting: ${errorMessage(cause)}`,
+          ),
+        ),
+    })
   }
 
   const submit = () => {
@@ -153,7 +183,13 @@ export function MeetingNotesDialog({ meetingId, label, saved, onClose }: Props) 
       <Button variant="ghost" onClick={onClose}>
         {t('Отмена', 'Cancel')}
       </Button>
-      <Button variant="primary" icon="sparkle" disabled={!notes.trim()} onClick={analyze}>
+      <Button
+        variant="primary"
+        icon="sparkle"
+        disabled={!notes.trim()}
+        isLoading={summarize.isPending}
+        onClick={analyze}
+      >
         {t('Разобрать', 'Parse')}
       </Button>
     </>

@@ -66,6 +66,12 @@ func (s *Chat) Create(ctx context.Context, actorID, id string, input chat.Input)
 	if _, err := time.LoadLocation(payload.Timezone); err != nil {
 		return record, payload, chat.ErrUnavailable
 	}
+	var tone, lang string
+	err = tx.QueryRow(ctx, `SELECT COALESCE(settings->>'tone',''),COALESCE(settings->>'lang','') FROM user_settings WHERE user_id=$1 AND team_id=$2`, payload.UserID, payload.TeamID).Scan(&tone, &lang)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return record, payload, err
+	}
+	payload.Tone, payload.Language = chat.Preferences(tone, lang)
 	if input.ConversationID != "" {
 		err = tx.QueryRow(ctx, `SELECT id::text FROM conversations WHERE id=$1 AND owner_id=$2 AND team_id=$3 AND status='active' FOR UPDATE`, input.ConversationID, actorID, payload.TeamID).Scan(&payload.ConversationID)
 	} else {

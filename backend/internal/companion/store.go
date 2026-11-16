@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/auth"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/httpapi"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -237,6 +238,34 @@ func (s *Store) Unanswered(ctx context.Context, u auth.User, days int) (Unanswer
 		report.Total += item.Count
 	}
 	return report, nil
+}
+
+const unansweredQuestionLimit = 500
+
+// UnansweredQuestions возвращает тексты вопросов без ответа своей команды
+// для кластеризации. Автора не отдаёт, доступно только buddy и lead.
+func (s *Store) UnansweredQuestions(ctx context.Context, u auth.User, days int) ([]httpapi.AIQuestion, error) {
+	if u.Role != "lead" && u.Role != "buddy" {
+		return nil, httpapi.ErrQuestionsDenied
+	}
+	since := s.now().AddDate(0, 0, -days)
+	rows, err := s.pool.Query(ctx, `SELECT r.id::text, LEFT(q.content, 1000)
+		FROM chat_messages m JOIN chat_requests r ON r.id = m.request_id
+		JOIN chat_messages q ON q.request_id = r.id AND q.role = 'user'
+		WHERE r.team_id = $1 AND m.role = 'assistant' AND m.answer_status = 'unknown' AND m.created_at >= $2
+		ORDER BY m.created_at DESC LIMIT $3`, u.Team.ID, since, unansweredQuestionLimit)
+	if err != nil {
+		return nil, fmt.Errorf("unanswered questions: %w", err)
+	}
+	items, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (httpapi.AIQuestion, error) {
+		var item httpapi.AIQuestion
+		err := row.Scan(&item.ID, &item.Text)
+		return item, err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("scan unanswered questions: %w", err)
+	}
+	return items, nil
 }
 
 // LinkTelegram - заглушка: бота нет, привязка считается выполненной сразу.
