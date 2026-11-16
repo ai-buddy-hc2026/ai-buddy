@@ -1,8 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { useFeatures } from '@/entities/features'
 import { useSettings } from '@/entities/settings'
 import { IsoArt } from '@/shared/iso'
-import { BuddyAvatar, Chip, ChipRow, ErrorState, IconButton, Skeleton, Switch } from '@/shared/ui'
+import {
+  BuddyAvatar,
+  Chip,
+  ChipRow,
+  ErrorState,
+  IconButton,
+  Note,
+  Skeleton,
+  Switch,
+} from '@/shared/ui'
 import { useT } from '@/shared/lib/i18n'
 import { BotExtras } from './BotExtras'
 import { Bubble, ChatHeader, Composer, StreamText, TypingDots, useAutoScroll } from './ChatParts'
@@ -29,6 +39,7 @@ export function BuddyChat({ initialQuestion, onBack }: Props) {
   const t = useT()
   const navigate = useNavigate()
   const buddy = useBuddy()
+  const features = useFeatures()
   const [draft, setDraft] = useState('')
   const handledRef = useRef<string | null>(null)
   const lastText = buddy.messages.at(-1)?.text.length ?? 0
@@ -137,9 +148,17 @@ export function BuddyChat({ initialQuestion, onBack }: Props) {
       )}
 
       <div className={s.footer}>
+        {!features.chat && (
+          <Note tone="warning" title={t('Чат временно выключен', 'Chat is temporarily off')}>
+            {t(
+              'Вопросы пока не принимаются. План, задачи и база знаний работают.',
+              'Questions are paused. Plan, tasks and knowledge base still work.',
+            )}
+          </Note>
+        )}
         <ChipRow className={s.suggest} aria-label={t('Примеры вопросов', 'Sample questions')}>
           {SUGGESTIONS.map((q) => (
-            <Chip key={q} onClick={() => ask(q)} disabled={isBusy}>
+            <Chip key={q} onClick={() => ask(q)} disabled={isBusy || !features.chat}>
               {q}
             </Chip>
           ))}
@@ -149,7 +168,7 @@ export function BuddyChat({ initialQuestion, onBack }: Props) {
           onChange={setDraft}
           onSend={ask}
           placeholder={t('Спроси что угодно про онбординг', 'Ask anything about onboarding')}
-          isDisabled={isBusy}
+          isDisabled={isBusy || !features.chat}
         />
       </div>
     </div>
