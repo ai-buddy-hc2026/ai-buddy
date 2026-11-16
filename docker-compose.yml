@@ -129,6 +129,7 @@ services:
     build:
       context: ./ai-service
       dockerfile: Dockerfile
+    restart: unless-stopped
     env_file:
       - .env
     environment:

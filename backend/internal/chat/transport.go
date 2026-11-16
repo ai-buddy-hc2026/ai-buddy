@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
@@ -78,7 +79,7 @@ func (p *PythonClient) Send(ctx context.Context, payload Payload) error {
 	}
 	response, err := client.Do(req)
 	if err != nil {
-		return &DispatchError{}
+		return &DispatchError{Definite: unreachable(err)}
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusAccepted {
@@ -102,4 +103,15 @@ func (p *PythonClient) Send(ctx context.Context, payload Payload) error {
 func definiteDispatch(err error) bool {
 	var failure *DispatchError
 	return errors.As(err, &failure) && failure.Definite
+}
+
+// unreachable сообщает, что запрос точно не дошёл до Python: хост не найден
+// или соединение не установлено. Тогда повтор и ожидание таймаута бессмысленны.
+func unreachable(err error) bool {
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return true
+	}
+	var opErr *net.OpError
+	return errors.As(err, &opErr) && opErr.Op == "dial"
 }
