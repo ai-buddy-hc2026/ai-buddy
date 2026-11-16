@@ -16,6 +16,7 @@ import (
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/companion"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/config"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/database"
+	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/features"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/growth"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/httpapi"
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/mcpserver"
@@ -109,6 +110,11 @@ func run() error {
 	handler = companion.WithRoutes(handler, service, companionStore)
 	go scheduler.New(scheduler.NewPostgresSource(pool, companionStore), companionStore, time.Now, logger).Run(ctx, scheduler.DefaultInterval)
 	handler = growth.Register(handler, service, growth.NewStore(pool))
+	flags, err := features.Parse(os.Getenv("FEATURES_DISABLED"))
+	if err != nil {
+		return err
+	}
+	handler = httpapi.WithFeatures(handler, service, flags, toolStore)
 	if mcpCfg.Token != "" {
 		toolsHandler, err := mcpserver.New(toolStore, mcpCfg.Token)
 		if err != nil {
