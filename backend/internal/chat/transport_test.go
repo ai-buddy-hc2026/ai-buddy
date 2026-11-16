@@ -88,3 +88,24 @@ func TestProfileEventValidation(t *testing.T) {
 		}
 	}
 }
+
+// Python не принимает соединение: запрос точно не дошёл, ждать таймаут генерации незачем.
+func TestPythonClientUnreachableIsDefinite(t *testing.T) {
+	id, _ := identifier.NewUUID()
+	server := httptest.NewServer(http.NotFoundHandler())
+	url := server.URL
+	server.Close()
+	err := (&PythonClient{URL: url, Token: "synthetic-token"}).Send(context.Background(), Payload{RequestID: id})
+	if err == nil || !definiteDispatch(err) {
+		t.Fatalf("connection refused must be definite, got %v", err)
+	}
+}
+
+// Неизвестный хост (контейнер ai-service остановлен): тоже точный отказ.
+func TestPythonClientUnknownHostIsDefinite(t *testing.T) {
+	id, _ := identifier.NewUUID()
+	err := (&PythonClient{URL: "http://ai-service.invalid:8000", Token: "synthetic-token"}).Send(context.Background(), Payload{RequestID: id})
+	if err == nil || !definiteDispatch(err) {
+		t.Fatalf("unknown host must be definite, got %v", err)
+	}
+}
