@@ -68,11 +68,11 @@ jobs:
           cp .env.example .env
           docker compose config --quiet
           docker compose up --build -d --wait backend
-          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM users')" = 6
-          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM onboarding_plans')" = 2
-          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM tasks')" = 30
+          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM users')" = 7
+          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM onboarding_plans')" = 3
+          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM tasks')" = 45
           docker compose run --rm db-init
-          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM task_status_history')" = 30
+          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM task_status_history')" = 45
           python3 - <<'PY'
           import json
           import urllib.error
@@ -122,7 +122,7 @@ jobs:
               assert json.load(response)['progress']['done'] == 1
           print('health/login/me/plan/patch=200, no-token=401, forbidden=403, stale-version=409')
           PY
-          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM task_status_history')" = 31
+          test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc 'SELECT count(*) FROM task_status_history')" = 46
           test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc "SELECT count(*) FROM events WHERE event_type='task_status_changed'")" = 1
           test "$(docker compose exec -T postgres psql -U ai_buddy -d ai_buddy -Atc "SELECT count(*) FROM events WHERE event_type='policy_denied'")" = 1
 
