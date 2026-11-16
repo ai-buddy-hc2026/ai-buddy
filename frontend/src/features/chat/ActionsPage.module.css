@@ -1,0 +1,122 @@
+.list {
+  display: grid;
+  gap: var(--theme-gap-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--theme-gap-16);
+  align-items: start;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.body {
+  display: grid;
+  gap: var(--theme-gap-8);
+  min-width: 0;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--theme-gap-8);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--theme-font-fontSize-l);
+  line-height: var(--theme-font-lineHeight-l1);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.number {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+
+.details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--theme-gap-4) var(--theme-gap-16);
+  margin: 0;
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+
+.details div {
+  display: flex;
+  gap: var(--theme-gap-4);
+  min-width: 0;
+}
+
+.details dt {
+  color: var(--text-2);
+}
+
+.details dt::after {
+  content: ':';
+}
+
+.details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.side {
+  display: grid;
+  justify-items: end;
+  gap: var(--theme-gap-4);
+}
+
+.code,
+.time {
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+  color: var(--text-2);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--theme-gap-20);
+  border-radius: var(--radius-pill);
+  background: var(--surface-inverse);
+  color: var(--text-inverse);
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.2s var(--ease-out);
+}
+
+.cta:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 720px) {
+  .card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .side {
+    grid-column: 1 / -1;
+    grid-auto-flow: column;
+    justify-content: start;
+    align-items: center;
+  }
+}

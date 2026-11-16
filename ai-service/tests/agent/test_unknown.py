@@ -1,6 +1,9 @@
+import pytest
+
 from app.agent.context import UserContext
 from app.agent.unknown import (
     escalation_proposal,
+    is_explicit_unknown_answer,
     unknown_answer_text,
     who_to_ask,
 )
@@ -21,6 +24,20 @@ def test_unknown_text_for_intern_has_button_hint():
 
 def test_unknown_text_for_buddy_has_no_button():
     assert "Передать наставнику" not in unknown_answer_text("buddy")
+
+
+@pytest.mark.parametrize(
+    ("answer", "expected"),
+    [
+        ("Не знаю ответа на этот вопрос.", True),
+        ("Я не могу ответить без данных из базы.", True),
+        ("В базе знаний ответа на этот вопрос нет, гадать не буду.", True),
+        ("Вот инструкция, как обновить статус задачи.", False),
+        ("I can explain the process step by step.", False),
+    ],
+)
+def test_explicit_unknown_answer_detection(answer, expected):
+    assert is_explicit_unknown_answer(answer) is expected
 
 
 def test_proposal_for_intern_trims_history():

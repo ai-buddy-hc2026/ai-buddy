@@ -11,6 +11,25 @@ CONTACTS_BY_ROLE = {
 }
 
 
+EXPLICIT_UNKNOWN_PHRASES = (
+    "не знаю",
+    "не могу ответить",
+    "не могу дать ответ",
+    "не могу предоставить ответ",
+    "в базе знаний ответа на этот вопрос нет",
+    "нет ответа на этот вопрос",
+    "i don't know",
+    "i do not know",
+    "i can't answer",
+    "i cannot answer",
+)
+
+
+def is_explicit_unknown_answer(answer: str) -> bool:
+    normalized = clean(answer, 20_000).casefold().replace("’", "'")
+    return any(phrase in normalized for phrase in EXPLICIT_UNKNOWN_PHRASES)
+
+
 def who_to_ask(role: str) -> list[str]:
     return list(CONTACTS_BY_ROLE.get(role, ["HR BP"]))
 

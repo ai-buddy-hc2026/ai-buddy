@@ -26,7 +26,7 @@ func TestCanonicalSchemas(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	doc, err := os.ReadFile("../../../docs/mcp.md")
+	doc, err := os.ReadFile("../../../docs/mcp-contract.md")
 	if err != nil {
 		t.Fatal(err)
 	}

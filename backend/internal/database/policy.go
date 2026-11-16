@@ -23,10 +23,39 @@ func planResource(actor planActor, owner string, buddy *string, assignee string)
 	return resource
 }
 
+func validPolicyEventOperation(operation policy.Operation) bool {
+	switch operation {
+	case policy.GetPlan, policy.UpdateStatus, policy.CreateChat, policy.ReadChat,
+		policy.GetManager, policy.GetAbsencePolicy, policy.ListAbsences,
+		policy.CreateAbsence, policy.CreateEscalation, policy.AnswerEscalation,
+		policy.SearchKnowledge, policy.ListBuddyInterns, policy.ListActions:
+		return true
+	default:
+		return false
+	}
+}
+
+func validPolicyEventReason(reason string) bool {
+	switch reason {
+	case "invalid_actor", "role_denied", "team_denied",
+		"owner_or_assignment_denied", "assignee_denied", "owner_denied",
+		"assignment_denied", "operation_denied", "resource_unavailable",
+		"action_unavailable", "confirmation_required", "buddy_unavailable",
+		"source_unavailable", "context_unavailable", "assignment_changed",
+		"conversation_unavailable":
+		return true
+	default:
+		return false
+	}
+}
+
 // denyPolicy откатывает операцию и сохраняет отказ отдельной транзакцией.
 // Чужие и непроверенные ID объектов не попадают ни в FK, ни в payload.
 func denyPolicy(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, actor planActor, operation policy.Operation, reason string, denied error) error {
 	rollbackOnboarding(tx)
+	if !validPolicyEventOperation(operation) || !validPolicyEventReason(reason) {
+		return fmt.Errorf("invalid policy denial event operation or reason")
+	}
 	auditCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
 	payload, err := json.Marshal(map[string]string{"operation": string(operation), "reason": reason})

@@ -1,0 +1,176 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--theme-gap-16);
+  align-items: start;
+}
+
+.sceneCard {
+  grid-column: span 8;
+  grid-row: span 2;
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+.greeter,
+.bring {
+  grid-column: span 4;
+  display: grid;
+  gap: var(--theme-gap-10);
+}
+.reminder {
+  grid-column: span 12;
+  display: grid;
+  gap: var(--theme-gap-10);
+}
+
+.title {
+  font-size: var(--theme-font-fontSize-xl);
+  line-height: var(--theme-font-lineHeight-xl);
+}
+
+/* ---------- Сцена и шаги ---------- */
+.sceneWrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--theme-gap-16);
+}
+.scene {
+  width: 100%;
+  max-width: 400px;
+}
+.mark {
+  transition: transform 0.2s var(--ease-out);
+}
+.markActive {
+  transform: scale(1.3);
+  transition: transform 0.2s var(--ease-out);
+}
+.markDot {
+  fill: var(--surface-inverse);
+  stroke: var(--surface-card);
+  stroke-width: 2;
+}
+.markActive .markDot {
+  fill: var(--brand-red);
+}
+.markText {
+  fill: var(--text-inverse);
+  font-size: var(--theme-font-fontSize-s);
+  font-weight: 800;
+}
+
+.steps {
+  display: grid;
+  gap: var(--theme-gap-4);
+}
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--theme-gap-10);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--theme-gap-8) var(--theme-gap-10);
+  border-radius: var(--radius-inner);
+  text-align: left;
+  transition: var(--theme-animation-transition-control-hover);
+}
+.step:hover,
+.step[aria-pressed='true'] {
+  background: var(--surface-sunken);
+}
+.step:active {
+  transform: scale(0.98);
+}
+.stepNum {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--surface-inverse);
+  color: var(--text-inverse);
+  font-weight: 800;
+  font-size: var(--theme-font-fontSize-xs);
+}
+.step[aria-pressed='true'] .stepNum {
+  background: var(--brand-red);
+}
+.stepBody {
+  display: grid;
+  gap: var(--theme-gap-2);
+  min-width: 0;
+}
+
+/* ---------- Встречающий ---------- */
+.person {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-12);
+}
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Что взять ---------- */
+.bringList {
+  display: grid;
+  gap: var(--theme-gap-4);
+}
+.bringItem {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-10);
+  min-height: 44px;
+}
+.bringTitle {
+  flex: 1;
+  min-width: 0;
+}
+.bringItem[data-checked='true'] .bringTitle {
+  color: var(--text-2);
+  text-decoration: line-through;
+}
+
+/* ---------- Напоминание ---------- */
+.message {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--theme-gap-10);
+}
+.bubble {
+  max-width: 60ch;
+  padding: var(--theme-gap-12) var(--theme-gap-16);
+  border-radius: var(--theme-borderRadius-xl);
+  background: var(--tint-green);
+}
+
+@media (max-width: 1000px) {
+  .sceneCard {
+    grid-column: span 12;
+    grid-row: auto;
+  }
+  .greeter,
+  .bring {
+    grid-column: span 6;
+  }
+}
+
+@media (max-width: 720px) {
+  .greeter,
+  .bring {
+    grid-column: span 12;
+  }
+  .sceneWrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .scene {
+    justify-self: center;
+  }
+}

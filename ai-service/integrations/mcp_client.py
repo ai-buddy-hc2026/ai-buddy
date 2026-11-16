@@ -79,6 +79,32 @@ class GenerationMCPClient:
             "Accept": "application/json, text/event-stream",
         }
 
+    async def authorize_knowledge(self) -> dict[str, str]:
+        """Получить актуальную область поиска у Go для одной операции RAG."""
+        try:
+            async with httpx2.AsyncClient(
+                headers=self._build_headers(),
+                timeout=self._compute_call_timeout(),
+            ) as client:
+                response = await client.post(
+                    self.server_url.rstrip("/") + "/knowledge-scope",
+                )
+                response.raise_for_status()
+                scope = response.json()
+        except httpx2.HTTPStatusError as exc:
+            raise self._http_error(exc) from exc
+        except (httpx2.RequestError, ValueError) as exc:
+            raise MCPContractError(
+                "CONTEXT_UNAVAILABLE",
+                "Не удалось проверить доступ к KB",
+            ) from exc
+        if not isinstance(scope, dict) or not all(
+            isinstance(scope.get(key), str) and scope[key]
+            for key in ("user_id", "team_id", "role")
+        ):
+            raise MCPContractError("INVALID_CONTEXT", "Некорректная область KB")
+        return scope
+
     @staticmethod
     def _http_error(exc: httpx2.HTTPStatusError) -> MCPContractError:
         status = exc.response.status_code

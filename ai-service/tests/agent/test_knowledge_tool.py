@@ -85,14 +85,26 @@ FOUND = {
             "doc_title": "Code review в команде",
             "section": "Как проходит ревью",
             "text": "t",
-            "source": "seed",
+            "source": {
+                "document_id": "40000000-0000-0000-0000-000000000001",
+                "revision": 1,
+                "title": "Code review в команде",
+                "section": "Как проходит ревью",
+                "url": "kb/02-code-review",
+            },
         },
         {
             "id": 2,
             "doc_title": "Первый pull request",
             "section": "Ревью",
             "text": "t",
-            "source": "seed",
+            "source": {
+                "document_id": "40000000-0000-0000-0000-000000000002",
+                "revision": 3,
+                "title": "Первый pull request",
+                "section": "Ревью",
+                "url": "kb/07-first-pr",
+            },
         },
     ],
 }
@@ -101,16 +113,17 @@ FOUND = {
 def test_citations_extracted_and_stripped():
     text, src = extract_citations("Ревью идёт через PR.\n[источники: 2, 1, 2, 9]", FOUND)
     assert text == "Ревью идёт через PR."
-    assert [s["doc_title"] for s in src] == [
+    assert [s["title"] for s in src] == [
         "Первый pull request",
         "Code review в команде",
     ]
-    assert src[0]["label"] == "Первый pull request / Ревью"
+    assert src[0]["revision"] == 3
+    assert src[0]["url"] == "kb/07-first-pr"
 
 
 def test_citations_fallback_to_top_result():
     _, src = extract_citations("Ответ без ссылок", FOUND)
-    assert [s["doc_title"] for s in src] == ["Code review в команде"]
+    assert [s["title"] for s in src] == ["Code review в команде"]
 
 
 def test_no_sources_when_no_answer():

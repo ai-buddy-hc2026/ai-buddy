@@ -246,6 +246,14 @@ func TestAbsenceConfirmationFailureAndRetry(t *testing.T) {
 	if _, err := callAction(s, requestID, policy.CreateAbsence, actionID); !errors.Is(err, tools.ErrUnavailable) {
 		t.Fatal(err)
 	}
+	var failureKey string
+	var failurePayload map[string]any
+	if err := s.pool.QueryRow(ctx, `SELECT dedup_key,payload FROM events WHERE action_id=$1 AND event_type='action_failed'`, actionID).Scan(&failureKey, &failurePayload); err != nil {
+		t.Fatal(err)
+	}
+	if failureKey != fmt.Sprintf("action:%s:attempt:1:failed", actionID) || failurePayload["attempt"] != float64(1) || failurePayload["status"] != "failed" {
+		t.Fatalf("failure event mismatch: key=%q payload=%v", failureKey, failurePayload)
+	}
 	var status, key string
 	var count, attempts int
 	if err := s.pool.QueryRow(ctx, `SELECT status,idempotency_key::text,attempt_count,(SELECT count(*) FROM absence_requests) FROM actions_log WHERE id=$1`, actionID).Scan(&status, &key, &attempts, &count); err != nil || status != "failed" || attempts != 1 || count != 0 {

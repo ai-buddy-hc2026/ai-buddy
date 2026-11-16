@@ -3,12 +3,19 @@ name: Frontend CI
 on:
   push:
     branches:
-        - main
-        - master
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service-*'
+      - main
+      - master
   pull_request:
-    branches: 
-        - main
-        - master
+    branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service'
+      - 'ai-service-*'
+      - main
+      - master
 
 defaults:
   run:
@@ -42,6 +49,16 @@ jobs:
 
       - name: Run Typecheck (TypeScript)
         run: npm run typecheck
+
+      - name: Test coverage
+        run: npm run test:coverage
+
+      - name: Upload TypeScript coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: typescript-coverage
+          path: coverage/typescript
+          if-no-files-found: error
 
       - name: Build frontend
         run: npm run build

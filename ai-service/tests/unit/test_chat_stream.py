@@ -1,9 +1,12 @@
 import asyncio
 import json
+from unittest.mock import AsyncMock
 from uuid import UUID
 
+import httpx
 import pytest
 import redis.asyncio as aioredis
+from openai import APIStatusError
 
 from api.v1.chat import pubsub_publish
 from config import get_settings
@@ -66,7 +69,13 @@ async def test_pubsub_publish_streams_tokens_and_done(
     chat_request: ChatRequest,
     redis_client: aioredis.Redis,
     ai_service: AIService,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    async def stream_tokens(_messages, _tools):
+        yield {"type": "token", "text": "Детерминированный "}
+        yield {"type": "token", "text": "ответ."}
+
+    monkeypatch.setattr(ai_service, "stream_step", stream_tokens)
     events = await _run_and_read_events(chat_request, ai_service, redis_client)
 
     token_events = events[:-1]
@@ -75,7 +84,12 @@ async def test_pubsub_publish_streams_tokens_and_done(
     assert [event["seq"] for event in events] == list(range(1, len(events) + 1))
     assert events[-1]["event"] == "done"
     token_text = "".join(event["data"]["text"] for event in token_events)
-    assert events[-1]["data"] == {"full_text": token_text, "sources": []}
+    assert events[-1]["data"] == {
+        "full_text": token_text,
+        "sources": [],
+        "answer_status": "answered",
+        "question_category": "other",
+    }
     assert all(event["request_id"] == str(REQUEST_ID) for event in events)
     state = await redis_client.get(f"chat:{REQUEST_ID}")
     assert state is not None
@@ -87,11 +101,24 @@ async def test_pubsub_publish_streams_tokens_and_done(
 async def test_pubsub_publish_emits_error_when_generation_fails(
     chat_request: ChatRequest,
     redis_client: aioredis.Redis,
+    ai_service: AIService,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = get_settings()
-    monkeypatch.setattr(settings, "LLM_MODEL", "missing-ai-buddy-test-model")
-    ai_service = AIService()
+    response = httpx.Response(
+        404,
+        request=httpx.Request("POST", "https://llm.invalid/v1/chat/completions"),
+    )
+    monkeypatch.setattr(
+        ai_service.llm_client.chat.completions,
+        "create",
+        AsyncMock(
+            side_effect=APIStatusError(
+                "synthetic missing model",
+                response=response,
+                body={"error": {"code": "model_not_found"}},
+            ),
+        ),
+    )
 
     events = await _run_and_read_events(chat_request, ai_service, redis_client)
 

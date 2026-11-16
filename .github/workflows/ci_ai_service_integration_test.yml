@@ -2,11 +2,17 @@ name: ai-service integration tests
 on:
   push:
     branches:
+      - 'codex/**'
+      - 'feat/**'
+      - 'ai-service-*'
       - main
       - master
   pull_request:
     branches:
+      - 'codex/**'
       - 'feat/**'
+      - 'ai-service'
+      - 'ai-service-*'
       - main
       - master
 jobs:

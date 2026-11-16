@@ -1,13 +1,16 @@
-import numpy as np
-
 from app.rag.mentor_chunker import chunk_mentor_response
+
+
+class Vector(list):
+    def tolist(self):
+        return list(self)
 
 
 class MockEmbedder:
     def encode(self, texts, normalize_embeddings=True, **kwargs):
         if isinstance(texts, str):
             texts = [texts]
-        return np.zeros((len(texts), 768), dtype=np.float32)
+        return [Vector([0.0] * 768) for _ in texts]
 
 
 def test_chunking_basic():

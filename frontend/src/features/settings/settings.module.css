@@ -1,0 +1,55 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--theme-gap-16);
+  align-items: start;
+}
+
+.card {
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+.field {
+  display: grid;
+  gap: var(--theme-gap-8);
+}
+
+.fieldLabel {
+  font-weight: 700;
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+
+.hours {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--theme-gap-12);
+}
+
+.demoHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.demoArt {
+  width: 72px;
+  height: auto;
+}
+
+.reset {
+  padding-top: var(--theme-gap-8);
+}
+
+@media (max-width: 1000px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .reset > button {
+    width: 100%;
+  }
+}

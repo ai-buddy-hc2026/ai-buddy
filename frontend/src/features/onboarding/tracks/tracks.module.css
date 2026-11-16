@@ -1,0 +1,307 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--theme-gap-16);
+  align-items: start;
+}
+
+.hero {
+  grid-column: span 7;
+  position: relative;
+  display: grid;
+  gap: var(--theme-gap-12);
+  min-height: 280px;
+  overflow: hidden;
+}
+.badges {
+  grid-column: span 5;
+  display: grid;
+  gap: var(--theme-gap-8);
+}
+.routeCard {
+  grid-column: span 8;
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+.catalog {
+  grid-column: span 4;
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+.cardTitle {
+  font-size: var(--theme-font-fontSize-xl);
+  line-height: var(--theme-font-lineHeight-xl);
+}
+
+.bigNumber {
+  font-weight: 700;
+  font-size: var(--theme-font-fontSize-l);
+  line-height: var(--theme-font-lineHeight-l1);
+}
+.bigNumber b {
+  font-size: var(--theme-font-fontSize-xxxl);
+  line-height: var(--theme-font-lineHeight-xxxl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.next {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: var(--theme-gap-4);
+  max-width: 60%;
+}
+.nextTitle {
+  font-size: var(--theme-font-fontSize-xxl);
+  line-height: var(--theme-font-lineHeight-xxl);
+}
+.nextActions {
+  margin-top: var(--theme-gap-8);
+}
+.heroArt {
+  position: absolute;
+  right: var(--theme-gap-16);
+  bottom: var(--theme-gap-8);
+  width: 180px;
+}
+
+/* ---------- Бейджи ---------- */
+.badgeList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: var(--theme-gap-8);
+}
+.badge {
+  display: grid;
+  justify-items: center;
+  gap: var(--theme-gap-4);
+  padding: var(--theme-gap-12) var(--theme-gap-8);
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+  text-align: center;
+  transition: transform 0.2s var(--ease-out);
+}
+.badge[data-earned='true']:hover {
+  transform: translateY(-2px);
+}
+.badge[data-earned='false'] .badgeArt {
+  opacity: 0.55;
+}
+.badgeArt {
+  width: 72px;
+}
+.badgeTitle {
+  font-weight: 700;
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s2);
+}
+.badgeState {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--theme-gap-4);
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-xs);
+  line-height: var(--theme-font-lineHeight-xs);
+}
+.badge[data-earned='true'] .badgeState {
+  color: var(--theme-semantics-text-success);
+}
+
+/* ---------- Маршрут ---------- */
+.route {
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+.routeItem {
+  display: grid;
+  gap: var(--theme-gap-10);
+  padding: var(--theme-gap-16);
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+  transition:
+    transform 0.2s var(--ease-out),
+    opacity 0.2s var(--ease-out);
+}
+.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+.routeHead {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-10);
+  min-width: 0;
+}
+.dragHandle {
+  color: var(--text-2);
+  cursor: grab;
+}
+.routeMark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  color: var(--theme-palette-gray92);
+  font-weight: 800;
+  font-size: var(--theme-font-fontSize-s);
+}
+.routeTitle {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+.routeTitle h3 {
+  font-size: var(--theme-font-fontSize-l);
+  line-height: var(--theme-font-lineHeight-l2);
+  overflow-wrap: anywhere;
+}
+.routeControls {
+  display: flex;
+  gap: var(--theme-gap-2);
+}
+
+.modules {
+  display: grid;
+  gap: var(--theme-gap-4);
+}
+.module {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--theme-gap-10);
+  padding: var(--theme-gap-8) 0;
+}
+.moduleMark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  margin-top: var(--theme-gap-2);
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--line-strong);
+  color: var(--theme-semantics-text-success);
+}
+.moduleClosed .moduleMark {
+  border-color: var(--theme-semantics-text-success);
+}
+.moduleClosed .moduleTitle {
+  color: var(--text-2);
+}
+.moduleBody {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: var(--theme-gap-2);
+}
+.moduleTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--theme-gap-6);
+  font-weight: 700;
+}
+.moduleMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--theme-gap-4);
+  color: var(--text-2);
+  font-size: var(--theme-font-fontSize-s);
+  line-height: var(--theme-font-lineHeight-s1);
+}
+.moduleActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--theme-gap-6);
+}
+
+/* ---------- Каталог ---------- */
+.catalogList {
+  display: grid;
+}
+.catalogDot {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: var(--radius-pill);
+}
+
+/* ---------- Тест ---------- */
+.quiz {
+  display: grid;
+  gap: var(--theme-gap-16);
+  margin-top: var(--theme-gap-12);
+}
+.question {
+  display: grid;
+  gap: var(--theme-gap-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.questionText {
+  margin-bottom: var(--theme-gap-6);
+  font-weight: 700;
+}
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-gap-10);
+  min-height: 44px;
+  padding: 0 var(--theme-gap-12);
+  border-radius: var(--theme-borderRadius-m);
+  background: var(--surface-sunken);
+  cursor: pointer;
+  transition: var(--theme-animation-transition-control-hover);
+}
+.option:hover {
+  background: var(--hover);
+}
+.option input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--surface-inverse);
+}
+
+@media (max-width: 1000px) {
+  .hero,
+  .badges,
+  .routeCard,
+  .catalog {
+    grid-column: span 12;
+  }
+}
+
+@media (max-width: 720px) {
+  .next {
+    max-width: none;
+  }
+  .heroArt {
+    width: 110px;
+    opacity: 0.5;
+  }
+  .module {
+    flex-wrap: wrap;
+  }
+  .moduleActions {
+    width: 100%;
+    justify-content: flex-start;
+    padding-left: calc(24px + var(--theme-gap-10));
+  }
+  .dragHandle {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .touch {
+    min-height: 44px;
+  }
+}

@@ -1,0 +1,112 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--theme-gap-16);
+  align-items: start;
+}
+
+.hero {
+  grid-column: span 12;
+  position: relative;
+  display: grid;
+  gap: var(--theme-gap-12);
+  min-height: 260px;
+  padding-right: 240px;
+  overflow: hidden;
+}
+.list {
+  grid-column: span 7;
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+.soft {
+  grid-column: span 5;
+  display: grid;
+  gap: var(--theme-gap-12);
+}
+
+.heroTitle {
+  font-size: var(--theme-font-fontSize-xxxl);
+  line-height: var(--theme-font-lineHeight-xxxl);
+  letter-spacing: -0.03em;
+}
+.heroMeta {
+  max-width: 48ch;
+  font-size: var(--theme-font-fontSize-l);
+  line-height: var(--theme-font-lineHeight-l1);
+}
+.heroArt {
+  position: absolute;
+  right: var(--theme-gap-32);
+  bottom: var(--theme-gap-16);
+  width: 200px;
+}
+
+.cardTitle {
+  font-size: var(--theme-font-fontSize-xl);
+  line-height: var(--theme-font-lineHeight-xl);
+}
+
+.items {
+  display: grid;
+  gap: var(--theme-gap-8);
+}
+.item {
+  display: grid;
+  gap: var(--theme-gap-8);
+  padding: var(--theme-gap-16);
+  border-radius: var(--radius-inner);
+  background: var(--surface-sunken);
+}
+.itemHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--theme-gap-8);
+}
+.itemTitle {
+  font-size: var(--theme-font-fontSize-m);
+  line-height: var(--theme-font-lineHeight-m2);
+}
+.itemFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--theme-gap-8);
+}
+
+.dialog {
+  display: grid;
+  gap: var(--theme-gap-10);
+}
+.dialogTitle {
+  font-weight: 800;
+  font-size: var(--theme-font-fontSize-xl);
+  line-height: var(--theme-font-lineHeight-xl);
+}
+
+@media (max-width: 1000px) {
+  .list,
+  .soft {
+    grid-column: span 12;
+  }
+}
+
+@media (max-width: 720px) {
+  .hero {
+    padding-right: var(--theme-gap-20);
+  }
+  .heroArt {
+    width: 110px;
+    right: var(--theme-gap-12);
+    opacity: 0.4;
+  }
+  .heroTitle {
+    font-size: var(--theme-font-fontSize-xxl);
+    line-height: var(--theme-font-lineHeight-xxl);
+  }
+  .touch {
+    min-height: 44px;
+  }
+}

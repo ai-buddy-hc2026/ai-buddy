@@ -62,7 +62,8 @@ func (s *Tools) createEscalation(ctx context.Context, tx pgx.Tx, actor planActor
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO events(team_id,actor_id,request_id,action_id,event_type,dedup_key)
- VALUES($1,$2,$3,$4,'escalation_created',$5)`, actor.teamID, actor.id, requestID, actionID, "escalation:"+result.ID+":created")
+	payload, _ := json.Marshal(map[string]string{"escalation_id": result.ID, "buddy_id": result.BuddyID, "status": result.Status})
+	_, err = tx.Exec(ctx, `INSERT INTO events(team_id,actor_id,request_id,action_id,event_type,dedup_key,payload)
+		VALUES($1,$2,$3,$4,'escalation_created',$5,$6)`, actor.teamID, actor.id, requestID, actionID, "escalation:"+result.ID+":created", payload)
 	return result, err
 }

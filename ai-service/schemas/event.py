@@ -52,6 +52,8 @@ class Source(BaseModel):
 class DoneData(BaseModel):
     full_text: str = Field(max_length=20_000)
     sources: list[Source]
+    answer_status: Literal["answered", "unknown"]
+    question_category: Literal["task", "process", "access", "technical", "other"]
 
 
 class DoneEvent(BaseModel):

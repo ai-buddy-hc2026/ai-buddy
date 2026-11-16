@@ -106,6 +106,7 @@ func run() error {
 		}
 		mux := http.NewServeMux()
 		mux.Handle("/mcp", toolsHandler)
+		mux.Handle("/mcp/knowledge-scope", mcpserver.KnowledgeScope(toolStore, mcpCfg.Token))
 		mux.Handle("/", handler)
 		handler = mux
 	}

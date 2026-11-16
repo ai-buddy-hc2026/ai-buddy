@@ -25,5 +25,5 @@ def get_settings() -> RagSettings:
         min_score=float(os.getenv("KB_MIN_SCORE", "0.80")),
         chunk_max_chars=int(os.getenv("KB_CHUNK_MAX_CHARS", "800")),
         chunk_overlap=int(os.getenv("KB_CHUNK_OVERLAP", "80")),
-        database_url=os.getenv("DATABASE_URL", ""),
+        database_url=os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL", ""),
     )

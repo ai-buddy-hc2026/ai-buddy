@@ -1,0 +1,90 @@
+.scene {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.scene polygon {
+  stroke: var(--iso-stroke);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  transition: fill 0.25s ease-out;
+}
+
+.ground {
+  fill: var(--iso-ground);
+}
+.groundEdge {
+  fill: var(--iso-ground-edge);
+}
+.plot {
+  fill: var(--iso-plot);
+}
+.window {
+  fill: var(--iso-window);
+  opacity: 0.55;
+  stroke: none !important;
+}
+.shadow {
+  fill: var(--iso-shade);
+  opacity: 0.08;
+  stroke: none !important;
+}
+.ink {
+  stroke: var(--iso-ink);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+/* Дом «вырастает» при первом показе и когда задача закрыта */
+@keyframes grow {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.building {
+  animation: grow 0.6s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.building.clickable {
+  cursor: pointer;
+}
+.building.clickable:hover polygon {
+  filter: brightness(1.08);
+}
+.building.clickable:focus-visible {
+  box-shadow: none;
+}
+.building.clickable:focus-visible polygon {
+  stroke: var(--theme-semantics-border-focused);
+  stroke-width: 2.5;
+}
+
+@keyframes wave {
+  50% {
+    transform: skewY(-8deg);
+  }
+}
+.flag {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: wave 2.4s ease-in-out infinite;
+}
+
+@keyframes float {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.float {
+  animation: float 4s ease-in-out infinite;
+}

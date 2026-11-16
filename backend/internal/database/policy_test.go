@@ -12,6 +12,39 @@ import (
 	"github.com/ai-buddy-hc2026/ai-buddy/backend/internal/policy"
 )
 
+func TestPolicyEventCatalogValues(t *testing.T) {
+	operations := []policy.Operation{
+		policy.GetPlan, policy.UpdateStatus, policy.CreateChat, policy.ReadChat,
+		policy.GetManager, policy.GetAbsencePolicy, policy.ListAbsences,
+		policy.CreateAbsence, policy.CreateEscalation, policy.AnswerEscalation,
+		policy.SearchKnowledge, policy.ListBuddyInterns, policy.ListActions,
+	}
+	for _, operation := range operations {
+		if !validPolicyEventOperation(operation) {
+			t.Errorf("operation %q is missing from events catalog", operation)
+		}
+	}
+	if validPolicyEventOperation("unknown.operation") {
+		t.Fatal("unknown operation accepted")
+	}
+
+	reasons := []string{
+		"invalid_actor", "role_denied", "team_denied", "owner_or_assignment_denied",
+		"assignee_denied", "owner_denied", "assignment_denied", "operation_denied",
+		"resource_unavailable", "action_unavailable", "confirmation_required",
+		"buddy_unavailable", "source_unavailable", "context_unavailable",
+		"assignment_changed", "conversation_unavailable",
+	}
+	for _, reason := range reasons {
+		if !validPolicyEventReason(reason) {
+			t.Errorf("reason %q is missing from events catalog", reason)
+		}
+	}
+	if validPolicyEventReason("unknown_reason") {
+		t.Fatal("unknown reason accepted")
+	}
+}
+
 func TestPolicyDenialsPersistWithoutForeignData(t *testing.T) {
 	store, handler, tokens := onboardingHandler(t)
 	ctx := context.Background()
