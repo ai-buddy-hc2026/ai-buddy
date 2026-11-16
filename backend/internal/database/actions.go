@@ -104,11 +104,21 @@ func (s *Tools) ProcessEvent(ctx context.Context, requestID string, event chat.E
 		return event, chat.ErrInvalid
 	}
 	operation := policy.Operation(input.ActionType)
-	if operation != policy.CreateAbsence && operation != policy.UpdateStatus {
-		return event, chat.ErrInvalid
-	}
-	var args any
-	if json.Unmarshal(input.Details, &args) != nil || toolcontract.Validate(toolcontract.Input(input.ActionType), args) != nil {
+	var escalationInput escalationProposal
+	switch operation {
+	case policy.CreateAbsence, policy.UpdateStatus:
+		var args any
+		if json.Unmarshal(input.Details, &args) != nil || toolcontract.Validate(toolcontract.Input(input.ActionType), args) != nil {
+			return event, chat.ErrInvalid
+		}
+	case policy.CreateEscalation:
+		// S-5: Python передает только вопрос, наставника и контекст Go выбирает сам.
+		proposal, err := decodeEscalationProposal(input.Details)
+		if err != nil {
+			return event, chat.ErrInvalid
+		}
+		escalationInput = proposal
+	default:
 		return event, chat.ErrInvalid
 	}
 	tx, err := s.pool.Begin(ctx)
@@ -130,14 +140,7 @@ func (s *Tools) ProcessEvent(ctx context.Context, requestID string, event chat.E
 	var existingParameters json.RawMessage
 	err = tx.QueryRow(ctx, `SELECT id::text,action_type,parameters FROM actions_log WHERE request_id=$1 AND proposal_seq=$2 AND actor_id=$3`, requestID, event.Seq, actor.id).Scan(&existingID, &existingType, &existingParameters)
 	if err == nil {
-		var saved, incoming map[string]any
-		if json.Unmarshal(existingParameters, &saved) != nil || json.Unmarshal(input.Details, &incoming) != nil {
-			return event, chat.ErrInvalid
-		}
-		delete(saved, "approver")
-		savedJSON, _ := json.Marshal(saved)
-		incomingJSON, _ := json.Marshal(incoming)
-		if existingType != input.ActionType || string(savedJSON) != string(incomingJSON) {
+		if existingType != input.ActionType || !sameProposal(existingType, existingParameters, input.Details) {
 			return event, chat.ErrInvalid
 		}
 		details, _, err := actionPublicFields(existingType, existingParameters, json.RawMessage(`{}`))
@@ -150,7 +153,12 @@ func (s *Tools) ProcessEvent(ctx context.Context, requestID string, event chat.E
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return event, err
 	}
-	parameters, err := s.prepareAction(ctx, tx, actor, operation, input.Details)
+	var parameters json.RawMessage
+	if operation == policy.CreateEscalation {
+		parameters, err = s.prepareEscalation(ctx, tx, actor, requestID, escalationInput)
+	} else {
+		parameters, err = s.prepareAction(ctx, tx, actor, operation, input.Details)
+	}
 	if err != nil {
 		return event, err
 	}

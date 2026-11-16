@@ -327,6 +327,8 @@ Python предлагает действие:
 
 Схема `details` определяется контрактом конкретного инструмента. Даты передаются как `YYYY-MM-DD`, типы действий и их параметры проверяются Go.
 
+Допустимые `action_type`: `absences.create_request`, `checklist.update_status` и `escalation.create`. Для `escalation.create` (S-5) Python передаёт только `{"question": "..."}` и только для стажёра, у которого `employees.get_manager` вернул наставника. Получателя и контекст беседы Go определяет сам, подробности в [activity.md](activity.md#внутренняя-операция-escalationcreate).
+
 Порядок обработки:
 
 1. Go проверяет допустимость действия, права пользователя и параметры.

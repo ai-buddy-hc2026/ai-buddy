@@ -174,9 +174,21 @@ func actionPublicFields(kind string, parameters, result json.RawMessage) (json.R
 		}
 		output := make(map[string]json.RawMessage)
 		for _, field := range fields {
-			if value, ok := input[field]; ok {
-				output[field] = value
+			value, ok := input[field]
+			if !ok {
+				continue
 			}
+			// jsonb меняет порядок ключей во вложенных объектах; нормализуем, чтобы
+			// повтор события давал тот же JSON, что и первая выдача.
+			var normalized any
+			if err := json.Unmarshal(value, &normalized); err != nil {
+				return nil, err
+			}
+			encoded, err := json.Marshal(normalized)
+			if err != nil {
+				return nil, err
+			}
+			output[field] = encoded
 		}
 		return json.Marshal(output)
 	}

@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 import time
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
 import redis.asyncio as aioredis
@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from openai import APITimeoutError, OpenAIError
 from redis.exceptions import RedisError
 
-from app.agent.context import UserContext
+from app.agent.context import UserContext, clean
 from app.agent.knowledge_tool import MCP_NAME as KNOWLEDGE_MCP_NAME
 from app.agent.knowledge_tool import OPENAI_NAME as KNOWLEDGE_TOOL_NAME
 from app.agent.knowledge_tool import (
@@ -19,7 +19,11 @@ from app.agent.knowledge_tool import (
 )
 from app.agent.knowledge_tool import extract_citations, run_knowledge_search
 from app.agent.prompts import build_system_prompt
-from app.agent.unknown import is_explicit_unknown_answer, unknown_answer_text
+from app.agent.unknown import (
+    can_escalate,
+    is_explicit_unknown_answer,
+    unknown_answer_text,
+)
 from app.rag.ingest import ingest_published_answers
 from app.rag.runtime import ensure_kb_indexed, get_rag_resources
 from config import RouteTags
@@ -57,6 +61,9 @@ logger = logging.getLogger(__name__)
 GENERATION_TIMEOUT_SECONDS = 60.0
 MAX_TOOL_ROUNDS = 8
 MAX_RESPONSE_LENGTH = 20_000
+ESCALATION_ACTION = "escalation.create"
+ESCALATION_QUESTION_LIMIT = 1000
+MANAGER_TOOL_NAME = "employees.get_manager"
 EXPECTED_TOOL_ERRORS = {
     "CONFLICT",
     "CONFIRMATION_REQUIRED",
@@ -95,6 +102,32 @@ async def _search_knowledge(arguments: dict[str, Any], context: UserContext) -> 
             "Не удалось выполнить поиск по базе знаний",
             retryable=False,
         ) from exc
+
+
+async def _propose_escalation(
+    mcp: GenerationMCPClient,
+    context: UserContext,
+    question: str,
+    publish_proposal: Callable[[str, dict[str, Any]], Awaitable[None]],
+) -> bool:
+    """S-5: стажёру с наставником предлагаем передать вопрос.
+
+    Наставника и контекст Go выбирает сам. Сбой проверки не ломает ответ.
+    """
+    text = clean(question, ESCALATION_QUESTION_LIMIT)
+    if not can_escalate(context.role) or not text:
+        return False
+    try:
+        result = await mcp.call_tool(MANAGER_TOOL_NAME, {})
+    except MCPContractError as error:
+        logger.warning("Не удалось проверить наставника code=%s", error.code)
+        return False
+    data = result.get("data") if result.get("ok") is True else None
+    manager = data.get("manager") if isinstance(data, dict) else None
+    if not isinstance(manager, dict) or manager.get("role") != "buddy":
+        return False
+    await publish_proposal(ESCALATION_ACTION, {"question": text})
+    return True
 
 
 def _knowledge_tool() -> dict[str, Any]:
@@ -412,6 +445,16 @@ async def pubsub_publish(
                         ),
                     )
                     break
+
+            if proposal_count == 0 and (
+                answer_status == "unknown" or is_explicit_unknown_answer(full_text)
+            ):
+                await _propose_escalation(
+                    mcp,
+                    context,
+                    chat_data.message,
+                    publish_proposal,
+                )
 
     try:
         async with asyncio.timeout(max(0, deadline - time.monotonic())):
