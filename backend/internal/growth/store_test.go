@@ -44,6 +44,10 @@ func testStore(t *testing.T) *Store {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// vector ставим в public один раз, иначе DROP SCHEMA ... CASCADE удалит тип у других тестов.
+	if _, err := admin.Exec(ctx, "CREATE EXTENSION IF NOT EXISTS vector SCHEMA public"); err != nil {
+		t.Fatal(err)
+	}
 	cfg.ConnConfig.RuntimeParams["search_path"] = schema + ",public"
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
