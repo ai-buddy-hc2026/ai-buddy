@@ -1,5 +1,7 @@
 # AI-buddy
 
+> **[▶ Смотреть видеодемонстрацию проекта](https://drive.google.com/file/d/1G5mrUIZ_NSFCjFhbRadEeX4PvAk2j0q1/view?usp=sharing)**
+
 [![Go](https://github.com/ai-buddy-hc2026/ai-buddy/actions/workflows/ci_go_test.yml/badge.svg)](https://github.com/ai-buddy-hc2026/ai-buddy/actions/workflows/ci_go_test.yml)
 [![Python](https://github.com/ai-buddy-hc2026/ai-buddy/actions/workflows/ci_ai_service_test.yml/badge.svg)](https://github.com/ai-buddy-hc2026/ai-buddy/actions/workflows/ci_ai_service_test.yml)
 [![Python lint](https://github.com/ai-buddy-hc2026/ai-buddy/actions/workflows/ci_linter_ai_service_test.yml/badge.svg)](https://github.com/ai-buddy-hc2026/ai-buddy/actions/workflows/ci_linter_ai_service_test.yml)
@@ -58,8 +60,6 @@ docker compose down
 Локальный frontend без Docker работает на порту 3000; инструкции и отличие демо-режима от API: [frontend README](frontend/README.md).
 
 ## Демонстрация на 3-5 минут
-
-[Смотреть видеодемонстрацию на Google Drive](https://drive.google.com/file/d/1G5mrUIZ_NSFCjFhbRadEeX4PvAk2j0q1/view?usp=sharing).
 
 1. Войти как `intern_anya`, показать план, изменить свою задачу и перезагрузить страницу.
 2. Спросить о code review, показать постепенный ответ, источник и пометку тестовой инструкции. Предварительно дождаться индексации KB.
