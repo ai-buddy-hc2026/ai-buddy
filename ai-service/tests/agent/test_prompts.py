@@ -88,3 +88,9 @@ def test_from_payload_reads_tone_and_language():
         {"user_id": "u", "role": "intern", "tone": "formal", "language": "en"},
     )
     assert ctx.tone == "formal" and ctx.language == "en"
+
+
+def test_mentor_question_uses_manager_tool_not_next_step():
+    p = build_system_prompt(make())
+    assert "employees_get_manager" in p
+    assert "«кто мой наставник?»" in p
