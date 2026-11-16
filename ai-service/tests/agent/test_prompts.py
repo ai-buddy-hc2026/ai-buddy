@@ -57,3 +57,34 @@ def test_injection_in_name_is_flattened():
 def test_from_payload_tolerates_missing_fields():
     ctx = UserContext.from_payload({"user_id": "u", "role": "intern", "team_id": 5})
     assert ctx.team_id == "5" and ctx.next_step is None and ctx.name == ""
+
+
+def test_default_tone_and_language():
+    p = build_system_prompt(make())
+    assert "дружелюбно" in p and "на языке вопроса" in p
+
+
+def test_formal_tone_is_in_prompt():
+    p = build_system_prompt(make(tone="formal"))
+    assert "на «вы»" in p and "дружелюбно, коротко" not in p
+
+
+def test_short_tone_is_in_prompt():
+    assert "2-3 предложения" in build_system_prompt(make(tone="short"))
+
+
+def test_english_language_is_in_prompt():
+    p = build_system_prompt(make(language="en"))
+    assert "Answer in English" in p
+
+
+def test_unknown_tone_and_language_fall_back_to_default():
+    p = build_system_prompt(make(tone="pirate", language="xx"))
+    assert "дружелюбно" in p and "на языке вопроса" in p
+
+
+def test_from_payload_reads_tone_and_language():
+    ctx = UserContext.from_payload(
+        {"user_id": "u", "role": "intern", "tone": "formal", "language": "en"},
+    )
+    assert ctx.tone == "formal" and ctx.language == "en"

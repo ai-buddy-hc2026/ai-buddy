@@ -44,7 +44,7 @@ def test_seed_ingest_indexes_team_scoped_document_revisions(kb_dir, embedder):
         def active_team_ids(self):
             return self.teams
 
-        def prepare_seed_document(self, team_id, slug, title, content):
+        def prepare_seed_document(self, team_id, slug, title, content, **_meta):
             self.documents.append((team_id, slug, title, content))
             return f"{team_id}-{slug}", 2
 

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
+import { IS_MOCK } from '@/shared/api/http'
 import { createCollection, mockDelay, newId } from '@/shared/lib/storage'
+import { remoteBrag } from './growthRemote'
 
 /** Brag document (идея 29): достижения собираются сами, стажёр может добавить или удалить запись. */
 export const bragItemSchema = z.object({
@@ -48,16 +50,19 @@ export function toMarkdown(items: readonly BragItem[], owner: string): string {
 
 export const bragApi = {
   async list(): Promise<BragItem[]> {
+    if (!IS_MOCK) return remoteBrag.list()
     await mockDelay(150)
     return z.array(bragItemSchema).parse(bragDb.read())
   },
   async add(item: Omit<BragItem, 'id'>): Promise<BragItem> {
+    if (!IS_MOCK) return remoteBrag.add(item)
     await mockDelay(150)
     const created = { ...item, id: newId('brag') }
     bragDb.update((list) => [created, ...list])
     return created
   },
   async remove(id: string): Promise<void> {
+    if (!IS_MOCK) return remoteBrag.remove(id)
     await mockDelay(100)
     bragDb.update((list) => list.filter((item) => item.id !== id))
   },

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { ACTIONS_KEY, actionsApi, type ActionDraft } from '@/entities/actions'
+import { remoteEvents } from '@/entities/growthRemote'
+import { IS_MOCK } from '@/shared/api/http'
 import { createCollection, mockDelay } from '@/shared/lib/storage'
 import { assertCanJoin, joinEvent, leaveEvent } from './logic'
 
@@ -201,6 +203,7 @@ const seenDb = createCollection<string[]>('events.seen', () => [])
 export const eventsApi = {
   /** GET /events */
   async list(): Promise<EventItem[]> {
+    if (!IS_MOCK) return z.array(eventSchema).parse(await remoteEvents.list())
     await mockDelay(200)
     return z.array(eventSchema).parse(eventsDb.read())
   },
@@ -218,12 +221,15 @@ export const eventsApi = {
    * сначала проверка мест, потом отправка во внешний календарь и запись в историю действий.
    */
   async join(eventId: string, userId: string, draft: ActionDraft): Promise<void> {
+    // Реальный API сам проверяет места (409) и пишет участника текущего пользователя
+    if (!IS_MOCK) return remoteEvents.join(eventId)
     assertCanJoin(z.array(eventSchema).parse(eventsDb.read()), eventId, userId)
     await actionsApi.confirm(draft)
     eventsDb.update((events) => joinEvent(events, eventId, userId))
   },
   /** DELETE /events/{id}/attendees/{user_id} */
   async leave(eventId: string, userId: string, draft: ActionDraft): Promise<void> {
+    if (!IS_MOCK) return remoteEvents.leave(eventId)
     await actionsApi.confirm(draft)
     eventsDb.update((events) => leaveEvent(events, eventId, userId))
   },

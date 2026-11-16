@@ -20,6 +20,11 @@ var Definitions = []Definition{
 	{"absences.get_policy", "EmptyInput", "GetPolicyOutput", "Получить структурированные правила однодневного отсутствия своей команды."},
 	{"absences.create_request", "CreateAbsenceInput", "Failure", "Для заявки сформируй action_proposal с этими аргументами. Прямой вызов не создает заявку и возвращает CONFIRMATION_REQUIRED."},
 	{"absences.list_for_employee", "ListAbsencesInput", "ListAbsencesOutput", "Получить страницу заявок: назначенные стажеры для buddy, своя команда для lead."},
+	{"calendar.list_slots", "ListSlotsInput", "ListSlotsOutput", "Получить свободные приёмные часы сотрудника своей команды или HR. Без employee_code - слоты своего наставника."},
+	{"calendar.book_slot", "BookSlotInput", "Failure", "Для брони слота сформируй action_proposal с этими аргументами. Прямой вызов не бронирует и возвращает CONFIRMATION_REQUIRED."},
+	{"employees.find_owner", "FindOwnerInput", "FindOwnerOutput", "Найти, кого спросить по теме, среди своей команды и HR. Без совпадения возвращает наставника с fallback=true."},
+	{"access.request_access", "RequestAccessInput", "Failure", "Для заявки на доступ из пакета роли сформируй action_proposal с этими аргументами. Прямой вызов возвращает CONFIRMATION_REQUIRED."},
+	{"map.find_place", "FindPlaceInput", "FindPlaceOutput", "Найти место в офисе по названию или синониму: точное совпадение в match или до трех похожих в similar."},
 }
 
 var schemas = sync.OnceValues(func() (map[string]*jsonschema.Resolved, error) {

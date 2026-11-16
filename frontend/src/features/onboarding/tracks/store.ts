@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { remoteTracks } from '@/entities/growthRemote'
+import { IS_MOCK } from '@/shared/api/http'
 import { createCollection, mockDelay } from '@/shared/lib/storage'
 import { REQUIRED_TRACK_IDS } from './catalog'
 import { ensureRequired, userTracksSchema, type UserTracks } from './logic'
 
-/** Мок `user_tracks`: выбор треков и прогресс модулей (идея 45). Бэкенда пока нет, данные в localStorage. */
+/** `user_tracks`: выбор треков и прогресс модулей (идея 45). Мок - localStorage, реальный API - /growth/tracks. */
 function seedUserTracks(): UserTracks {
   const done = { status: 'done' as const, lastScore: null, lastAttempt: null }
   return {
@@ -18,12 +20,18 @@ export type TracksUpdate = (state: UserTracks) => UserTracks
 
 export const tracksApi = {
   async get(): Promise<UserTracks> {
+    if (!IS_MOCK)
+      return ensureRequired(await remoteTracks.get(userTracksSchema), REQUIRED_TRACK_IDS)
     await mockDelay(200)
     const parsed = userTracksSchema.safeParse(tracksDb.read())
     const state = parsed.success ? parsed.data : seedUserTracks()
     return ensureRequired(state, REQUIRED_TRACK_IDS)
   },
   async update(fn: TracksUpdate): Promise<UserTracks> {
+    if (!IS_MOCK) {
+      const base = ensureRequired(await remoteTracks.get(userTracksSchema), REQUIRED_TRACK_IDS)
+      return remoteTracks.save(userTracksSchema, userTracksSchema.parse(fn(base)))
+    }
     await mockDelay(120)
     const current = userTracksSchema.safeParse(tracksDb.read())
     const base = ensureRequired(

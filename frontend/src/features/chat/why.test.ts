@@ -85,6 +85,34 @@ describe('explain', () => {
     })
   })
 
+  it('takes confidence, owner and freshness of remote sources from the API', () => {
+    const why = explain(
+      bot({
+        kind: 'remote',
+        sources: [
+          {
+            docId: 'd1',
+            revision: 1,
+            title: 'Библиотека',
+            section: 'Курсы',
+            url: 'kb/13',
+            confidence: 'low',
+            reviewedAt: '2025-01-10',
+            owner: 'наставник команды',
+          },
+          { docId: 'd2', revision: 1, title: 'PR', section: '', url: 'kb/7', confidence: 'medium' },
+        ],
+        actions: [],
+      }),
+    )
+
+    expect(why?.confidence).toBe('medium')
+    expect(why?.sources).toEqual([
+      { title: 'Библиотека', detail: 'Курсы, наставник команды', isStale: true },
+      { title: 'PR', detail: null, isStale: false },
+    ])
+  })
+
   it('handles remote answers without tools and actions', () => {
     const why = explain(bot({ kind: 'remote', sources: [], actions: [] }))
 

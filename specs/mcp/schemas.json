@@ -611,6 +611,427 @@
         }
       ],
       "type": "object"
+    },
+    "Code": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+    },
+    "ListSlotsInput": {
+      "type": "object",
+      "properties": {
+        "employee_code": {
+          "$ref": "#/$defs/Code"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "SlotHost": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/Code"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "title"
+      ],
+      "additionalProperties": false
+    },
+    "Slot": {
+      "type": "object",
+      "properties": {
+        "slot_id": {
+          "$ref": "#/$defs/UUID"
+        },
+        "starts_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "minutes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "slot_id",
+        "starts_at",
+        "minutes"
+      ],
+      "additionalProperties": false
+    },
+    "ListSlotsData": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "$ref": "#/$defs/SlotHost"
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Slot"
+          }
+        }
+      },
+      "required": [
+        "host",
+        "slots"
+      ],
+      "additionalProperties": false
+    },
+    "BookSlotInput": {
+      "type": "object",
+      "properties": {
+        "slot_id": {
+          "$ref": "#/$defs/UUID"
+        },
+        "topic": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "slot_id"
+      ],
+      "additionalProperties": false
+    },
+    "BookSlotData": {
+      "type": "object",
+      "properties": {
+        "action_id": {
+          "$ref": "#/$defs/UUID"
+        },
+        "booking_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "slot_id": {
+          "$ref": "#/$defs/UUID"
+        },
+        "host_code": {
+          "$ref": "#/$defs/Code"
+        },
+        "starts_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      },
+      "required": [
+        "action_id",
+        "booking_id",
+        "slot_id",
+        "host_code",
+        "starts_at"
+      ],
+      "additionalProperties": false
+    },
+    "FindOwnerInput": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "topic"
+      ],
+      "additionalProperties": false
+    },
+    "Owner": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/Code"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ask_about": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "title",
+        "ask_about"
+      ],
+      "additionalProperties": false
+    },
+    "FindOwnerData": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Owner"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "matched_tag": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fallback": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "owner",
+        "matched_tag",
+        "fallback"
+      ],
+      "additionalProperties": false
+    },
+    "RequestAccessInput": {
+      "type": "object",
+      "properties": {
+        "system": {
+          "$ref": "#/$defs/Code"
+        }
+      },
+      "required": [
+        "system"
+      ],
+      "additionalProperties": false
+    },
+    "AccessStatus": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "granted"
+      ]
+    },
+    "RequestAccessData": {
+      "type": "object",
+      "properties": {
+        "action_id": {
+          "$ref": "#/$defs/UUID"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "system": {
+          "$ref": "#/$defs/Code"
+        },
+        "status": {
+          "$ref": "#/$defs/AccessStatus"
+        },
+        "ready_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "action_id",
+        "request_id",
+        "system",
+        "status",
+        "ready_at"
+      ],
+      "additionalProperties": false
+    },
+    "FindPlaceInput": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "Place": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Code"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "desk",
+            "kitchen",
+            "room",
+            "lift",
+            "medical"
+          ]
+        },
+        "floor": {
+          "type": "integer"
+        },
+        "node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "employee_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Code"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "floor",
+        "node_id",
+        "employee_code"
+      ],
+      "additionalProperties": false
+    },
+    "FindPlaceData": {
+      "type": "object",
+      "properties": {
+        "match": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Place"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "similar": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/Place"
+          }
+        }
+      },
+      "required": [
+        "match",
+        "similar"
+      ],
+      "additionalProperties": false
+    },
+    "ListSlotsSuccess": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "data": {
+          "$ref": "#/$defs/ListSlotsData"
+        }
+      },
+      "required": [
+        "ok",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "ListSlotsOutput": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ListSlotsSuccess"
+        },
+        {
+          "$ref": "#/$defs/Failure"
+        }
+      ],
+      "type": "object"
+    },
+    "FindOwnerSuccess": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "data": {
+          "$ref": "#/$defs/FindOwnerData"
+        }
+      },
+      "required": [
+        "ok",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "FindOwnerOutput": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/FindOwnerSuccess"
+        },
+        {
+          "$ref": "#/$defs/Failure"
+        }
+      ],
+      "type": "object"
+    },
+    "FindPlaceSuccess": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "data": {
+          "$ref": "#/$defs/FindPlaceData"
+        }
+      },
+      "required": [
+        "ok",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "FindPlaceOutput": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/FindPlaceSuccess"
+        },
+        {
+          "$ref": "#/$defs/Failure"
+        }
+      ],
+      "type": "object"
     }
   }
 }

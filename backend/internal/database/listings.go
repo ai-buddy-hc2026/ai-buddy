@@ -161,11 +161,15 @@ func actionPublicFields(kind string, parameters, result json.RawMessage) (json.R
 		"absences.create_request": {"date", "type", "approver"},
 		"checklist.update_status": {"task_id", "status", "version"},
 		"escalation.create":       {"buddy_id", "question", "context_snapshot"},
+		"calendar.book_slot":      {"slot_id", "topic"},
+		"access.request_access":   {"system"},
 	}
 	resultAllowed := map[string][]string{
 		"absences.create_request": {"action_id", "external_id", "status", "approver"},
 		"checklist.update_status": {"task_id", "old_status", "status", "version", "updated_at"},
 		"escalation.create":       {"id", "status", "buddy_id"},
+		"calendar.book_slot":      {"action_id", "booking_id", "slot_id", "host_code", "starts_at"},
+		"access.request_access":   {"action_id", "request_id", "system", "status", "ready_at"},
 	}
 	filter := func(raw json.RawMessage, fields []string) (json.RawMessage, error) {
 		var input map[string]json.RawMessage

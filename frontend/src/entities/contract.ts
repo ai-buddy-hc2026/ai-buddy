@@ -97,6 +97,11 @@ export const apiSourceSchema = z.object({
   title: z.string(),
   section: z.string(),
   url: z.string(),
+  // Необязательные поля качества ответа (идеи 32, 35)
+  quote: z.string().nullish(),
+  confidence: z.enum(['high', 'medium', 'low']).nullish(),
+  reviewed_at: z.string().nullish(),
+  owner: z.string().nullish(),
 })
 export type ApiSource = z.infer<typeof apiSourceSchema>
 
@@ -110,6 +115,8 @@ export const actionTypeSchema = z.enum([
   'absences.create_request',
   'escalation.create',
   'checklist.update_status',
+  'calendar.book_slot',
+  'access.request_access',
 ])
 export type ActionType = z.infer<typeof actionTypeSchema>
 

@@ -31,7 +31,7 @@ func (s *Knowledge) Search(ctx context.Context, actorID, query string) (knowledg
 	if reason := policy.Check(actor.policyActor(), policy.SearchKnowledge, policy.Resource{TeamID: actor.teamID}); reason != "" {
 		return result, denyPolicy(ctx, s.pool, tx, actor, policy.SearchKnowledge, reason, knowledge.ErrDenied)
 	}
-	rows, err := tx.Query(ctx, `SELECT id::text,revision,title,content,slug FROM kb_documents
+	rows, err := tx.Query(ctx, `SELECT id::text,revision,title,content,slug,to_char(reviewed_at,'YYYY-MM-DD'),owner FROM kb_documents
 	WHERE team_id=$1 AND status='published' AND index_status='ready'
 	AND search_vector @@ websearch_to_tsquery('simple',$2)
 	ORDER BY ts_rank_cd(search_vector,websearch_to_tsquery('simple',$2)) DESC,updated_at DESC,id
@@ -42,7 +42,7 @@ func (s *Knowledge) Search(ctx context.Context, actorID, query string) (knowledg
 	items, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (knowledge.Result, error) {
 		var item knowledge.Result
 		var slug string
-		err := row.Scan(&item.Source.DocumentID, &item.Source.Revision, &item.Source.Title, &item.Content, &slug)
+		err := row.Scan(&item.Source.DocumentID, &item.Source.Revision, &item.Source.Title, &item.Content, &slug, &item.Source.ReviewedAt, &item.Source.Owner)
 		item.Source.URL = "kb/" + slug
 		return item, err
 	})

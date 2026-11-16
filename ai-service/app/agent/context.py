@@ -32,6 +32,8 @@ class UserContext:
     tasks_done: int | None = None
     tasks_total: int | None = None
     next_step: NextStep | None = None
+    tone: str | None = None  # friendly | formal | short, задаёт пользователь
+    language: str | None = None  # ru | en, None: язык вопроса
 
     @classmethod
     def from_payload(cls, p: dict) -> "UserContext":
@@ -52,4 +54,6 @@ class UserContext:
                 if ns
                 else None
             ),
+            tone=clean(p.get("tone"), 16) or None,
+            language=clean(p.get("language"), 8) or None,
         )

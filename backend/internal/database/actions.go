@@ -106,7 +106,7 @@ func (s *Tools) ProcessEvent(ctx context.Context, requestID string, event chat.E
 	operation := policy.Operation(input.ActionType)
 	var escalationInput escalationProposal
 	switch operation {
-	case policy.CreateAbsence, policy.UpdateStatus:
+	case policy.CreateAbsence, policy.UpdateStatus, policy.BookSlot, policy.RequestAccess:
 		var args any
 		if json.Unmarshal(input.Details, &args) != nil || toolcontract.Validate(toolcontract.Input(input.ActionType), args) != nil {
 			return event, chat.ErrInvalid

@@ -11,6 +11,9 @@ type Source struct {
 	Title      string `json:"title"`
 	Section    string `json:"section"`
 	URL        string `json:"url"`
+	// Свежесть источника: дата проверки (YYYY-MM-DD) и владелец документа.
+	ReviewedAt *string `json:"reviewed_at,omitempty"`
+	Owner      *string `json:"owner,omitempty"`
 }
 
 type Result struct {

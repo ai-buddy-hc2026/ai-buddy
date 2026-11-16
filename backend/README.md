@@ -240,6 +240,18 @@ ai-service/integrations/mcp_client.py из текущего checkout и запу
 MCP_PYTHON и TEST_DATABASE_URL. Конфигурация теста синтетическая; Redis,
 LLM и UI не участвуют. Полный запуск AI-сервиса проверяется отдельно.
 
+## Моки корпоративных систем
+
+Пакет `internal/mocks`, таблицы из `0012_mocks.sql`, данные `seeds/mocks.sql` (синтетические). Все маршруты требуют токен, видны только своя команда и HR.
+
+- `GET /employees`, `GET /employees/owner?topic=`, `GET /employees/me/first-day`
+- `GET /calendar/{code}/office-hours`, `GET /calendar/bookings`, `POST /calendar/bookings` `{slot_id, topic}` - занятый слот дает 409
+- `GET /learning/courses`, `POST /learning/courses/{code}/complete`
+- `GET /access`, `POST /access/requests` `{system}` - повторная заявка дает 409
+- `GET /map`
+
+HTTP-запись идет по явному нажатию в UI. Из чата бронь и заявка на доступ идут только через action_proposal и `POST /actions/{id}/confirm` (MCP `calendar.book_slot`, `access.request_access`).
+
 ## Стажеры, действия и эскалации
 
 GET /buddy/interns возвращает активных стажеров, явно назначенных текущему buddy.
@@ -264,6 +276,24 @@ GET /actions возвращает только свои действия с фи
 `GET /knowledge/search?q=...` доступен стажерам и ограничен командой из текущего
 профиля. Возвращает опубликованный контент и источник с revision. В чате Python выполняет отдельный векторный поиск после POST /mcp/knowledge-scope;
 миграция 0009 добавляет kb_chunks, миграция 0010 - метаданные ответов.
+
+## Компаньон и планировщик
+
+Пакет `internal/companion`, миграция 0011. Все маршруты требуют JWT:
+
+- `GET /settings`, `PATCH /settings` - тема, язык, тон, рабочие часы с IANA-поясом, тумблеры.
+- `POST /day-mode` `{"enabled":true}` - «Не мой день» на локальную дату, только стажёр.
+- `GET /notifications?unread=true`, `POST /notifications/{id}/read` - входящие проактива.
+- `GET /companion/pilot` (lead) - стажёры с buddy и контрольная группа (`pilot_assignments`).
+- `GET /companion/unanswered?days=30` (buddy, lead) - вопросы без ответа по категориям.
+- `POST /channels/telegram/link`, `DELETE /channels/telegram` - заглушка без реального бота.
+
+`internal/scheduler` раз в 5 минут строит брифинг, подсказки накануне срока, вопрос
+при застревании (задача не менялась 48 часов), напоминания о просрочке, random coffee
+по понедельникам и дни рождения (`user_birthdays`). Кандидаты проходят `companion.Gate`:
+выключенный тумблер или контрольная группа - не создаём, нерабочее время и
+«Не мой день» - `deliver_at` переносится на следующее рабочее окно. Дубли отсекает
+`UNIQUE (user_id, dedup_key)`.
 
 ## API онбординга
 

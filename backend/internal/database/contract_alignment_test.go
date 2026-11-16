@@ -57,7 +57,7 @@ func TestOriginalMCPProfile(t *testing.T) {
 		actor, request string
 		count          int
 	}{
-		{chatAnya, id, 5}, {"4a59a828-3b1a-55e4-bf9b-81db5ad6183a", "", 6}, {"10000000-0000-0000-0000-000000000003", "", 6},
+		{chatAnya, id, 10}, {"4a59a828-3b1a-55e4-bf9b-81db5ad6183a", "", 11}, {"10000000-0000-0000-0000-000000000003", "", 11},
 	} {
 		requestID := tc.request
 		if requestID == "" {

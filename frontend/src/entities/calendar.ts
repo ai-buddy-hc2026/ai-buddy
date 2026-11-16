@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { ApiError } from '@/shared/api/http'
+import { ApiError, IS_MOCK, request } from '@/shared/api/http'
 import { createCollection, mockDelay, newId } from '@/shared/lib/storage'
+import { employeeIdForUser } from './directory'
 
 /**
  * Мок календаря (идея 6): приёмные часы наставника, тимлида, HR BP.
@@ -84,19 +85,90 @@ export function bookSlot(
   }
 }
 
+/* ---------- Go API (backend/internal/mocks) ---------- */
+
+const apiSlotSchema = z.object({
+  id: z.string(),
+  host_code: z.string(),
+  starts_at: z.string(),
+  minutes: z.number().int(),
+  booked_by: z.string().nullable().optional(),
+  topic: z.string().optional(),
+})
+const apiSlotPageSchema = z.object({ items: z.array(apiSlotSchema) })
+const apiBookingSchema = z.object({
+  id: z.string(),
+  slot_id: z.string(),
+  host_code: z.string(),
+  attendee_id: z.string(),
+  starts_at: z.string(),
+  topic: z.string(),
+})
+
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
+/** UTC из API -> локальное «2026-11-12T11:00», как в моке. */
+export function toLocalStart(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+function toSlot(item: z.infer<typeof apiSlotSchema>): Slot {
+  return {
+    id: item.id,
+    employeeId: item.host_code,
+    start: toLocalStart(item.starts_at),
+    minutes: item.minutes,
+    bookedBy: item.booked_by ? employeeIdForUser(item.booked_by) : null,
+    topic: item.topic ?? '',
+  }
+}
+
+export const remoteCalendar = {
+  async officeHours(employeeId: string): Promise<Slot[]> {
+    const page = await request(
+      `/calendar/${encodeURIComponent(employeeId)}/office-hours`,
+      apiSlotPageSchema,
+    )
+    return page.items.map(toSlot)
+  },
+  /** Бэкенд отдаёт брони текущего пользователя по токену. */
+  async myBookings(): Promise<Slot[]> {
+    const page = await request('/calendar/bookings', apiSlotPageSchema)
+    return page.items.map(toSlot)
+  },
+  async book(slotId: string, topic: string): Promise<Booking> {
+    const b = await request('/calendar/bookings', apiBookingSchema, {
+      method: 'POST',
+      body: { slot_id: slotId, topic },
+    })
+    return {
+      id: b.id,
+      slotId: b.slot_id,
+      employeeId: b.host_code,
+      attendeeId: employeeIdForUser(b.attendee_id),
+      start: toLocalStart(b.starts_at),
+      topic: b.topic,
+    }
+  },
+}
+
 export const calendarApi = {
   /** GET /calendar/{employee_id}/office-hours */
   async officeHours(employeeId: string): Promise<Slot[]> {
+    if (!IS_MOCK) return remoteCalendar.officeHours(employeeId)
     await mockDelay(200)
     return z.array(slotSchema).parse(freeSlots(slotsDb.read(), employeeId))
   },
   /** Встречи человека: занятые им слоты */
   async bookingsOf(attendeeId: string): Promise<Slot[]> {
+    if (!IS_MOCK) return remoteCalendar.myBookings()
     await mockDelay(150)
     return slotsDb.read().filter((s) => s.bookedBy === attendeeId)
   },
   /** POST /calendar/bookings {slot_id, attendee_id, topic} */
   async book(slotId: string, attendeeId: string, topic: string): Promise<Booking> {
+    if (!IS_MOCK) return remoteCalendar.book(slotId, topic)
     await mockDelay(500)
     const result = bookSlot(slotsDb.read(), slotId, attendeeId, topic)
     slotsDb.write(result.slots)

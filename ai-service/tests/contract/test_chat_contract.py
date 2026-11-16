@@ -312,6 +312,8 @@ async def test_denied_knowledge_scope_never_reads_kb(monkeypatch):
                     "title": "Synthetic guide",
                     "section": "Setup",
                     "url": "kb/synthetic-guide",
+                    "quote": "Synthetic content",
+                    "confidence": "low",
                 },
             ],
         ),
