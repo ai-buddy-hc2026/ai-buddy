@@ -25,19 +25,145 @@ export const skillLevelsSchema = z.record(
 )
 export type SkillLevels = z.infer<typeof skillLevelsSchema>
 
-export interface Competency {
-  id: string
-  name: { ru: string; en: string }
+export interface Localized {
+  ru: string
+  en: string
 }
 
-/** Карта компетенций роли Backend: `competencies (role, name, levels)`. */
+/** Строка матрицы: описания уровней 1-4 по порядку (`competency_levels`). */
+export interface Competency {
+  id: string
+  name: Localized
+  levels: readonly Localized[]
+}
+
+/** Матрица трека и своя самооценка. Самооценку видит только сам стажёр. */
+export interface CompetencyMatrix {
+  track: string
+  competencies: readonly Competency[]
+  levels: SkillLevels
+}
+
+const competency = (id: string, name: Localized, ru: string[], en: string[]): Competency => ({
+  id,
+  name,
+  levels: ru.map((text, i) => ({ ru: text, en: en[i] ?? text })),
+})
+
+/** Мок матрицы трека Backend, повторяет seeds/competencies.sql. */
 export const BACKEND_COMPETENCIES: readonly Competency[] = [
-  { id: 'go', name: { ru: 'Go и стандартная библиотека', en: 'Go and the standard library' } },
-  { id: 'tests', name: { ru: 'Тесты', en: 'Testing' } },
-  { id: 'review', name: { ru: 'Code review', en: 'Code review' } },
-  { id: 'sql', name: { ru: 'SQL и базы данных', en: 'SQL and databases' } },
-  { id: 'infra', name: { ru: 'CI, деплой, k8s', en: 'CI, deploy, k8s' } },
-  { id: 'comms', name: { ru: 'Коммуникация в команде', en: 'Team communication' } },
+  competency(
+    'go',
+    { ru: 'Go и стандартная библиотека', en: 'Go and the standard library' },
+    [
+      'Читаю код сервиса и запускаю его локально',
+      'Пишу ручку по образцу, ошибки обрабатываю с подсказкой',
+      'Сама пишу пакет с контекстом, ошибками и горутинами',
+      'Объясняю идиомы Go и ревьюю чужой код',
+    ],
+    [
+      'I read the service code and run it locally',
+      'I write a handler from an example, handle errors with help',
+      'I write a package with context, errors and goroutines on my own',
+      "I explain Go idioms and review others' code",
+    ],
+  ),
+  competency(
+    'tests',
+    { ru: 'Тесты', en: 'Testing' },
+    [
+      'Запускаю существующие тесты',
+      'Дописываю табличный тест по образцу',
+      'Покрываю свой код тестами, включая ошибки и границы',
+      'Строю тестовую инфраструктуру и учу других',
+    ],
+    [
+      'I run existing tests',
+      'I add a table test from an example',
+      'I cover my code with tests, including errors and edge cases',
+      'I build test infrastructure and teach others',
+    ],
+  ),
+  competency(
+    'review',
+    { ru: 'Code review', en: 'Code review' },
+    [
+      'Читаю комментарии к своему MR и исправляю',
+      'Готовлю MR с понятным описанием, проходит за 2-3 круга',
+      'Мои MR проходят за 1-2 круга, оставляю полезные комментарии',
+      'Ревьюю MR команды и помогаю договориться',
+    ],
+    [
+      'I read comments on my MR and fix them',
+      'I prepare an MR with a clear description, it passes in 2-3 rounds',
+      'My MRs pass in 1-2 rounds, I leave useful comments',
+      'I review team MRs and help reach agreement',
+    ],
+  ),
+  competency(
+    'sql',
+    { ru: 'SQL и базы данных', en: 'SQL and databases' },
+    [
+      'Пишу простой SELECT по готовой схеме',
+      'Пишу JOIN и миграцию по образцу',
+      'Сама проектирую таблицу, индексы и транзакцию',
+      'Разбираю планы запросов и учу других',
+    ],
+    [
+      'I write a simple SELECT against an existing schema',
+      'I write a JOIN and a migration from an example',
+      'I design a table, indexes and a transaction on my own',
+      'I analyze query plans and teach others',
+    ],
+  ),
+  competency(
+    'api',
+    { ru: 'Проектирование API', en: 'API design' },
+    [
+      'Вызываю готовые ручки по документации',
+      'Добавляю поле в контракт с подсказкой',
+      'Сама проектирую ручку: коды ответов, ошибки, совместимость',
+      'Веду контракт между сервисами и объясняю решения',
+    ],
+    [
+      'I call existing endpoints from the docs',
+      'I add a field to the contract with help',
+      'I design an endpoint on my own: status codes, errors, compatibility',
+      'I own the contract between services and explain decisions',
+    ],
+  ),
+  competency(
+    'infra',
+    { ru: 'CI, деплой, k8s', en: 'CI, deploy, k8s' },
+    [
+      'Смотрю статус пайплайна и логи',
+      'Чиню упавший шаг CI с подсказкой',
+      'Сама выкатываю сервис и откатываю при ошибке',
+      'Настраиваю пайплайн и алерты для команды',
+    ],
+    [
+      'I check pipeline status and logs',
+      'I fix a failed CI step with help',
+      'I deploy the service and roll it back on my own',
+      'I set up the pipeline and alerts for the team',
+    ],
+  ),
+  competency(
+    'comms',
+    { ru: 'Коммуникация в команде', en: 'Team communication' },
+    [
+      'Задаю вопросы в чате команды',
+      'Пишу понятный статус: что сделала, что дальше, где застряла',
+      'Сама договариваюсь о решении с другими командами',
+      'Помогаю новичкам и веду обсуждения',
+    ],
+    [
+      'I ask questions in the team chat',
+      'I write a clear status: done, next, blocked',
+      'I agree on decisions with other teams on my own',
+      'I help newcomers and lead discussions',
+    ],
+  ),
 ]
 
 export const DEFAULT_LEVEL = 2

@@ -34,6 +34,8 @@ type Backend interface {
 	Meetings(context.Context, Actor) (map[string]MeetingRecord, error)
 	SaveMeeting(context.Context, Actor, string, MeetingDraft) (MeetingRecord, error)
 	CoffeePairs(context.Context, Actor) ([]CoffeePair, error)
+	CompetencyMatrix(context.Context, Actor) (CompetencyMatrix, error)
+	SetCompetencyLevel(context.Context, Actor, string, int) (CompetencyMatrix, error)
 }
 
 const (
@@ -180,6 +182,19 @@ func (h handlers) routes() []route {
 		}},
 		{"GET /growth/coffee", func(_ http.ResponseWriter, r *http.Request, a Actor) (any, error) {
 			return page(b.CoffeePairs(r.Context(), a))
+		}},
+		{"GET /growth/competencies", func(_ http.ResponseWriter, r *http.Request, a Actor) (any, error) {
+			return b.CompetencyMatrix(r.Context(), a)
+		}},
+		{"PUT /growth/competencies/{code}", func(w http.ResponseWriter, r *http.Request, a Actor) (any, error) {
+			code := r.PathValue("code")
+			var in struct {
+				Level int `json:"level"`
+			}
+			if !ValidCompetencyCode(code) || decode(w, r, &in) != nil || !ValidCompetencyLevel(in.Level) {
+				return nil, ErrInvalid
+			}
+			return b.SetCompetencyLevel(r.Context(), a, code, in.Level)
 		}},
 	}
 }

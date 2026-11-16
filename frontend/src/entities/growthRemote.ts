@@ -167,3 +167,50 @@ export const apiCoffeePairSchema = z.object({
 export const remoteCoffee = {
   pairs: async () => (await request('/growth/coffee', page(apiCoffeePairSchema))).items,
 }
+
+/* ---------- competencies ---------- */
+
+const localizedSchema = z.object({ ru: z.string(), en: z.string() })
+
+/** GET /growth/competencies: матрица трека и только своя самооценка (myLevel). */
+export const apiCompetencyMatrixSchema = z.object({
+  track: z.string(),
+  items: z.array(
+    z.object({
+      code: z.string(),
+      name: localizedSchema,
+      levels: z.array(z.object({ level: z.number().int(), description: localizedSchema })),
+      myLevel: z.number().int().min(1).max(4).nullable(),
+    }),
+  ),
+})
+export type ApiCompetencyMatrix = z.infer<typeof apiCompetencyMatrixSchema>
+
+/** Ответ API -> модель фронта: описания по порядку уровней, оценки только проставленные. */
+export function toCompetencyMatrix(matrix: ApiCompetencyMatrix) {
+  const levels: Record<string, number> = {}
+  for (const item of matrix.items) {
+    if (item.myLevel !== null) levels[item.code] = item.myLevel
+  }
+  return {
+    track: matrix.track,
+    competencies: matrix.items.map((item) => ({
+      id: item.code,
+      name: item.name,
+      levels: [...item.levels].sort((a, b) => a.level - b.level).map((level) => level.description),
+    })),
+    levels,
+  }
+}
+
+export const remoteCompetencies = {
+  matrix: async () =>
+    toCompetencyMatrix(await request('/growth/competencies', apiCompetencyMatrixSchema)),
+  setLevel: async (code: string, level: number) =>
+    toCompetencyMatrix(
+      await request(`/growth/competencies/${encodeURIComponent(code)}`, apiCompetencyMatrixSchema, {
+        method: 'PUT',
+        body: { level },
+      }),
+    ),
+}
